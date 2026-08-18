@@ -1,0 +1,542 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
+
+import '../block/navigationbar.dart';
+
+const Color _pageColor = Color(0xFFB9ACA2);
+const Color _paperColor = Color(0xFFEBE1C7);
+const Color _shadowColor = Color(0xFF7F1A08);
+
+const Color _darkText = Color(0xFF301717);
+const Color _lockedColor = Color(0xFF82766F);
+const Color _lockedBorder = Color(0xFF7E1616);
+const Color _badgeBorder = Color(0xFF8D7B6E);
+
+class CollectionPage extends StatefulWidget {
+  const CollectionPage({super.key});
+
+  @override
+  State<CollectionPage> createState() => _CollectionPageState();
+}
+
+class _CollectionPageState extends State<CollectionPage> {
+  static const double designWidth = 360;
+  static const double designHeight = 640;
+
+  static const int currentIndex = 2;
+
+  final List<_BadgeSeries> series = [
+    _BadgeSeries(
+      icon: '🏛',
+      title: '台灣古蹟系列',
+      unlocked: 1,
+      total: 10,
+      expanded: true,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+    _BadgeSeries(
+      icon: '🌲',
+      title: '山海寶島系列',
+      unlocked: 1,
+      total: 10,
+      expanded: false,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: _pageColor,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  TextStyle kaisei({
+    double size = 16,
+    FontWeight weight = FontWeight.w400,
+    Color color = _darkText,
+  }) {
+    return GoogleFonts.kaiseiHarunoUmi(
+      fontSize: size,
+      fontWeight: weight,
+      color: color,
+    );
+  }
+
+  void toggleSeries(int index) {
+    setState(() {
+      series[index] = series[index].copyWith(expanded: !series[index].expanded);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _pageColor,
+      extendBody: true,
+      body: Center(
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: designWidth,
+            height: designHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Positioned.fill(child: ColoredBox(color: _pageColor)),
+                Positioned.fill(
+                  child: ScrollConfiguration(
+                    behavior: const _NoScrollbarBehavior(),
+                    child: ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(15, 42, 15, 86),
+                      itemCount: series.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _BadgeSeriesCard(
+                            series: series[index],
+                            kaisei: kaisei,
+                            onTap: () {
+                              toggleSeries(index);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: const AppNavigationBar(currentIndex: currentIndex),
+    );
+  }
+}
+
+class _BadgeSeriesCard extends StatefulWidget {
+  final _BadgeSeries series;
+
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  final VoidCallback onTap;
+
+  const _BadgeSeriesCard({
+    required this.series,
+    required this.kaisei,
+    required this.onTap,
+  });
+
+  @override
+  State<_BadgeSeriesCard> createState() => _BadgeSeriesCardState();
+}
+
+class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
+  bool hovering = false;
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool expanded = widget.series.expanded;
+
+    final double scale = pressing
+        ? 0.985
+        : hovering
+        ? 1.015
+        : 1.0;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          hovering = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hovering = false;
+        });
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: (_) {
+          setState(() {
+            pressing = true;
+          });
+        },
+        onTapUp: (_) {
+          setState(() {
+            pressing = false;
+          });
+        },
+        onTapCancel: () {
+          setState(() {
+            pressing = false;
+          });
+        },
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutBack,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 4,
+                right: -4,
+                top: 5,
+                bottom: expanded ? 5 : 0,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: _shadowColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                decoration: BoxDecoration(
+                  color: _paperColor,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          widget.series.icon,
+                          style: const TextStyle(fontSize: 18, height: 1.0),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.series.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: widget.kaisei(
+                              size: 15,
+                              weight: FontWeight.w700,
+                              color: _darkText,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${widget.series.unlocked}/${widget.series.total}',
+                          style: widget.kaisei(
+                            size: 14,
+                            weight: FontWeight.w700,
+                            color: _darkText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: expanded
+                          ? Padding(
+                              padding: const EdgeInsets.only(
+                                top: 12,
+                                bottom: 0,
+                              ),
+                              child: _BadgeGrid(kaisei: widget.kaisei),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeGrid extends StatelessWidget {
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  const _BadgeGrid({required this.kaisei});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: 10,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        crossAxisSpacing: 9,
+        mainAxisSpacing: 9,
+        childAspectRatio: 1,
+      ),
+      itemBuilder: (context, index) {
+        return _BadgeItem(unlocked: index == 0, kaisei: kaisei);
+      },
+    );
+  }
+}
+
+class _BadgeItem extends StatefulWidget {
+  final bool unlocked;
+
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  const _BadgeItem({required this.unlocked, required this.kaisei});
+
+  @override
+  State<_BadgeItem> createState() => _BadgeItemState();
+}
+
+class _BadgeItemState extends State<_BadgeItem> {
+  bool hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double scale = hovering ? 1.08 : 1.0;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          hovering = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hovering = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: widget.unlocked ? const _UnlockedBadge() : const _LockedBadge(),
+      ),
+    );
+  }
+}
+
+class _UnlockedBadge extends StatelessWidget {
+  const _UnlockedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _BadgeDashedBorderPainter(),
+      child: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFFE6D8AB),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x35000000),
+              blurRadius: 4,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: _badgeBorder, width: 1.3),
+          ),
+          padding: const EdgeInsets.all(3),
+          child: ClipOval(
+            child: Image.asset(
+              'img/Badge_location.png',
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LockedBadge extends StatelessWidget {
+  const _LockedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _BadgeDashedBorderPainter(),
+      child: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: _lockedColor,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x45000000),
+              blurRadius: 4,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeDashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = size.center(Offset.zero);
+    final double radius = size.shortestSide / 2 - 1;
+
+    final Paint paint = Paint()
+      ..color = _lockedBorder
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    const double dashLength = 4.0;
+    const double gapLength = 3.5;
+
+    final double circumference = 2 * math.pi * radius;
+
+    final int count = (circumference / (dashLength + gapLength)).floor();
+
+    if (count <= 0) {
+      return;
+    }
+
+    final double step = 2 * math.pi / count;
+
+    for (int i = 0; i < count; i++) {
+      final double start = i * step;
+
+      final double sweep = step * (dashLength / (dashLength + gapLength));
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start,
+        sweep,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BadgeDashedBorderPainter oldDelegate) {
+    return false;
+  }
+}
+
+class _BadgeSeries {
+  final String icon;
+  final String title;
+  final int unlocked;
+  final int total;
+  final bool expanded;
+
+  const _BadgeSeries({
+    required this.icon,
+    required this.title,
+    required this.unlocked,
+    required this.total,
+    required this.expanded,
+  });
+
+  _BadgeSeries copyWith({
+    String? icon,
+    String? title,
+    int? unlocked,
+    int? total,
+    bool? expanded,
+  }) {
+    return _BadgeSeries(
+      icon: icon ?? this.icon,
+      title: title ?? this.title,
+      unlocked: unlocked ?? this.unlocked,
+      total: total ?? this.total,
+      expanded: expanded ?? this.expanded,
+    );
+  }
+}
+
+class _NoScrollbarBehavior extends ScrollBehavior {
+  const _NoScrollbarBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+}

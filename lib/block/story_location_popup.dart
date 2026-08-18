@@ -1,0 +1,351 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color _popupBackground = Color(0xFFE2D8BD);
+const Color _popupText = Color(0xFF301717);
+const Color _popupRed = Color(0xFF8D1F12);
+
+const Color _buttonBorder = Color(0xFF4A1106);
+const Color _buttonCenter = Color(0xFF9B2A15);
+const Color _buttonOuter = Color(0xFF7D1907);
+
+class StoryLocationPopup extends StatelessWidget {
+  final String title;
+  final String description;
+
+  final VoidCallback onClose;
+  final VoidCallback onReviewStory;
+  final VoidCallback onAround;
+  final VoidCallback onMission;
+  final VoidCallback onNavigate;
+
+  const StoryLocationPopup({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.onClose,
+    required this.onReviewStory,
+    required this.onAround,
+    required this.onMission,
+    required this.onNavigate,
+  });
+
+  TextStyle kaisei({
+    double size = 16,
+    FontWeight weight = FontWeight.w400,
+    Color color = _popupText,
+  }) {
+    return GoogleFonts.kaiseiHarunoUmi(
+      fontSize: size,
+      fontWeight: weight,
+      color: color,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: _popupBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 8,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 0, 55),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 30,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 60),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: kaisei(size: 22, weight: FontWeight.w900),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _ReviewButton(onTap: onReviewStory, kaisei: kaisei),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    top: 0,
+                    child: _CloseButton(onTap: onClose),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 24),
+              child: Text(
+                description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: kaisei(
+                  size: 15,
+                  weight: FontWeight.w800,
+                ).copyWith(height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.only(right: 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _GradientButton(
+                      text: '周邊好去',
+                      onTap: onAround,
+                      kaisei: kaisei,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _GradientButton(
+                      text: '查看任務',
+                      onTap: onMission,
+                      kaisei: kaisei,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _GradientButton(
+                      text: '開始導航',
+                      onTap: onNavigate,
+                      kaisei: kaisei,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 60),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloseButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CloseButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Center(
+            child: Image.asset(
+              'img/NO.png',
+              width: 18,
+              height: 18,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  const _ReviewButton({required this.onTap, required this.kaisei});
+
+  @override
+  State<_ReviewButton> createState() => _ReviewButtonState();
+}
+
+class _ReviewButtonState extends State<_ReviewButton> {
+  bool hovering = false;
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double scale = pressing
+        ? 0.96
+        : hovering
+        ? 1.05
+        : 1.0;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          hovering = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hovering = false;
+        });
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: (_) {
+          setState(() {
+            pressing = true;
+          });
+        },
+        onTapUp: (_) {
+          setState(() {
+            pressing = false;
+          });
+        },
+        onTapCancel: () {
+          setState(() {
+            pressing = false;
+          });
+        },
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutBack,
+          child: Text(
+            '回顧劇情 >>',
+            textAlign: TextAlign.center,
+            style: widget.kaisei(
+              size: 13,
+              weight: FontWeight.w900,
+              color: _popupRed,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientButton extends StatefulWidget {
+  final String text;
+  final VoidCallback onTap;
+
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  const _GradientButton({
+    required this.text,
+    required this.onTap,
+    required this.kaisei,
+  });
+
+  @override
+  State<_GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<_GradientButton> {
+  bool hovering = false;
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double scale = pressing
+        ? 0.95
+        : hovering
+        ? 1.06
+        : 1.0;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          hovering = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hovering = false;
+        });
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: (_) {
+          setState(() {
+            pressing = true;
+          });
+        },
+        onTapUp: (_) {
+          setState(() {
+            pressing = false;
+          });
+        },
+        onTapCancel: () {
+          setState(() {
+            pressing = false;
+          });
+        },
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutBack,
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: _buttonBorder, width: 2),
+              gradient: const RadialGradient(
+                center: Alignment(-0.2, -0.2),
+                radius: 1.15,
+                colors: [_buttonCenter, _buttonCenter, _buttonOuter],
+                stops: [0.0, 0.45, 1.0],
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x66000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              widget.text,
+              textAlign: TextAlign.center,
+              style: widget.kaisei(
+                size: 15,
+                weight: FontWeight.w700,
+                color: const Color(0xFFEBE1C7),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
