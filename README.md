@@ -1,17 +1,45 @@
-# playtaiwan
+# PlayTaiwan-front
 
-A new Flutter project.
+PlayTaiwan 前端
 
-## Getting Started
+flutter doctor
 
-This project is a starting point for a Flutter application.
+如果 `flutter doctor` 沒有重大錯誤，即可開始執行專案。
 
-A few resources to get you started if this is your first Flutter project:
+##  安裝 Flutter 套件
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+進入 Flutter 專案根目錄後，執行：
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+```
+
+
+##  啟動專案
+
+套件安裝完成後，執行：
+
+```bash
+flutter run
+```
+
+即可啟動 Flutter 專案。
+
+如果電腦上有多個裝置，可以先查看目前可用的裝置：
+
+```bash
+flutter devices
+```
+
+再指定裝置執行：
+
+```bash
+flutter run -d <device_id>
+```
+
+例如：
+
+```bash
+flutter run -d chrome
+```
+
