@@ -13,7 +13,14 @@ flutter doctor
 ```bash
 flutter pub get
 ```
-
+reload
+```bash
+r
+```
+restart
+```bash
+R
+```
 
 ##  啟動專案
 
