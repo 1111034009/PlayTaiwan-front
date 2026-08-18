@@ -1,8 +1,8 @@
 # PlayTaiwan-front
-
-PlayTaiwan 前端
-
+##  確認無錯誤
+```bash
 flutter doctor
+```
 
 如果 `flutter doctor` 沒有重大錯誤，即可開始執行專案。
 
