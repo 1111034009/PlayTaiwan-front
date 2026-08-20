@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'merchant_loading_page.dart';
 
 const Color _pageColor = Color(0xFFB9ACA2);
 const Color _paperColor = Color(0xFFEBE1C7);
@@ -23,18 +24,15 @@ class MerchantInputPage extends StatefulWidget {
 class _MerchantInputPageState extends State<MerchantInputPage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
+  static const int maxUploadFiles = 6;
 
   final TextEditingController shopNameController = TextEditingController(
     text: '日式復古串燒居酒屋',
   );
-
   final TextEditingController promotionController = TextEditingController();
 
   int selectedTone = 0;
-
   final List<String> uploadedFiles = [];
-
-  static const int maxUploadFiles = 6;
 
   @override
   void initState() {
@@ -70,53 +68,6 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
     );
   }
 
-  void goBack() {
-    Navigator.pop(context);
-  }
-
-  void selectTone(int index) {
-    setState(() {
-      selectedTone = index;
-    });
-  }
-
-  void uploadFile() {
-    if (uploadedFiles.length >= maxUploadFiles) {
-      showMessage('最多可以上傳 6 個素材');
-      return;
-    }
-
-    setState(() {
-      uploadedFiles.add('promotion_image_${uploadedFiles.length + 1}.jpg');
-    });
-
-    showMessage('已加入素材：${uploadedFiles.last}');
-  }
-
-  void removeFile(int index) {
-    final String fileName = uploadedFiles[index];
-
-    setState(() {
-      uploadedFiles.removeAt(index);
-    });
-
-    showMessage('已移除：$fileName');
-  }
-
-  void generate() {
-    if (shopNameController.text.trim().isEmpty) {
-      showMessage('請輸入店家名稱');
-      return;
-    }
-
-    if (uploadedFiles.isEmpty) {
-      showMessage('請至少上傳一個素材');
-      return;
-    }
-
-    showMessage('正在生成專屬推廣短影音');
-  }
-
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -138,16 +89,56 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
       );
   }
 
+  void uploadFile() {
+    if (uploadedFiles.length >= maxUploadFiles) {
+      showMessage('最多可以上傳 6 個素材');
+      return;
+    }
+
+    setState(() {
+      uploadedFiles.add('promotion_image_${uploadedFiles.length + 1}.jpg');
+    });
+
+    showMessage('已加入素材：${uploadedFiles.last}');
+  }
+
+  void removeFile(int index) {
+    final fileName = uploadedFiles[index];
+
+    setState(() {
+      uploadedFiles.removeAt(index);
+    });
+
+    showMessage('已移除：$fileName');
+  }
+
+  void generate() {
+    if (shopNameController.text.trim().isEmpty) {
+      showMessage('請輸入店家名稱');
+      return;
+    }
+
+    if (uploadedFiles.isEmpty) {
+      showMessage('請至少上傳一個素材');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const VideoLoadingPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _pageColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final double scaleX = constraints.maxWidth / designWidth;
-          final double scaleY = constraints.maxHeight / designHeight;
-
-          final double scale = scaleX < scaleY ? scaleX : scaleY;
+          final scale = [
+            constraints.maxWidth / designWidth,
+            constraints.maxHeight / designHeight,
+          ].reduce((a, b) => a < b ? a : b);
 
           return Center(
             child: SizedBox(
@@ -165,23 +156,18 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                       const Positioned.fill(
                         child: ColoredBox(color: _pageColor),
                       ),
-
-                      // =========================
-                      // 返回：獨立一行
-                      // =========================
                       Positioned(
                         left: 23,
                         top: 20,
-                        child: _BackButton(onTap: goBack, kaisei: kaisei),
+                        child: _BackButton(
+                          onTap: () => Navigator.pop(context),
+                          kaisei: kaisei,
+                        ),
                       ),
-
-                      // =========================
-                      // 大標題：獨立置中
-                      // =========================
                       Positioned(
-                        left: 0,
-                        right: 0,
                         top: 48,
+                        left: 0,
+                        width: designWidth,
                         child: Center(
                           child: _PageTitle(
                             text: '輸入資訊',
@@ -190,10 +176,6 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           ),
                         ),
                       ),
-
-                      // =========================
-                      // 副標題：置中
-                      // =========================
                       Positioned(
                         left: 0,
                         right: 0,
@@ -202,18 +184,24 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           child: Text(
                             '輸入資訊，生成專屬推廣短影音',
                             textAlign: TextAlign.center,
-                            style: kaisei(
-                              size: 15,
-                              weight: FontWeight.w700,
-                              color: Colors.white,
-                            ).copyWith(height: 1.05),
+                            style:
+                                kaisei(
+                                  size: 15,
+                                  weight: FontWeight.w700,
+                                  color: Colors.white,
+                                ).copyWith(
+                                  height: 1.05,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0x66000000),
+                                      offset: Offset(1.2, 1.5),
+                                      blurRadius: 1.5,
+                                    ),
+                                  ],
+                                ),
                           ),
                         ),
                       ),
-
-                      // =========================
-                      // 白紙內容
-                      // =========================
                       Positioned(
                         left: 22,
                         top: 108,
@@ -223,7 +211,6 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 店家名稱
                               Text(
                                 '店家名稱',
                                 style: kaisei(
@@ -231,9 +218,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   weight: FontWeight.w700,
                                 ),
                               ),
-
                               const SizedBox(height: 2),
-
                               SizedBox(
                                 height: 38,
                                 child: TextField(
@@ -265,10 +250,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 9),
-
-                              // 敘事語氣
                               Text(
                                 '敘事語氣',
                                 style: kaisei(
@@ -276,16 +258,15 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   weight: FontWeight.w700,
                                 ),
                               ),
-
                               const SizedBox(height: 5),
-
                               Row(
                                 children: [
                                   Expanded(
                                     child: _ToneButton(
                                       text: '幽默歡謔',
                                       selected: selectedTone == 0,
-                                      onTap: () => selectTone(0),
+                                      onTap: () =>
+                                          setState(() => selectedTone = 0),
                                       kaisei: kaisei,
                                     ),
                                   ),
@@ -294,7 +275,8 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                     child: _ToneButton(
                                       text: '質感專業',
                                       selected: selectedTone == 1,
-                                      onTap: () => selectTone(1),
+                                      onTap: () =>
+                                          setState(() => selectedTone = 1),
                                       kaisei: kaisei,
                                     ),
                                   ),
@@ -303,16 +285,14 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                     child: _ToneButton(
                                       text: '溫情走心',
                                       selected: selectedTone == 2,
-                                      onTap: () => selectTone(2),
+                                      onTap: () =>
+                                          setState(() => selectedTone = 2),
                                       kaisei: kaisei,
                                     ),
                                   ),
                                 ],
                               ),
-
                               const SizedBox(height: 11),
-
-                              // 推廣資訊
                               Text(
                                 '推廣資訊',
                                 style: kaisei(
@@ -320,9 +300,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   weight: FontWeight.w700,
                                 ),
                               ),
-
                               const SizedBox(height: 4),
-
                               Container(
                                 width: double.infinity,
                                 height: 94,
@@ -355,12 +333,8 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 8),
-
-                              // 上傳
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Text(
                                     '上傳',
@@ -373,19 +347,13 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   _UploadButton(onTap: uploadFile),
                                 ],
                               ),
-
                               const SizedBox(height: 4),
-
-                              // 上傳區
                               _UploadArea(
                                 files: uploadedFiles,
                                 onRemove: removeFile,
                                 kaisei: kaisei,
                               ),
-
                               const SizedBox(height: 12),
-
-                              // 生成
                               Center(
                                 child: _GenerateButton(
                                   text: '生成推薦',
@@ -409,10 +377,6 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
   }
 }
 
-// ============================================================
-// Input Paper
-// ============================================================
-
 class _InputPaper extends StatelessWidget {
   final Widget child;
 
@@ -431,14 +395,9 @@ class _InputPaper extends StatelessWidget {
   }
 }
 
-// ============================================================
-// Page Title
-// ============================================================
-
 class _PageTitle extends StatelessWidget {
   final String text;
   final String iconPath;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -453,52 +412,42 @@ class _PageTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(iconPath, width: 24, height: 24, fit: BoxFit.contain),
+        Image.asset(iconPath, width: 24, height: 24),
         const SizedBox(width: 6),
-        _OutlinedTitle(text: text, kaisei: kaisei),
-      ],
-    );
-  }
-}
-
-class _OutlinedTitle extends StatelessWidget {
-  final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
-
-  @override
-  Widget build(BuildContext context) {
-    final TextStyle outlineStyle =
-        kaisei(size: 23, weight: FontWeight.w700, color: Colors.white).copyWith(
-          foreground: Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.6
-            ..color = _darkText,
-        );
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Text(text, style: outlineStyle),
-        Text(
-          text,
-          style: kaisei(size: 23, weight: FontWeight.w700, color: Colors.white),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(
+              text,
+              style:
+                  kaisei(
+                    size: 23,
+                    weight: FontWeight.w700,
+                    color: Colors.white,
+                  ).copyWith(
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 2.6
+                      ..color = _darkText,
+                  ),
+            ),
+            Text(
+              text,
+              style: kaisei(
+                size: 23,
+                weight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-// ============================================================
-// Back Button
-// ============================================================
-
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -514,7 +463,7 @@ class _BackButtonState extends State<_BackButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
+    final scale = pressing
         ? 0.95
         : hovering
         ? 1.06
@@ -525,7 +474,6 @@ class _BackButtonState extends State<_BackButton> {
       onEnter: (_) => setState(() => hovering = true),
       onExit: (_) => setState(() => hovering = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
         onTapUp: (_) => setState(() => pressing = false),
@@ -536,11 +484,21 @@ class _BackButtonState extends State<_BackButton> {
           curve: Curves.easeOutBack,
           child: Text(
             '<< 返回',
-            style: widget.kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: const Color.fromARGB(255, 250, 247, 241),
-            ),
+            style: widget
+                .kaisei(
+                  size: 14,
+                  weight: FontWeight.w700,
+                  color: const Color(0xFFFAF7F1),
+                )
+                .copyWith(
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x66000000),
+                      offset: Offset(1.2, 1.5),
+                      blurRadius: 1.5,
+                    ),
+                  ],
+                ),
           ),
         ),
       ),
@@ -548,15 +506,10 @@ class _BackButtonState extends State<_BackButton> {
   }
 }
 
-// ============================================================
-// Tone Button
-// ============================================================
-
 class _ToneButton extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -577,7 +530,7 @@ class _ToneButtonState extends State<_ToneButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
+    final scale = pressing
         ? 0.96
         : hovering
         ? 1.04
@@ -598,27 +551,18 @@ class _ToneButtonState extends State<_ToneButton> {
           curve: Curves.easeOutBack,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
             height: 34,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              // 選取後仍然使用深色底
-              color: widget.selected
-                  ? _lineColor
-                  : const Color.fromARGB(255, 247, 245, 243),
+              color: widget.selected ? _lineColor : const Color(0xFFF7F5F3),
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: _lineColor, width: 1.5),
             ),
             child: Text(
               widget.text,
-              textAlign: TextAlign.center,
               style: widget.kaisei(
                 size: 12.5,
                 weight: FontWeight.w700,
-
-                // ★ 重點：
-                // 選取後文字固定使用 _paperColor，
-                // 不使用純白色。
                 color: widget.selected ? _paperColor : _lineColor,
               ),
             ),
@@ -629,14 +573,9 @@ class _ToneButtonState extends State<_ToneButton> {
   }
 }
 
-// ============================================================
-// Upload Area
-// ============================================================
-
 class _UploadArea extends StatefulWidget {
   final List<String> files;
-  final Function(int index) onRemove;
-
+  final Function(int) onRemove;
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -655,14 +594,12 @@ class _UploadAreaState extends State<_UploadArea> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = hovering ? 1.015 : 1.0;
-
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => hovering = true),
       onExit: (_) => setState(() => hovering = false),
       child: AnimatedScale(
-        scale: scale,
+        scale: hovering ? 1.015 : 1.0,
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutBack,
         child: Container(
@@ -671,7 +608,7 @@ class _UploadAreaState extends State<_UploadArea> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: _uploadBorder, width: 1),
+            border: Border.all(color: _uploadBorder),
           ),
           child: widget.files.isEmpty
               ? Column(
@@ -716,8 +653,6 @@ class _UploadAreaState extends State<_UploadArea> {
                         ),
                         itemCount: widget.files.length,
                         itemBuilder: (context, index) {
-                          final String fileName = widget.files[index];
-
                           return SizedBox(
                             height: 22,
                             child: Row(
@@ -730,7 +665,7 @@ class _UploadAreaState extends State<_UploadArea> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    fileName,
+                                    widget.files[index],
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: widget.kaisei(
@@ -765,10 +700,6 @@ class _UploadAreaState extends State<_UploadArea> {
   }
 }
 
-// ============================================================
-// Upload Button
-// ============================================================
-
 class _UploadButton extends StatefulWidget {
   final VoidCallback onTap;
 
@@ -784,7 +715,7 @@ class _UploadButtonState extends State<_UploadButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
+    final scale = pressing
         ? 0.90
         : hovering
         ? 1.08
@@ -795,7 +726,6 @@ class _UploadButtonState extends State<_UploadButton> {
       onEnter: (_) => setState(() => hovering = true),
       onExit: (_) => setState(() => hovering = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
         onTapUp: (_) => setState(() => pressing = false),
@@ -815,7 +745,7 @@ class _UploadButtonState extends State<_UploadButton> {
             ),
             child: const Icon(
               Icons.cloud_upload_outlined,
-              color: Color(0xFFEBE1C7),
+              color: _paperColor,
               size: 19,
             ),
           ),
@@ -825,14 +755,9 @@ class _UploadButtonState extends State<_UploadButton> {
   }
 }
 
-// ============================================================
-// Generate Button
-// ============================================================
-
 class _GenerateButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -852,7 +777,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
+    final scale = pressing
         ? 0.96
         : hovering
         ? 1.06
@@ -897,7 +822,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
               style: widget.kaisei(
                 size: 17,
                 weight: FontWeight.w700,
-                color: const Color(0xFFEBE1C7),
+                color: _paperColor,
               ),
             ),
           ),
