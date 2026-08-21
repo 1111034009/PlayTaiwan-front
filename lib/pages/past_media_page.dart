@@ -46,6 +46,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
   int currentIndex = 3;
   int? selectedPostcardIndex;
+  bool showVideo = false;
 
   @override
   void initState() {
@@ -93,6 +94,18 @@ class _PastMediaPageState extends State<PastMediaPage> {
     });
   }
 
+  void openVideo() {
+    setState(() {
+      showVideo = true;
+    });
+  }
+
+  void closeVideo() {
+    setState(() {
+      showVideo = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
@@ -131,12 +144,12 @@ class _PastMediaPageState extends State<PastMediaPage> {
                           top: 88,
                           child: _OutlinedTitle(text: '回憶vlog', kaisei: kaisei),
                         ),
-                        const Positioned(
+                        Positioned(
                           left: 15,
                           right: 15,
                           top: 130,
                           height: 350,
-                          child: _VideoSection(),
+                          child: _VideoSection(onTap: openVideo),
                         ),
                         Positioned(
                           left: 25,
@@ -165,6 +178,8 @@ class _PastMediaPageState extends State<PastMediaPage> {
                 onClose: closePostcard,
               ),
             ),
+          if (showVideo)
+            Positioned.fill(child: _VideoOverlay(onClose: closeVideo)),
         ],
       ),
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
@@ -264,68 +279,145 @@ class _OutlinedTitle extends StatelessWidget {
 }
 
 class _VideoSection extends StatelessWidget {
-  const _VideoSection();
+  final VoidCallback onTap;
+
+  const _VideoSection({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Container(
-        width: 240,
-        height: 426.67,
-        decoration: BoxDecoration(
-          color: _videoPoster,
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.white, width: 1.4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 240,
+          height: 426.67,
+          decoration: BoxDecoration(
+            color: _videoPoster,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.white, width: 1.4),
+          ),
         ),
-        child: const Center(child: _PlayButton()),
       ),
     );
   }
 }
 
-class _PlayButton extends StatefulWidget {
-  const _PlayButton();
+class _VideoOverlay extends StatefulWidget {
+  final VoidCallback onClose;
+
+  const _VideoOverlay({required this.onClose});
 
   @override
-  State<_PlayButton> createState() => _PlayButtonState();
+  State<_VideoOverlay> createState() => _VideoOverlayState();
 }
 
-class _PlayButtonState extends State<_PlayButton> {
-  bool pressing = false;
+class _VideoOverlayState extends State<_VideoOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing ? 0.92 : 1;
-
-    return GestureDetector(
-      onTap: () {},
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutBack,
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: const BoxDecoration(
-            color: Color(0xFF8D1F12),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x55000000),
-                blurRadius: 5,
-                offset: Offset(0, 2),
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: widget.onClose,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(color: Colors.black.withValues(alpha: 0.82)),
               ),
-            ],
+            ),
           ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            color: Colors.white,
-            size: 32,
+          Positioned.fill(
+            child: SafeArea(
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, child) {
+                    final double value = Curves.easeOutBack.transform(
+                      controller.value,
+                    );
+
+                    return Transform.scale(
+                      scale: value,
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: const _VideoPlayerCard(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
-        ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 14,
+            right: 18,
+            child: GestureDetector(
+              onTap: widget.onClose,
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoPlayerCard extends StatelessWidget {
+  const _VideoPlayerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.sizeOf(context);
+
+    final double width = math.min(screenSize.width * 0.92, 520.0);
+
+    final double height = math.min(screenSize.height * 0.82, width * 16 / 9);
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: _videoPoster,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white, width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Color(0xAA000000), blurRadius: 30, spreadRadius: 5),
+        ],
       ),
     );
   }
@@ -814,22 +906,16 @@ class _ZoomablePostcardState extends State<_ZoomablePostcard> {
     return GestureDetector(
       onScaleUpdate: (details) {
         setState(() {
-          // 放大倍率
           scale = details.scale.clamp(1.0, 4.0);
-
-          // 手指拖曳位置
           offset += details.focalPointDelta;
         });
       },
-
       onScaleEnd: (_) {
-        // 放手後恢復原樣
         setState(() {
           scale = 1.0;
           offset = Offset.zero;
         });
       },
-
       child: Transform.translate(
         offset: offset,
         child: Transform.scale(

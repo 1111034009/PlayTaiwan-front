@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
-import 'past_detail_page.dart';
 import '../core/app_colors.dart';
+import 'past_detail_page.dart';
 
 const Color _pageColor = Color(0xFF4F4141);
 const Color _subtitleText = Color(0xCCFFFFFF);
@@ -19,8 +19,8 @@ class PastPage extends StatefulWidget {
 }
 
 class _PastPageState extends State<PastPage> {
-  static const double designWidth = 360.0;
-  static const double designHeight = 640.0;
+  static const double designWidth = 360;
+  static const double designHeight = 640;
   static const double contentScale = 1.04;
 
   int currentIndex = 3;
@@ -64,94 +64,107 @@ class _PastPageState extends State<PastPage> {
 
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.sizeOf(context);
+
     return Scaffold(
       backgroundColor: _pageColor,
       extendBody: true,
-      body: Center(
-        child: Transform.scale(
-          scale: contentScale,
-          child: FittedBox(
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            child: SizedBox(
-              width: designWidth,
-              height: designHeight,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Positioned.fill(child: ColoredBox(color: _pageColor)),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 20,
-                    child: Column(
+      body: Stack(
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: EdgeInsets.only(top: screenSize.height * 0.05),
+              child: Transform.scale(
+                scale: contentScale,
+                alignment: Alignment.topCenter,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: designWidth,
+                    height: screenSize.height / contentScale,
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'img/Scroll.png',
-                              width: 27,
-                              height: 27,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(width: 7),
-                            _OutlinedTitle(text: '收藏館', kaisei: kaisei),
-                          ],
+                        const Positioned.fill(
+                          child: ColoredBox(color: _pageColor),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '查看你過往紀錄',
-                          textAlign: TextAlign.center,
-                          style: kaisei(
-                            size: 14,
-                            weight: FontWeight.w700,
-                            color: _subtitleText,
-                          ).copyWith(height: 1.1),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 20,
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'img/Scroll.png',
+                                    width: 27,
+                                    height: 27,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(width: 7),
+                                  _OutlinedTitle(text: '收藏館', kaisei: kaisei),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '查看你過往紀錄',
+                                textAlign: TextAlign.center,
+                                style: kaisei(
+                                  size: 14,
+                                  weight: FontWeight.w700,
+                                  color: _subtitleText,
+                                ).copyWith(height: 1.1),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 95,
+                          bottom: 0,
+                          child: ScrollConfiguration(
+                            behavior: const _NoScrollbarScrollBehavior(),
+                            child: ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                15,
+                                7,
+                                15,
+                                180,
+                              ),
+                              itemCount: 5,
+                              itemBuilder: (_, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 9),
+                                  child: _PastTicket(
+                                    kaisei: kaisei,
+                                    onTap: openPastRecord,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 95,
-                    bottom: 0,
-                    child: ScrollConfiguration(
-                      behavior: const _NoScrollbarScrollBehavior(),
-                      child: ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.only(
-                          left: 15,
-                          right: 15,
-                          top: 7,
-                          bottom: 110,
-                        ),
-                        itemCount: 5,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 9),
-                            child: _PastTicket(
-                              kaisei: kaisei,
-                              onTap: openPastRecord,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
 }
 
-class _PastTicket extends StatefulWidget {
+class _PastTicket extends StatelessWidget {
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -160,122 +173,88 @@ class _PastTicket extends StatefulWidget {
   const _PastTicket({required this.kaisei, required this.onTap});
 
   @override
-  State<_PastTicket> createState() => _PastTicketState();
-}
-
-class _PastTicketState extends State<_PastTicket> {
-  bool pressing = false;
-
-  @override
   Widget build(BuildContext context) {
-    final double scale = pressing ? 0.985 : 1.0;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 130),
-        curve: Curves.easeOut,
-        child: SizedBox(
-          width: 330,
-          height: 133,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  'img/use_ticket.png',
-                  fit: BoxFit.fill,
-                  filterQuality: FilterQuality.high,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEBE1C7),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF8D7B6E)),
-                      ),
-                    );
-                  },
+    return _PressScale(
+      scale: 0.985,
+      onTap: onTap,
+      child: SizedBox(
+        width: 330,
+        height: 133,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'img/use_ticket.png',
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, __, ___) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBE1C7),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF8D7B6E)),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              left: 15,
+              top: 16,
+              width: 91,
+              height: 94,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4D6B7),
+                  border: Border.all(color: const Color(0xFF8C8176)),
                 ),
               ),
-              Positioned(
-                left: 15,
-                top: 16,
-                width: 91,
-                height: 94,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4D6B7),
-                    border: Border.all(
-                      color: const Color(0xFF8C8176),
-                      width: 1,
+            ),
+            Positioned(
+              left: 120,
+              top: 15,
+              right: 24,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '府城儒生失落卷',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: kaisei(
+                      size: 17,
+                      weight: FontWeight.w900,
+                      color: _seeMoreColor,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '尋著百年軌跡，找回失落記憶...',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: kaisei(
+                      size: 11.5,
+                      weight: FontWeight.w700,
+                      color: _ticketText,
+                    ).copyWith(height: 1.35),
+                  ),
+                ],
               ),
-              Positioned(
-                left: 120,
-                top: 15,
-                right: 24,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '府城儒生失落卷',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: widget.kaisei(
-                        size: 17,
-                        weight: FontWeight.w900,
-                        color: _seeMoreColor,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '尋著百年軌跡，找回失落記憶...',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: widget
-                          .kaisei(
-                            size: 11.5,
-                            weight: FontWeight.w700,
-                            color: _ticketText,
-                          )
-                          .copyWith(height: 1.35),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                right: 40,
-                bottom: 12,
-                child: _ViewButton(kaisei: widget.kaisei, onTap: widget.onTap),
-              ),
-            ],
-          ),
+            ),
+            Positioned(
+              right: 40,
+              bottom: 12,
+              child: _ViewButton(kaisei: kaisei, onTap: onTap),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ViewButton extends StatefulWidget {
+class _ViewButton extends StatelessWidget {
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -284,38 +263,13 @@ class _ViewButton extends StatefulWidget {
   const _ViewButton({required this.kaisei, required this.onTap});
 
   @override
-  State<_ViewButton> createState() => _ViewButtonState();
-}
-
-class _ViewButtonState extends State<_ViewButton> {
-  bool pressing = false;
-
-  @override
   Widget build(BuildContext context) {
-    final double scale = pressing ? 0.95 : 1.0;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutBack,
+    return _PressScale(
+      scale: 0.95,
+      duration: const Duration(milliseconds: 150),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
         child: Container(
           height: 22,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -323,18 +277,62 @@ class _ViewButtonState extends State<_ViewButton> {
           decoration: BoxDecoration(
             color: const Color(0xFFE4D4B5),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8D7B6E), width: 1),
+            border: Border.all(color: const Color(0xFF8D7B6E)),
           ),
           child: Text(
             '查看資料→',
             textAlign: TextAlign.center,
-            style: widget.kaisei(
+            style: kaisei(
               size: 10,
               weight: FontWeight.w900,
               color: _ticketText,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PressScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+  final Duration duration;
+
+  const _PressScale({
+    required this.child,
+    this.onTap,
+    this.scale = 0.96,
+    this.duration = const Duration(milliseconds: 130),
+  });
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool pressing = false;
+
+  void setPressing(bool value) {
+    if (mounted) {
+      setState(() => pressing = value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setPressing(true),
+      onTapUp: (_) => setPressing(false),
+      onTapCancel: () => setPressing(false),
+      child: AnimatedScale(
+        scale: pressing ? widget.scale : 1,
+        duration: widget.duration,
+        curve: Curves.easeOutBack,
+        child: widget.child,
       ),
     );
   }

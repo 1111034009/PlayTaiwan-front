@@ -12,7 +12,6 @@ const Color _pageColor = Color(0xFF4F4141);
 
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
-
 const Color _sectionRed = AppColors.primaryAccent;
 
 const Color _photoColor = AppColors.postcard;
@@ -37,8 +36,8 @@ class PastDetailPage extends StatefulWidget {
 }
 
 class _PastDetailPageState extends State<PastDetailPage> {
-  static const double designWidth = 360.0;
-  static const double designHeight = 640.0;
+  static const double designWidth = 360;
+  static const double designHeight = 640;
   static const double contentScale = 1.06;
 
   int currentIndex = 3;
@@ -83,211 +82,174 @@ class _PastDetailPageState extends State<PastDetailPage> {
     );
   }
 
-  void showMessage(String message) {
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: kaisei(
-              size: 12,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: _darkText,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
-
-  void onNavigationTap(int index) {
-    setState(() {
-      currentIndex = index;
-    });
-
-    if (index == 3) {
-      return;
-    }
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/story-map');
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, '/collection');
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.sizeOf(context);
+
     return Scaffold(
       backgroundColor: _pageColor,
       extendBody: true,
-      body: Center(
-        child: Transform.translate(
-          offset: const Offset(0, -20),
-          child: Transform.scale(
-            scale: contentScale,
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.contain,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Center(
+            child: Transform.scale(
+              scale: contentScale,
               alignment: Alignment.center,
-              child: SizedBox(
-                width: designWidth,
-                height: designHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Positioned.fill(child: ColoredBox(color: _pageColor)),
-                    Positioned(
-                      left: 22,
-                      top: 49,
-                      child: _BackButton(onTap: backToPast, kaisei: kaisei),
-                    ),
-                    Positioned(
-                      left: 16,
-                      top: 78,
-                      width: 328,
-                      height: 504,
-                      child: Image.asset(
-                        'img/long_papper.png',
-                        fit: BoxFit.fill,
-                        filterQuality: FilterQuality.high,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: designWidth,
+                  height: designHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Positioned.fill(
+                        child: ColoredBox(color: _pageColor),
                       ),
-                    ),
-                    Positioned(
-                      left: 35,
-                      right: 35,
-                      top: 105,
-                      bottom: 67,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: kaisei(
-                              size: 20,
-                              weight: FontWeight.w900,
-                              color: _darkText,
-                            ),
-                          ),
-                          Text(
-                            '完成日期：${widget.completedDate}',
-                            style: kaisei(
-                              size: 12,
-                              weight: FontWeight.w700,
-                              color: _sectionRed,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 128,
-                            child: FlutterCarousel(
-                              options: FlutterCarouselOptions(
-                                height: 128,
-                                viewportFraction: 0.68,
-                                initialPage: 1,
-                                enableInfiniteScroll: true,
-                                autoPlay: false,
-                                enlargeCenterPage: true,
-                                showIndicator: false,
-                                pageSnapping: true,
-                                scrollDirection: Axis.horizontal,
-                                enlargeStrategy:
-                                    CenterPageEnlargeStrategy.scale,
+                      Positioned(
+                        left: 16,
+                        top: 60,
+                        width: 328,
+                        height: 545,
+                        child: Image.asset(
+                          'img/long_papper.png',
+                          fit: BoxFit.fill,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
+                      Positioned(
+                        left: 35,
+                        right: 35,
+                        top: 90,
+                        bottom: 20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: kaisei(
+                                size: 20,
+                                weight: FontWeight.w900,
+                                color: _darkText,
                               ),
-                              items: photoAssets.map((asset) {
-                                return _PastPhoto(
-                                  assetPath: asset,
-                                  kaisei: kaisei,
-                                );
-                              }).toList(),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            '探索總覽',
-                            style: kaisei(
-                              size: 16,
-                              weight: FontWeight.w900,
-                              color: _sectionRed,
+                            Text(
+                              '完成日期：${widget.completedDate}',
+                              style: kaisei(
+                                size: 12,
+                                weight: FontWeight.w700,
+                                color: _sectionRed,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          _ChapterItem(
-                            number: '第一站',
-                            title: '臺南孔廟',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第二站',
-                            title: '國立臺灣文學館',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第三站',
-                            title: '林百貨',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第四站',
-                            title: '神農街',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第五站',
-                            title: '臺南孔武廟',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第六站',
-                            title: '天后宮',
-                            kaisei: kaisei,
-                          ),
-                          _ChapterItem(
-                            number: '第七站',
-                            title: '最後真相',
-                            kaisei: kaisei,
-                          ),
-                          const SizedBox(height: 5),
-                          Center(
-                            child: _PrimaryButton(
-                              text: '查看明信片與專屬紀錄片',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const PastMediaPage(),
-                                  ),
-                                );
-                              },
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 128,
+                              child: FlutterCarousel(
+                                options: FlutterCarouselOptions(
+                                  height: 128,
+                                  viewportFraction: 0.68,
+                                  initialPage: 1,
+                                  enableInfiniteScroll: true,
+                                  autoPlay: false,
+                                  enlargeCenterPage: true,
+                                  showIndicator: false,
+                                  pageSnapping: true,
+                                  scrollDirection: Axis.horizontal,
+                                  enlargeStrategy:
+                                      CenterPageEnlargeStrategy.scale,
+                                ),
+                                items: photoAssets.map((asset) {
+                                  return _PastPhoto(
+                                    assetPath: asset,
+                                    kaisei: kaisei,
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '探索總覽',
+                              style: kaisei(
+                                size: 16,
+                                weight: FontWeight.w900,
+                                color: _sectionRed,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            _ChapterItem(
+                              number: '第一站',
+                              title: '臺南孔廟',
                               kaisei: kaisei,
                             ),
-                          ),
-                        ],
+                            _ChapterItem(
+                              number: '第二站',
+                              title: '國立臺灣文學館',
+                              kaisei: kaisei,
+                            ),
+                            _ChapterItem(
+                              number: '第三站',
+                              title: '林百貨',
+                              kaisei: kaisei,
+                            ),
+                            _ChapterItem(
+                              number: '第四站',
+                              title: '神農街',
+                              kaisei: kaisei,
+                            ),
+                            _ChapterItem(
+                              number: '第五站',
+                              title: '臺南孔武廟',
+                              kaisei: kaisei,
+                            ),
+                            _ChapterItem(
+                              number: '第六站',
+                              title: '天后宮',
+                              kaisei: kaisei,
+                            ),
+                            _ChapterItem(
+                              number: '第七站',
+                              title: '最後真相',
+                              kaisei: kaisei,
+                            ),
+                            const SizedBox(height: 5),
+                            Center(
+                              child: _PrimaryButton(
+                                text: '查看明信片與專屬紀錄片',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PastMediaPage(),
+                                    ),
+                                  );
+                                },
+                                kaisei: kaisei,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          Positioned(
+            left: 22,
+            top: screenSize.height * 0.01 + 49 * contentScale,
+            child: Transform.scale(
+              scale: contentScale,
+              alignment: Alignment.topLeft,
+              child: _BackButton(onTap: backToPast, kaisei: kaisei),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
@@ -296,6 +258,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
 
 class _PastPhoto extends StatelessWidget {
   final String assetPath;
+
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -399,8 +362,6 @@ class _BackButtonState extends State<_BackButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing ? 0.95 : 1.0;
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
@@ -420,7 +381,7 @@ class _BackButtonState extends State<_BackButton> {
         });
       },
       child: AnimatedScale(
-        scale: scale,
+        scale: pressing ? 0.95 : 1,
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutBack,
         child: Text(
@@ -458,8 +419,6 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing ? 0.96 : 1.0;
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
@@ -479,7 +438,7 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
         });
       },
       child: AnimatedScale(
-        scale: scale,
+        scale: pressing ? 0.96 : 1,
         duration: const Duration(milliseconds: 170),
         curve: Curves.easeOutBack,
         child: Container(
@@ -493,7 +452,7 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
               center: Alignment(-0.2, -0.2),
               radius: 1.15,
               colors: [_buttonCenter, _buttonCenter, _buttonOuter],
-              stops: [0.0, 0.45, 1.0],
+              stops: [0, 0.45, 1],
             ),
             boxShadow: const [
               BoxShadow(

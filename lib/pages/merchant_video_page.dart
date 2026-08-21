@@ -65,7 +65,7 @@ class MerchantVideoPage extends StatelessWidget {
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _goHome(context),
                         child: Text(
-                          '＜＜ 返回',
+                          '<< 返回',
                           style:
                               kaisei(
                                 size: 14,
