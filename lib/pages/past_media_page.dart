@@ -8,11 +8,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
 import 'past_page.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 
 const Color _pageColor = Color(0xFF4F4141);
-const Color _darkBrown = Color(0xFF3D2D2B);
+const Color _darkBrown = AppColors.darkBrown;
 const Color _videoBackground = Color(0xFF82766F);
-const Color _videoPoster = Color(0xFFEBE1C7);
+const Color _videoPoster = AppColors.paper;
 
 class PastMediaPage extends StatefulWidget {
   const PastMediaPage({super.key});
@@ -170,9 +172,12 @@ class _PastMediaPageState extends State<PastMediaPage> {
   }
 
   double _designScale(Size size) {
-    final double widthScale = size.width / designWidth;
-    final double heightScale = size.height / designHeight;
-    return widthScale < heightScale ? widthScale : heightScale;
+    return AppResponsive.scale(
+      availableWidth: size.width,
+      availableHeight: size.height,
+      designWidth: designWidth,
+      designHeight: designHeight,
+    );
   }
 
   double _postcardTop(Size size) {
@@ -200,38 +205,28 @@ class _BackButton extends StatefulWidget {
 }
 
 class _BackButtonState extends State<_BackButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.06
-        : 1;
+    final double scale = pressing ? 0.95 : 1;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) => setState(() => pressing = true),
-        onTapUp: (_) => setState(() => pressing = false),
-        onTapCancel: () => setState(() => pressing = false),
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: Text(
-            '<< 返回',
-            style: widget.kaisei(
-              size: 16,
-              weight: FontWeight.w700,
-              color: const Color(0xFFE8DCC6),
-            ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Text(
+          '<< 返回',
+          style: widget.kaisei(
+            size: 16,
+            weight: FontWeight.w700,
+            color: const Color(0xFFE8DCC6),
           ),
         ),
       ),
@@ -303,49 +298,39 @@ class _PlayButton extends StatefulWidget {
 }
 
 class _PlayButtonState extends State<_PlayButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.92
-        : hovering
-        ? 1.08
-        : 1;
+    final double scale = pressing ? 0.92 : 1;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
-      child: GestureDetector(
-        onTap: () {},
-        onTapDown: (_) => setState(() => pressing = true),
-        onTapUp: (_) => setState(() => pressing = false),
-        onTapCancel: () => setState(() => pressing = false),
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: Color(0xFF8D1F12),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x55000000),
-                  blurRadius: 5,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.play_arrow_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
+    return GestureDetector(
+      onTap: () {},
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            color: Color(0xFF8D1F12),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x55000000),
+                blurRadius: 5,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            color: Colors.white,
+            size: 32,
           ),
         ),
       ),
@@ -431,7 +416,6 @@ class _PostcardCardState extends State<_PostcardCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController controller;
 
-  bool hovering = false;
   bool pressing = false;
 
   @override
@@ -456,38 +440,29 @@ class _PostcardCardState extends State<_PostcardCard>
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.04
-        : 1;
+    final double scale = pressing ? 0.96 : 1;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) => setState(() => pressing = true),
-        onTapUp: (_) => setState(() => pressing = false),
-        onTapCancel: () => setState(() => pressing = false),
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutBack,
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: widget.rotation,
-                child: _PostcardVisual(
-                  assetPath: widget.assetPath,
-                  isSpecial: widget.isSpecial,
-                  progress: controller.value,
-                ),
-              );
-            },
-          ),
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutBack,
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: widget.rotation,
+              child: _PostcardVisual(
+                assetPath: widget.assetPath,
+                isSpecial: widget.isSpecial,
+                progress: controller.value,
+              ),
+            );
+          },
         ),
       ),
     );

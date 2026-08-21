@@ -8,6 +8,8 @@ import 'pages/past_page.dart';
 
 import 'pages/user_type_page.dart';
 import 'pages/merchant_home_page.dart';
+import 'core/app_colors.dart';
+import 'core/app_text_styles.dart';
 
 void main() {
   runApp(const PlayTaiwanApp());
@@ -22,8 +24,22 @@ class PlayTaiwanApp extends StatelessWidget {
       title: '日遊所思，夜遊所夢',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFB9ACA2),
-        fontFamily: 'serif',
+        scaffoldBackgroundColor: AppColors.background,
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.primary,
+          onPrimary: Colors.white,
+          surface: AppColors.paper,
+          onSurface: AppColors.textPrimary,
+        ),
+        textTheme: TextTheme(
+          bodyLarge: AppTextStyles.body,
+          bodyMedium: AppTextStyles.bodySmall,
+          bodySmall: AppTextStyles.caption,
+          titleLarge: AppTextStyles.title,
+          titleMedium: AppTextStyles.sectionTitle,
+          labelLarge: AppTextStyles.button,
+          labelMedium: AppTextStyles.label,
+        ),
       ),
       initialRoute: '/login',
       routes: {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-
-const Color _navigationTextColor = Color(0xFF301717);
-const Color _navigationBackgroundColor = Color(0xFFF4F2F1);
+import '../core/app_colors.dart';
 
 class AppNavigationBar extends StatefulWidget {
   final int currentIndex;
@@ -80,9 +78,9 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
 
         backgroundColor: Colors.transparent,
 
-        color: _navigationBackgroundColor,
+        color: AppColors.navigationBackground,
 
-        buttonBackgroundColor: Colors.white,
+        buttonBackgroundColor: AppColors.navigationButton,
 
         height: 62,
 
@@ -130,7 +128,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
   }
 }
 
-class _NavigationItem extends StatefulWidget {
+class _NavigationItem extends StatelessWidget {
   final String icon;
   final String label;
   final bool selected;
@@ -142,76 +140,34 @@ class _NavigationItem extends StatefulWidget {
   });
 
   @override
-  State<_NavigationItem> createState() => _NavigationItemState();
-}
-
-class _NavigationItemState extends State<_NavigationItem> {
-  bool isHovering = false;
-
-  @override
   Widget build(BuildContext context) {
-    final double hoverScale = isHovering ? 1.03 : 1.0;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-
-      onEnter: (_) {
-        setState(() {
-          isHovering = true;
-        });
-      },
-
-      onExit: (_) {
-        setState(() {
-          isHovering = false;
-        });
-      },
-
-      child: AnimatedScale(
-        scale: hoverScale,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
-
-        child: SizedBox(
-          width: 58,
-          height: 52,
-
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-
-                width: widget.selected ? 23 : 25,
-
-                height: widget.selected ? 23 : 25,
-
-                child: Image.asset(widget.icon, fit: BoxFit.contain),
-              ),
-
-              const SizedBox(height: 2),
-
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-
-                style: TextStyle(
-                  fontFamily: 'sans',
-                  fontSize: widget.selected ? 10.5 : 11,
-                  fontWeight: widget.selected
-                      ? FontWeight.w800
-                      : FontWeight.w700,
-                  color: _navigationTextColor,
-                  height: 1.0,
-                ),
-
-                child: Text(widget.label, textAlign: TextAlign.center),
-              ),
-            ],
+    return SizedBox(
+      width: 58,
+      height: 52,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            width: selected ? 23 : 25,
+            height: selected ? 23 : 25,
+            child: Image.asset(icon, fit: BoxFit.contain),
           ),
-        ),
+          const SizedBox(height: 2),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            style: TextStyle(
+              fontFamily: 'sans',
+              fontSize: selected ? 10.5 : 11,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              color: AppColors.textPrimary,
+              height: 1.0,
+            ),
+            child: Text(label, textAlign: TextAlign.center),
+          ),
+        ],
       ),
     );
   }

@@ -13,14 +13,6 @@ flutter doctor
 ```bash
 flutter pub get
 ```
-reload
-```bash
-r
-```
-restart
-```bash
-R
-```
 
 ##  啟動專案
 
@@ -49,4 +41,11 @@ flutter run -d <device_id>
 ```bash
 flutter run -d chrome
 ```
-
+reload
+```bash
+r
+```
+restart
+```bash
+R
+```

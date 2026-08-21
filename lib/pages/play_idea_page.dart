@@ -3,13 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
 
 import 'travel_info_page.dart';
 import '../block/navigationbar.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _darkBrown = Color(0xFF3D2D2B);
-const Color _resultText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _darkBrown = AppColors.darkBrown;
+const Color _resultText = AppColors.textPrimary;
 
 const Color _wheelGoldA = Color(0xFFD8C27D);
 const Color _wheelGoldB = Color(0xFFD1B973);

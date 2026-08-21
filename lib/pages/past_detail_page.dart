@@ -5,21 +5,22 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
 import 'past_page.dart';
+import '../core/app_colors.dart';
 import 'past_media_page.dart';
 
 const Color _pageColor = Color(0xFF4F4141);
 
-const Color _darkBrown = Color(0xFF3D2D2B);
-const Color _darkText = Color(0xFF301717);
+const Color _darkBrown = AppColors.darkBrown;
+const Color _darkText = AppColors.textPrimary;
 
-const Color _sectionRed = Color(0xFF8D1F12);
+const Color _sectionRed = AppColors.primaryAccent;
 
-const Color _photoColor = Color(0xFFCBB57C);
-const Color _photoBorder = Color(0xFF8D7B6E);
+const Color _photoColor = AppColors.postcard;
+const Color _photoBorder = AppColors.postcardLine;
 
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 
 class PastDetailPage extends StatefulWidget {
   final String title;
@@ -394,58 +395,40 @@ class _BackButton extends StatefulWidget {
 }
 
 class _BackButtonState extends State<_BackButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.06
-        : 1.0;
+    final double scale = pressing ? 0.95 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: Text(
-            '<< 返回',
-            style: widget.kaisei(
-              size: 16,
-              weight: FontWeight.w700,
-              color: const Color(0xFFE8DCC6),
-            ),
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Text(
+          '<< 返回',
+          style: widget.kaisei(
+            size: 16,
+            weight: FontWeight.w700,
+            color: const Color(0xFFE8DCC6),
           ),
         ),
       ),
@@ -471,80 +454,62 @@ class _PrimaryButton extends StatefulWidget {
 }
 
 class _PrimaryButtonState extends State<_PrimaryButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.06
-        : 1.0;
+    final double scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutBack,
-          child: Container(
-            width: 225,
-            height: 43,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: _buttonBorder, width: 2),
-              gradient: const RadialGradient(
-                center: Alignment(-0.2, -0.2),
-                radius: 1.15,
-                colors: [_buttonCenter, _buttonCenter, _buttonOuter],
-                stops: [0.0, 0.45, 1.0],
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 5,
-                  offset: Offset(0, 2),
-                ),
-              ],
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: 225,
+          height: 43,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _buttonBorder, width: 2),
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.2),
+              radius: 1.15,
+              colors: [_buttonCenter, _buttonCenter, _buttonOuter],
+              stops: [0.0, 0.45, 1.0],
             ),
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 16,
-                weight: FontWeight.w400,
-                color: const Color(0xFFEBE1C7),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 5,
+                offset: Offset(0, 2),
               ),
+            ],
+          ),
+          child: Text(
+            widget.text,
+            textAlign: TextAlign.center,
+            style: widget.kaisei(
+              size: 16,
+              weight: FontWeight.w400,
+              color: const Color(0xFFEBE1C7),
             ),
           ),
         ),

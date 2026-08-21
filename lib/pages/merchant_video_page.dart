@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'merchant_home_page.dart';
+import '../core/app_colors.dart';
 
 const Color _backgroundColor = Color(0xFFC4ADA0);
 const Color _cardColor = Color(0xFFFCF9EA);
-const Color _darkRed = Color(0xFF7E1616);
+const Color _darkRed = AppColors.primaryAccent;
 const Color _textColor = Color(0xFF17110F);
 const Color _lightText = Color(0xFFFCF9EA);
-const Color _buttonText = Color(0xFFEBE1C7);
+const Color _buttonText = AppColors.paper;
 const Color _buttonInner = Color(0xFF724E4E);
-const Color _buttonOuter = Color(0xFF301717);
+const Color _buttonOuter = AppColors.textPrimary;
 const Color _black = Colors.black;
 
 TextStyle kaisei({

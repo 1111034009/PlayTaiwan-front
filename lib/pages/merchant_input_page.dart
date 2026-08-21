@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'merchant_loading_page.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _paperColor = Color(0xFFEBE1C7);
-const Color _darkText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _paperColor = AppColors.paper;
+const Color _darkText = AppColors.textPrimary;
 const Color _lineColor = Color(0xFF473737);
 const Color _hintColor = Color(0xFF7F756D);
 const Color _red = Color(0xFF7F1A08);
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 const Color _uploadBorder = Color(0xFF6D625B);
 
 class MerchantInputPage extends StatefulWidget {
@@ -458,21 +460,14 @@ class _BackButton extends StatefulWidget {
 }
 
 class _BackButtonState extends State<_BackButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.06
-        : 1.0;
+    final scale = pressing ? 0.95 : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
+
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -525,21 +520,14 @@ class _ToneButton extends StatefulWidget {
 }
 
 class _ToneButtonState extends State<_ToneButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.04
-        : 1.0;
+    final scale = pressing ? 0.96 : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
+
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -590,16 +578,12 @@ class _UploadArea extends StatefulWidget {
 }
 
 class _UploadAreaState extends State<_UploadArea> {
-  bool hovering = false;
-
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
+
       child: AnimatedScale(
-        scale: hovering ? 1.015 : 1.0,
+        scale: 1.0,
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutBack,
         child: Container(
@@ -710,21 +694,14 @@ class _UploadButton extends StatefulWidget {
 }
 
 class _UploadButtonState extends State<_UploadButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final scale = pressing
-        ? 0.90
-        : hovering
-        ? 1.08
-        : 1.0;
+    final scale = pressing ? 0.90 : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
+
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -772,21 +749,14 @@ class _GenerateButton extends StatefulWidget {
 }
 
 class _GenerateButtonState extends State<_GenerateButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.06
-        : 1.0;
+    final scale = pressing ? 0.96 : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
+
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),

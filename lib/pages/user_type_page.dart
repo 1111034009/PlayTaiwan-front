@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/app_colors.dart';
+
 class UserTypePage extends StatelessWidget {
   const UserTypePage({super.key});
 
-  static const Color pageColor = Color(0xFFB9ACA2);
-  static const Color darkText = Color(0xFF301717);
-  static const Color red = Color(0xFF8D1F12);
+  static const Color pageColor = AppColors.background;
+  static const Color darkText = AppColors.textPrimary;
+  static const Color red = AppColors.primaryAccent;
 
   TextStyle kaisei({
     double size = 16,
@@ -83,62 +85,52 @@ class _ModeButton extends StatefulWidget {
 }
 
 class _ModeButtonState extends State<_ModeButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.06
-        : 1.0;
+    final scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => hovering = true),
-      onExit: (_) => setState(() => hovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) => setState(() => pressing = true),
-        onTapUp: (_) => setState(() => pressing = false),
-        onTapCancel: () => setState(() => pressing = false),
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Container(
-            width: double.infinity,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: const Color(0xFF4A1106), width: 2),
-              gradient: const RadialGradient(
-                center: Alignment(-0.2, -0.2),
-                radius: 1.15,
-                colors: [
-                  Color(0xFF9B2A15),
-                  Color(0xFF9B2A15),
-                  Color(0xFF7D1907),
-                ],
-                stops: [0.0, 0.45, 1.0],
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 5,
-                  offset: Offset(0, 3),
-                ),
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: double.infinity,
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: AppColors.primaryDark, width: 2),
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.2),
+              radius: 1.15,
+              colors: [
+                AppColors.primaryLight,
+                AppColors.primaryLight,
+                AppColors.primary,
               ],
+              stops: [0.0, 0.45, 1.0],
             ),
-            child: Text(
-              widget.text,
-              style: widget.kaisei(
-                size: 17,
-                weight: FontWeight.w700,
-                color: Colors.white,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 5,
+                offset: Offset(0, 3),
               ),
+            ],
+          ),
+          child: Text(
+            widget.text,
+            style: widget.kaisei(
+              size: 17,
+              weight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
         ),

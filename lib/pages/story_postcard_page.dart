@@ -27,18 +27,10 @@ class StoryPostcardPage extends StatefulWidget {
 }
 
 class _StoryPostcardPageState extends State<StoryPostcardPage> {
-  // ============================================================
-  // 整體畫面尺寸
-  // ============================================================
-
   static const double designWidth = 430;
   static const double designHeight = 760;
 
   int currentIndex = 1;
-
-  // ============================================================
-  // 初始化
-  // ============================================================
 
   @override
   void initState() {
@@ -126,7 +118,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
 
       body: Center(
         child: FittedBox(
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           alignment: Alignment.center,
           child: SizedBox(
             width: designWidth,

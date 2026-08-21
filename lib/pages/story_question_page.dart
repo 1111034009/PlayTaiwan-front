@@ -3,21 +3,22 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
 
 import '../block/navigationbar.dart';
 import 'story_postcard_page.dart';
 
-const Color _background = Color(0xFFD7C7B7);
-const Color _textColor = Color(0xFF301717);
+const Color _background = AppColors.questionBackground;
+const Color _textColor = AppColors.textPrimary;
 const Color _optionTextColor = Color(0xFF000000);
-const Color _selectedTextColor = Color(0xFFEBE1C7);
+const Color _selectedTextColor = AppColors.paper;
 const Color _selectedBackground = Color(0xFF7E1616);
 const Color _answerBorder = Color(0xFF000000);
 const Color _hintTextColor = Color(0x99000000);
-const Color _red = Color(0xFF8D1F12);
+const Color _red = AppColors.primaryAccent;
 
-const Color _buttonColor = Color(0xFF7D1907);
-const Color _buttonBorder = Color(0xFF4A1106);
+const Color _buttonColor = AppColors.primary;
+const Color _buttonBorder = AppColors.primaryDark;
 
 class StoryQuestionPage extends StatefulWidget {
   const StoryQuestionPage({super.key});
@@ -317,7 +318,6 @@ class _BackButtonState extends State<_BackButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -384,7 +384,6 @@ class _TipButtonState extends State<_TipButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -517,7 +516,6 @@ class _AnswerOptionState extends State<_AnswerOption> {
         : _optionTextColor;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -620,7 +618,6 @@ class _SubmitButtonState extends State<_SubmitButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;

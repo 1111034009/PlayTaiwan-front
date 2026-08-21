@@ -3,10 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
 
 import '../block/navigationbar.dart';
 
-const Color _backgroundColor = Color(0xFF473737);
+const Color _backgroundColor = AppColors.storyBackground;
 const Color _titleColor = Colors.white;
 const Color _subtitleColor = Color(0xCCFFFFFF);
 
@@ -14,9 +15,9 @@ const Color _cardBackground = Color(0xFFF4F4F4);
 const Color _cardBorder = Color(0xFFDEB019);
 const Color _cardText = Color(0xFF301717);
 
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 
 const String _badgeAsset = 'img/Badge_location.png';
 
@@ -1223,7 +1224,6 @@ class _EndButtonState extends State<_EndButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;

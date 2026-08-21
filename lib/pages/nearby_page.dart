@@ -3,20 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
+import '../core/app_colors.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
+const Color _pageColor = AppColors.background;
 const Color _darkBrown = Color(0xFF473737);
-
 const Color _backColor = Color(0xFF7E1616);
 const Color _titleColor = Color(0xFF841D0B);
 const Color _addressColor = Color(0xFF871E0C);
-
 const Color _tagText = Color(0xFF483425);
 const Color _tagBorder = Color(0xFF8D7B6E);
-
 const Color _selectedTagColor = Color(0xFF6B4537);
 const Color _selectedTagText = Colors.white;
-
 const Color _bottomPanelColor = Color(0xFFE2D8BD);
 
 class NearbyPage extends StatefulWidget {
@@ -29,21 +26,17 @@ class NearbyPage extends StatefulWidget {
 class _NearbyPageState extends State<NearbyPage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
-
-  static const double panelTop = 48;
-  static const double categoryBarHeight = 54;
-
-  static const double ticketTopSpacing = 52;
+  static const double panelTop = 35;
+  static const double categoryBarHeight = 50;
   static const double ticketHorizontalPadding = 15;
   static const double ticketSpacing = 12;
-  static const double listBottomPadding = 82;
+  static const double listBottomPadding = 90;
 
-  int currentIndex = 1;
   int selectedCategory = 0;
 
-  final List<String> categories = const ['飲食', '景點', '休閒'];
+  final categories = const ['飲食', '景點', '休閒'];
 
-  static const List<_NearbyPlace> places = [
+  static const places = [
     _NearbyPlace(
       title: '福記肉圓（府前路215）',
       time: '06:30–18:00',
@@ -106,21 +99,10 @@ class _NearbyPageState extends State<NearbyPage> {
   }
 
   List<_NearbyPlace> get filteredPlaces {
-    if (selectedCategory == 0) {
-      return places;
-    }
+    if (selectedCategory == 0) return places;
 
-    final String category = categories[selectedCategory];
-
-    return places.where((place) => place.tags.contains(category)).toList();
-  }
-
-  void goHome() {
-    Navigator.pushReplacementNamed(context, '/home');
-  }
-
-  void goBack() {
-    Navigator.pop(context);
+    final category = categories[selectedCategory];
+    return places.where((e) => e.tags.contains(category)).toList();
   }
 
   void openAddress(_NearbyPlace place) {
@@ -152,7 +134,6 @@ class _NearbyPageState extends State<NearbyPage> {
       body: Stack(
         children: [
           const Positioned.fill(child: ColoredBox(color: _pageColor)),
-
           Positioned(
             left: 0,
             right: 0,
@@ -168,7 +149,6 @@ class _NearbyPageState extends State<NearbyPage> {
               ),
             ),
           ),
-
           Center(
             child: FittedBox(
               fit: BoxFit.contain,
@@ -177,12 +157,11 @@ class _NearbyPageState extends State<NearbyPage> {
                 width: designWidth,
                 height: designHeight,
                 child: Stack(
-                  clipBehavior: Clip.none,
                   children: [
                     Positioned(
                       left: 0,
                       right: 0,
-                      top: panelTop,
+                      top: panelTop + categoryBarHeight,
                       bottom: 0,
                       child: ScrollConfiguration(
                         behavior: const _NoScrollbarBehavior(),
@@ -191,7 +170,7 @@ class _NearbyPageState extends State<NearbyPage> {
                           padding: const EdgeInsets.only(
                             left: ticketHorizontalPadding,
                             right: ticketHorizontalPadding,
-                            top: ticketTopSpacing,
+                            top: 0,
                             bottom: listBottomPadding,
                           ),
                           itemCount: filteredPlaces.length,
@@ -207,16 +186,13 @@ class _NearbyPageState extends State<NearbyPage> {
                               child: _NearbyTicket(
                                 place: place,
                                 kaisei: kaisei,
-                                onAddressTap: () {
-                                  openAddress(place);
-                                },
+                                onAddressTap: () => openAddress(place),
                               ),
                             );
                           },
                         ),
                       ),
                     ),
-
                     Positioned(
                       left: 0,
                       right: 0,
@@ -226,11 +202,9 @@ class _NearbyPageState extends State<NearbyPage> {
                         categories: categories,
                         selectedIndex: selectedCategory,
                         onCategoryChanged: (index) {
-                          setState(() {
-                            selectedCategory = index;
-                          });
+                          setState(() => selectedCategory = index);
                         },
-                        onBack: goBack,
+                        onBack: () => Navigator.pop(context),
                         kaisei: kaisei,
                       ),
                     ),
@@ -241,6 +215,7 @@ class _NearbyPageState extends State<NearbyPage> {
           ),
         ],
       ),
+      bottomNavigationBar: const AppNavigationBar(currentIndex: 1),
     );
   }
 }
@@ -250,7 +225,6 @@ class _TopCategoryBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onCategoryChanged;
   final VoidCallback onBack;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -264,8 +238,7 @@ class _TopCategoryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return Padding(
       padding: const EdgeInsets.only(top: 7, left: 18, right: 24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,21 +247,20 @@ class _TopCategoryBar extends StatelessWidget {
           const SizedBox(width: 14),
           Expanded(
             child: Row(
-              children: List.generate(categories.length, (index) {
-                return Expanded(
+              children: List.generate(
+                categories.length,
+                (index) => Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 5),
                     child: _CategoryButton(
                       text: categories[index],
                       selected: selectedIndex == index,
-                      onTap: () {
-                        onCategoryChanged(index);
-                      },
+                      onTap: () => onCategoryChanged(index),
                       kaisei: kaisei,
                     ),
                   ),
-                );
-              }),
+                ),
+              ),
             ),
           ),
         ],
@@ -299,7 +271,6 @@ class _TopCategoryBar extends StatelessWidget {
 
 class _BackTextButton extends StatefulWidget {
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -310,60 +281,28 @@ class _BackTextButton extends StatefulWidget {
 }
 
 class _BackTextButtonState extends State<_BackTextButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.08
-        : 1.0;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 7),
-            child: Text(
-              '<< 返回',
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 12,
-                weight: FontWeight.w900,
-                color: _backColor,
-              ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? .95 : 1,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: Text(
+            '<< 返回',
+            style: widget.kaisei(
+              size: 12,
+              weight: FontWeight.w900,
+              color: _backColor,
             ),
           ),
         ),
@@ -376,7 +315,6 @@ class _CategoryButton extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -392,70 +330,38 @@ class _CategoryButton extends StatefulWidget {
 }
 
 class _CategoryButtonState extends State<_CategoryButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.05
-        : 1.0;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            height: 31,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: widget.selected ? _selectedTagColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(
-                color: widget.selected ? _selectedTagColor : _tagText,
-                width: 1.5,
-              ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? .96 : 1,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 31,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: widget.selected ? _selectedTagColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: widget.selected ? _selectedTagColor : _tagText,
+              width: 1.5,
             ),
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 13,
-                weight: FontWeight.w700,
-                color: widget.selected ? _selectedTagText : _tagText,
-              ),
+          ),
+          child: Text(
+            widget.text,
+            style: widget.kaisei(
+              size: 13,
+              weight: FontWeight.w700,
+              color: widget.selected ? _selectedTagText : _tagText,
             ),
           ),
         ),
@@ -466,10 +372,8 @@ class _CategoryButtonState extends State<_CategoryButton> {
 
 class _NearbyTicket extends StatelessWidget {
   final _NearbyPlace place;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
-
   final VoidCallback onAddressTap;
 
   const _NearbyTicket({
@@ -484,7 +388,6 @@ class _NearbyTicket extends StatelessWidget {
       width: 330,
       height: 166,
       child: Stack(
-        clipBehavior: Clip.none,
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -493,7 +396,6 @@ class _NearbyTicket extends StatelessWidget {
               filterQuality: FilterQuality.high,
             ),
           ),
-
           Positioned(
             top: 12,
             left: 14,
@@ -509,7 +411,6 @@ class _NearbyTicket extends StatelessWidget {
               ),
             ),
           ),
-
           Positioned(
             top: 38,
             left: 14,
@@ -523,7 +424,6 @@ class _NearbyTicket extends StatelessWidget {
               ),
             ),
           ),
-
           Positioned(
             left: 14,
             top: 58,
@@ -531,20 +431,20 @@ class _NearbyTicket extends StatelessWidget {
             height: 69,
             child: _PhotoRow(images: place.images),
           ),
-
           Positioned(
             left: 14,
             bottom: 13,
             child: Row(
-              children: place.tags.map((tag) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 7),
-                  child: _Tag(text: tag, kaisei: kaisei),
-                );
-              }).toList(),
+              children: place.tags
+                  .map(
+                    (tag) => Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: _Tag(text: tag, kaisei: kaisei),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
-
           Positioned(
             right: 66,
             bottom: 14,
@@ -568,8 +468,9 @@ class _PhotoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: List.generate(images.length, (index) {
-        return Expanded(
+      children: List.generate(
+        images.length,
+        (index) => Expanded(
           child: Padding(
             padding: EdgeInsets.only(right: index == images.length - 1 ? 0 : 5),
             child: ClipRRect(
@@ -581,15 +482,14 @@ class _PhotoRow extends StatelessWidget {
               ),
             ),
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 }
 
 class _Tag extends StatelessWidget {
   final String text;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -603,13 +503,11 @@ class _Tag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _tagBorder, width: 1),
+        border: Border.all(color: _tagBorder),
       ),
       child: Text(
         text,
-        textAlign: TextAlign.center,
         style: kaisei(size: 10, weight: FontWeight.w700, color: _tagText),
       ),
     );
@@ -619,7 +517,6 @@ class _Tag extends StatelessWidget {
 class _AddressButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -634,70 +531,39 @@ class _AddressButton extends StatefulWidget {
 }
 
 class _AddressButtonState extends State<_AddressButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.07
-        : 1.0;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.text,
-                style: widget.kaisei(
-                  size: 11,
-                  weight: FontWeight.w700,
-                  color: _addressColor,
-                ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? .95 : 1,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.text,
+              style: widget.kaisei(
+                size: 11,
+                weight: FontWeight.w700,
+                color: _addressColor,
               ),
-              const SizedBox(width: 2),
-              Image.asset(
-                'img/see_more.png',
-                width: 15,
-                height: 15,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 2),
+            Image.asset(
+              'img/see_more.png',
+              width: 15,
+              height: 15,
+              fit: BoxFit.contain,
+            ),
+          ],
         ),
       ),
     );
@@ -712,18 +578,14 @@ class _NoScrollbarBehavior extends ScrollBehavior {
     BuildContext context,
     Widget child,
     ScrollableDetails details,
-  ) {
-    return child;
-  }
+  ) => child;
 
   @override
   Widget buildOverscrollIndicator(
     BuildContext context,
     Widget child,
     ScrollableDetails details,
-  ) {
-    return child;
-  }
+  ) => child;
 }
 
 class _NearbyPlace {

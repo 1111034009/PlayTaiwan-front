@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
 
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _darkBrown = Color(0xFF3D2D2B);
-const Color _darkText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _darkBrown = AppColors.darkBrown;
+const Color _darkText = AppColors.textPrimary;
 const Color _optionColor = Color(0xFF473737);
 
 const Color _redrawBorder = Color(0xFF4A1106);
@@ -657,7 +658,6 @@ class _ChoiceButtonState extends State<_ChoiceButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -749,7 +749,6 @@ class _GenerateButtonState extends State<_GenerateButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;

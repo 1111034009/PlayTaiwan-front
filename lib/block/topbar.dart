@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/app_colors.dart';
+
 // const Color _topColor = Color(0xFFEBE1C7);
-const Color _darkText = Color(0xFF301717);
+const Color _darkText = AppColors.textPrimary;
 
 const double topBarDesignWidth = 360.0;
 const double topBarDesignHeight = 70.0;
@@ -189,7 +191,7 @@ class _ProgressItem extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   // 背景
-                  const ColoredBox(color: Color(0xFFC5B27C)),
+                  const ColoredBox(color: AppColors.progressTrack),
 
                   // 已完成
                   Align(
@@ -198,7 +200,7 @@ class _ProgressItem extends StatelessWidget {
                       widthFactor: progress,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF93412E),
+                          color: AppColors.progressValue,
                           borderRadius: BorderRadius.circular(20.0 * scale),
                         ),
                       ),

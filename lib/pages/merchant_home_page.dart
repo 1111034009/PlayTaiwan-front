@@ -3,14 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 
-const Color pageColor = Color(0xFFB9ACA2);
+const Color pageColor = AppColors.background;
 const Color paperColor = Color(0xFFFCF9EA);
 const Color paperBorder = Color(0xFF000000);
-const Color darkText = Color(0xFF301717);
-const Color red = Color(0xFF7F1A08);
-const Color generateRed = Color(0xFF7E1616);
-const Color itemColor = Color(0xFFEBE1C7);
+const Color darkText = AppColors.textPrimary;
+const Color red = AppColors.primaryDark;
+const Color generateRed = AppColors.primaryAccent;
+const Color itemColor = AppColors.paper;
 
 class MerchantHomePage extends StatefulWidget {
   const MerchantHomePage({super.key});
@@ -101,9 +103,12 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       backgroundColor: pageColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final double scaleX = constraints.maxWidth / designWidth;
-          final double scaleY = constraints.maxHeight / designHeight;
-          final double scale = scaleX < scaleY ? scaleX : scaleY;
+          final scale = AppResponsive.scale(
+            availableWidth: constraints.maxWidth,
+            availableHeight: constraints.maxHeight,
+            designWidth: designWidth,
+            designHeight: designHeight,
+          );
 
           return Center(
             child: SizedBox(
@@ -325,37 +330,16 @@ class _SmallActionButton extends StatefulWidget {
 }
 
 class _SmallActionButtonState extends State<_SmallActionButton> {
-  bool hovering = false;
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    double scale = 1;
-
-    if (hovering) {
-      scale = 1.05;
-    }
-
-    if (pressing) {
-      scale = 0.96;
-    }
+    final double scale = pressing ? 0.96 : 1;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) {
-            setState(() {
-              hovering = true;
-            });
-          },
-          onExit: (_) {
-            setState(() {
-              hovering = false;
-            });
-          },
-          child: GestureDetector(
+        GestureDetector(
             onTap: widget.onTap,
             onTapDown: (_) {
               setState(() {
@@ -409,7 +393,6 @@ class _SmallActionButtonState extends State<_SmallActionButton> {
               ),
             ),
           ),
-        ),
         const Positioned(right: -2, top: -9, child: _Pin(size: 18)),
       ],
     );
@@ -434,34 +417,13 @@ class _GenerateVideoButton extends StatefulWidget {
 }
 
 class _GenerateVideoButtonState extends State<_GenerateVideoButton> {
-  bool hovering = false;
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    double scale = 1;
+    final double scale = pressing ? 0.96 : 1;
 
-    if (hovering) {
-      scale = 1.05;
-    }
-
-    if (pressing) {
-      scale = 0.96;
-    }
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
+    return GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) {
           setState(() {
@@ -507,8 +469,7 @@ class _GenerateVideoButtonState extends State<_GenerateVideoButton> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -595,34 +556,13 @@ class _RecentFileItem extends StatefulWidget {
 }
 
 class _RecentFileItemState extends State<_RecentFileItem> {
-  bool hovering = false;
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    double scale = 1;
+    final double scale = pressing ? 0.98 : 1;
 
-    if (hovering) {
-      scale = 1.015;
-    }
-
-    if (pressing) {
-      scale = 0.98;
-    }
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
+    return GestureDetector(
         onTap: widget.onPlay,
         onTapDown: (_) {
           setState(() {
@@ -697,8 +637,7 @@ class _RecentFileItemState extends State<_RecentFileItem> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -712,34 +651,13 @@ class _PlayButton extends StatefulWidget {
 }
 
 class _PlayButtonState extends State<_PlayButton> {
-  bool hovering = false;
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    double scale = 1;
+    final double scale = pressing ? 0.90 : 1;
 
-    if (hovering) {
-      scale = 1.08;
-    }
-
-    if (pressing) {
-      scale = 0.90;
-    }
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
+    return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         onTapDown: (_) {
@@ -776,8 +694,7 @@ class _PlayButtonState extends State<_PlayButton> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

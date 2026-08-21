@@ -4,12 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 import '../block/navigationbar.dart';
+import '../core/app_colors.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _paperColor = Color(0xFFEBE1C7);
+const Color _pageColor = AppColors.background;
+const Color _paperColor = AppColors.paper;
 const Color _shadowColor = Color(0xFF7F1A08);
 
-const Color _darkText = Color(0xFF301717);
+const Color _darkText = AppColors.textPrimary;
 const Color _lockedColor = Color(0xFF82766F);
 const Color _lockedBorder = Color(0xFF7E1616);
 const Color _badgeBorder = Color(0xFF8D7B6E);
@@ -179,132 +180,111 @@ class _BadgeSeriesCard extends StatefulWidget {
 }
 
 class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
     final bool expanded = widget.series.expanded;
 
-    final double scale = pressing
-        ? 0.985
-        : hovering
-        ? 1.015
-        : 1.0;
+    final double scale = pressing ? 0.985 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                left: 4,
-                right: -4,
-                top: 5,
-                bottom: expanded ? 5 : 0,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  decoration: BoxDecoration(
-                    color: _shadowColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              AnimatedContainer(
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: 4,
+              right: -4,
+              top: 5,
+              bottom: expanded ? 5 : 0,
+              child: AnimatedContainer(
                 duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
                 decoration: BoxDecoration(
-                  color: _paperColor,
+                  color: _shadowColor,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.white, width: 1),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          widget.series.icon,
-                          style: const TextStyle(fontSize: 18, height: 1.0),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            widget.series.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: widget.kaisei(
-                              size: 15,
-                              weight: FontWeight.w700,
-                              color: _darkText,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${widget.series.unlocked}/${widget.series.total}',
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+              decoration: BoxDecoration(
+                color: _paperColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.white, width: 1),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        widget.series.icon,
+                        style: const TextStyle(fontSize: 18, height: 1.0),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          widget.series.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: widget.kaisei(
-                            size: 14,
+                            size: 15,
                             weight: FontWeight.w700,
                             color: _darkText,
                           ),
                         ),
-                      ],
-                    ),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: expanded
-                          ? Padding(
-                              padding: const EdgeInsets.only(
-                                top: 12,
-                                bottom: 0,
-                              ),
-                              child: _BadgeGrid(kaisei: widget.kaisei),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${widget.series.unlocked}/${widget.series.total}',
+                        style: widget.kaisei(
+                          size: 14,
+                          weight: FontWeight.w700,
+                          color: _darkText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: expanded
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 0),
+                            child: _BadgeGrid(kaisei: widget.kaisei),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -350,30 +330,15 @@ class _BadgeItem extends StatefulWidget {
 }
 
 class _BadgeItemState extends State<_BadgeItem> {
-  bool hovering = false;
-
   @override
   Widget build(BuildContext context) {
-    final double scale = hovering ? 1.08 : 1.0;
+    const double scale = 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOutBack,
-        child: widget.unlocked ? const _UnlockedBadge() : const _LockedBadge(),
-      ),
+    return AnimatedScale(
+      scale: scale,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutBack,
+      child: widget.unlocked ? const _UnlockedBadge() : const _LockedBadge(),
     );
   }
 }

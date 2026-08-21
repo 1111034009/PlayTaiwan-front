@@ -4,10 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
 import 'past_detail_page.dart';
+import '../core/app_colors.dart';
 
 const Color _pageColor = Color(0xFF4F4141);
 const Color _subtitleText = Color(0xCCFFFFFF);
-const Color _ticketText = Color(0xFF301717);
+const Color _ticketText = AppColors.textPrimary;
 const Color _seeMoreColor = Color(0xFF871E0C);
 
 class PastPage extends StatefulWidget {
@@ -163,131 +164,113 @@ class _PastTicket extends StatefulWidget {
 }
 
 class _PastTicketState extends State<_PastTicket> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.985
-        : hovering
-        ? 1.008
-        : 1.0;
+    final double scale = pressing ? 0.985 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 130),
-          curve: Curves.easeOut,
-          child: SizedBox(
-            width: 330,
-            height: 133,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: Image.asset(
-                    'img/use_ticket.png',
-                    fit: BoxFit.fill,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEBE1C7),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF8D7B6E)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  left: 15,
-                  top: 16,
-                  width: 91,
-                  height: 94,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE4D6B7),
-                      border: Border.all(
-                        color: const Color(0xFF8C8176),
-                        width: 1,
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOut,
+        child: SizedBox(
+          width: 330,
+          height: 133,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'img/use_ticket.png',
+                  fit: BoxFit.fill,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBE1C7),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF8D7B6E)),
                       ),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                left: 15,
+                top: 16,
+                width: 91,
+                height: 94,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE4D6B7),
+                    border: Border.all(
+                      color: const Color(0xFF8C8176),
+                      width: 1,
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 120,
-                  top: 15,
-                  right: 24,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '府城儒生失落卷',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: widget.kaisei(
-                          size: 17,
-                          weight: FontWeight.w900,
-                          color: _seeMoreColor,
-                        ),
+              ),
+              Positioned(
+                left: 120,
+                top: 15,
+                right: 24,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '府城儒生失落卷',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: widget.kaisei(
+                        size: 17,
+                        weight: FontWeight.w900,
+                        color: _seeMoreColor,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '尋著百年軌跡，找回失落記憶...',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: widget
-                            .kaisei(
-                              size: 11.5,
-                              weight: FontWeight.w700,
-                              color: _ticketText,
-                            )
-                            .copyWith(height: 1.35),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '尋著百年軌跡，找回失落記憶...',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: widget
+                          .kaisei(
+                            size: 11.5,
+                            weight: FontWeight.w700,
+                            color: _ticketText,
+                          )
+                          .copyWith(height: 1.35),
+                    ),
+                  ],
                 ),
-                Positioned(
-                  right: 40,
-                  bottom: 12,
-                  child: _ViewButton(
-                    kaisei: widget.kaisei,
-                    onTap: widget.onTap,
-                  ),
+              ),
+              Positioned(
+                right: 40,
+                bottom: 12,
+                child: _ViewButton(
+                  kaisei: widget.kaisei,
+                  onTap: widget.onTap,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -308,68 +291,50 @@ class _ViewButton extends StatefulWidget {
 }
 
 class _ViewButtonState extends State<_ViewButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.07
-        : 1.0;
+    final double scale = pressing ? 0.95 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: Container(
-            height: 22,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE4D4B5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF8D7B6E), width: 1),
-            ),
-            child: Text(
-              '查看資料→',
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 10,
-                weight: FontWeight.w900,
-                color: _ticketText,
-              ),
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Container(
+          height: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE4D4B5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF8D7B6E), width: 1),
+          ),
+          child: Text(
+            '查看資料→',
+            textAlign: TextAlign.center,
+            style: widget.kaisei(
+              size: 10,
+              weight: FontWeight.w900,
+              color: _ticketText,
             ),
           ),
         ),

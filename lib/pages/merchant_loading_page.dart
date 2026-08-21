@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'merchant_video_page.dart';
+import '../core/app_colors.dart';
 
-const Color _backgroundColor = Color(0xFF301717);
-const Color _lightText = Color(0xFFEBE1C7);
-const Color _progressBackground = Color(0xFFEBE1C7);
+const Color _backgroundColor = AppColors.textPrimary;
+const Color _lightText = AppColors.paper;
+const Color _progressBackground = AppColors.paper;
 const Color _progressColor = Color(0xFFC7381E);
 const Color _black = Colors.black;
 

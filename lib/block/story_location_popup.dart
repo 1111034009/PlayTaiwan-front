@@ -156,21 +156,18 @@ class _CloseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: Center(
-            child: Image.asset(
-              'img/NO.png',
-              width: 18,
-              height: 18,
-              fit: BoxFit.contain,
-            ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Center(
+          child: Image.asset(
+            'img/NO.png',
+            width: 18,
+            height: 18,
+            fit: BoxFit.contain,
           ),
         ),
       ),
@@ -191,59 +188,41 @@ class _ReviewButton extends StatefulWidget {
 }
 
 class _ReviewButtonState extends State<_ReviewButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.05
-        : 1.0;
+    final double scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Text(
-            '回顧劇情 >>',
-            textAlign: TextAlign.center,
-            style: widget.kaisei(
-              size: 13,
-              weight: FontWeight.w900,
-              color: _popupRed,
-            ),
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Text(
+          '回顧劇情 >>',
+          textAlign: TextAlign.center,
+          style: widget.kaisei(
+            size: 13,
+            weight: FontWeight.w900,
+            color: _popupRed,
           ),
         ),
       ),
@@ -269,79 +248,61 @@ class _GradientButton extends StatefulWidget {
 }
 
 class _GradientButtonState extends State<_GradientButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.95
-        : hovering
-        ? 1.06
-        : 1.0;
+    final double scale = pressing ? 0.95 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Container(
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: _buttonBorder, width: 2),
-              gradient: const RadialGradient(
-                center: Alignment(-0.2, -0.2),
-                radius: 1.15,
-                colors: [_buttonCenter, _buttonCenter, _buttonOuter],
-                stops: [0.0, 0.45, 1.0],
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _buttonBorder, width: 2),
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.2),
+              radius: 1.15,
+              colors: [_buttonCenter, _buttonCenter, _buttonOuter],
+              stops: [0.0, 0.45, 1.0],
             ),
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 15,
-                weight: FontWeight.w700,
-                color: const Color(0xFFEBE1C7),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 4,
+                offset: Offset(0, 2),
               ),
+            ],
+          ),
+          child: Text(
+            widget.text,
+            textAlign: TextAlign.center,
+            style: widget.kaisei(
+              size: 15,
+              weight: FontWeight.w700,
+              color: const Color(0xFFEBE1C7),
             ),
           ),
         ),

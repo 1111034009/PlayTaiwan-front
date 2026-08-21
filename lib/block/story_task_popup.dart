@@ -219,61 +219,43 @@ class _CloseButton extends StatefulWidget {
 }
 
 class _CloseButtonState extends State<_CloseButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.90
-        : hovering
-        ? 1.10
-        : 1.0;
+    final double scale = pressing ? 0.90 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutBack,
-          child: SizedBox(
-            width: 30,
-            height: 30,
-            child: Center(
-              child: Image.asset(
-                'img/NO.png',
-                width: 19,
-                height: 19,
-                fit: BoxFit.contain,
-              ),
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Center(
+            child: Image.asset(
+              'img/NO.png',
+              width: 19,
+              height: 19,
+              fit: BoxFit.contain,
             ),
           ),
         ),
@@ -295,59 +277,41 @@ class _ReviewStoryButton extends StatefulWidget {
 }
 
 class _ReviewStoryButtonState extends State<_ReviewStoryButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.06
-        : 1.0;
+    final double scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Text(
-            '回顧劇情 >>',
-            textAlign: TextAlign.center,
-            style: widget.kaisei(
-              size: 12,
-              weight: FontWeight.w900,
-              color: _taskRed,
-            ),
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Text(
+          '回顧劇情 >>',
+          textAlign: TextAlign.center,
+          style: widget.kaisei(
+            size: 12,
+            weight: FontWeight.w900,
+            color: _taskRed,
           ),
         ),
       ),
@@ -373,80 +337,62 @@ class _GradientButton extends StatefulWidget {
 }
 
 class _GradientButtonState extends State<_GradientButton> {
-  bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.06
-        : 1.0;
+    final double scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
         setState(() {
-          hovering = true;
+          pressing = true;
         });
       },
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          hovering = false;
+          pressing = false;
         });
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutBack,
-          child: Container(
-            width: 282,
-            height: 43,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: _buttonBorder, width: 2),
-              gradient: const RadialGradient(
-                center: Alignment(-0.2, -0.2),
-                radius: 1.15,
-                colors: [_buttonCenter, _buttonCenter, _buttonOuter],
-                stops: [0.0, 0.45, 1.0],
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: 282,
+          height: 43,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _buttonBorder, width: 2),
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.2),
+              radius: 1.15,
+              colors: [_buttonCenter, _buttonCenter, _buttonOuter],
+              stops: [0.0, 0.45, 1.0],
             ),
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 16,
-                weight: FontWeight.w700,
-                color: const Color(0xFFEBE1C7),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 4,
+                offset: Offset(0, 2),
               ),
+            ],
+          ),
+          child: Text(
+            widget.text,
+            textAlign: TextAlign.center,
+            style: widget.kaisei(
+              size: 16,
+              weight: FontWeight.w700,
+              color: const Color(0xFFEBE1C7),
             ),
           ),
         ),

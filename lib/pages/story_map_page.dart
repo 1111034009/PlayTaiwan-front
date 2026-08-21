@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 
 import '../../block/navigationbar.dart';
 import '../../block/story_location_popup.dart';
@@ -13,9 +15,9 @@ import 'nearby_page.dart';
 import 'story_play_page.dart';
 import 'story_question_page.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _topColor = Color(0xFFEBE1C7);
-const Color _darkText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _topColor = AppColors.paper;
+const Color _darkText = AppColors.textPrimary;
 
 const Color _daySelectedBackground = Color(0xFF7F1A08);
 const Color _daySelectedText = Color(0xFFEBE1C7);
@@ -78,10 +80,13 @@ class _StoryMapPageState extends State<StoryMapPage> {
   }
 
   double _getScale(double width, double height) {
-    final double widthScale = width / designWidth;
-    final double heightScale = height / designHeight;
-
-    return math.min(math.min(widthScale, heightScale), maxScale);
+    return AppResponsive.scale(
+      availableWidth: width,
+      availableHeight: height,
+      designWidth: designWidth,
+      designHeight: designHeight,
+      max: maxScale,
+    );
   }
 
   void openConfuciusTemple() {
@@ -402,7 +407,6 @@ class _MapContent extends StatelessWidget {
             width: 150,
             height: 96,
             child: MouseRegion(
-              cursor: SystemMouseCursors.click,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onConfuciusTempleTap,
@@ -501,7 +505,6 @@ class _DayButtonState extends State<_DayButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         setState(() {
           hovering = true;

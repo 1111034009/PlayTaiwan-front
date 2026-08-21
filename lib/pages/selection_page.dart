@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_colors.dart';
 
 import '../block/navigationbar.dart';
 import 'home_page.dart';
@@ -18,7 +19,7 @@ class _SelectionPageState extends State<SelectionPage> {
   // Colors
   // ==================================================================
 
-  static const Color pageColor = Color(0xFFB9ACA2);
+  static const Color pageColor = AppColors.background;
 
   static const Color darkText = Color(0xFF301717);
 
@@ -497,7 +498,6 @@ class _LocationButtonState extends State<_LocationButton> {
     }
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
 
       onEnter: (_) {
         setState(() {
@@ -674,7 +674,6 @@ class _HoverScaleButtonState extends State<_HoverScaleButton> {
     }
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
 
       onEnter: (_) {
         setState(() {
@@ -759,7 +758,6 @@ class _RedStartButtonState extends State<_RedStartButton> {
     }
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
 
       onEnter: (_) {
         setState(() {

@@ -1,3 +1,5 @@
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -8,9 +10,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _topColor = Color(0xFFEBE1C7);
-const Color _darkText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _topColor = AppColors.paper;
+const Color _darkText = AppColors.textPrimary;
 
 const Color _skipStart = Color(0x66CBB57C);
 const Color _skipEnd = Color(0x55AA9038);
@@ -113,11 +115,13 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   double _getScale(double width, double height) {
-    final double widthScale = width / designWidth;
-
-    final double heightScale = height / designHeight;
-
-    return math.min(math.min(widthScale, heightScale), maxScale);
+    return AppResponsive.scale(
+      availableWidth: width,
+      availableHeight: height,
+      designWidth: designWidth,
+      designHeight: designHeight,
+      max: maxScale,
+    );
   }
 
   @override
@@ -413,7 +417,6 @@ class _SkipStoryButton extends StatelessWidget {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
       onEnter: (_) {
         onHoverEnter();
       },

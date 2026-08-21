@@ -2,28 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../block/navigationbar.dart';
 import 'script_detail_page.dart';
 
-// ============================================================
-// 頁面主要配色
-// ============================================================
-
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _darkBrown = Color(0xFF3D2D2B);
-// const Color _darkText = Color(0xFF301717);
-const Color _ticketText = Color(0xFF301717);
+const Color _pageColor = AppColors.background;
+const Color _darkBrown = AppColors.darkBrown;
+const Color _ticketText = AppColors.textPrimary;
 const Color _ticketSubText = Color(0xFF6D625B);
-
-// ============================================================
-// 票券「觀看更多」配色
-// ============================================================
-
 const Color _seeMoreColor = Color(0xFF871E0C);
-
-// ============================================================
-// 劇本選擇頁
-// ============================================================
 
 class ChooseScriptPage extends StatefulWidget {
   const ChooseScriptPage({super.key});
@@ -33,28 +21,12 @@ class ChooseScriptPage extends StatefulWidget {
 }
 
 class _ChooseScriptPageState extends State<ChooseScriptPage> {
-  // ============================================================
-  // 設計寬度
-  // ============================================================
-
   static const double designWidth = 360.0;
-
-  // ============================================================
-  // 頁面縮放範圍
-  // ============================================================
-
+  static const double designHeight = 640.0;
   static const double minScale = 0.85;
   static const double maxScale = 1.25;
 
-  // ============================================================
-  // 底部導覽目前選取項目
-  // ============================================================
-
   int currentIndex = 1;
-
-  // ============================================================
-  // 劇本資料
-  // ============================================================
 
   final List<_ScriptData> scripts = const [
     _ScriptData(
@@ -80,15 +52,10 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
     ),
   ];
 
-  // ============================================================
-  // 初始化頁面
-  // ============================================================
-
   @override
   void initState() {
     super.initState();
 
-    // 設定系統狀態列與底部系統導覽列顏色
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: _pageColor,
@@ -99,10 +66,6 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
       ),
     );
   }
-
-  // ============================================================
-  // Kaisei 字體統一設定
-  // ============================================================
 
   TextStyle kaisei({
     double size = 16,
@@ -116,18 +79,6 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
     );
   }
 
-  // ============================================================
-  // 返回首頁
-  // ============================================================
-
-  void goHome() {
-    Navigator.pushReplacementNamed(context, '/home');
-  }
-
-  // ============================================================
-  // 開啟劇本詳細頁
-  // ============================================================
-
   void openScriptDetail(_ScriptData script) {
     Navigator.push(
       context,
@@ -135,49 +86,30 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
     );
   }
 
-  // ============================================================
-  // 根據螢幕寬度計算設計縮放比例
-  // ============================================================
-
   double _getScale(double availableWidth) {
-    return (availableWidth / designWidth).clamp(minScale, maxScale);
+    return AppResponsive.scale(
+      availableWidth: availableWidth,
+      availableHeight: designHeight,
+      designWidth: designWidth,
+      designHeight: designHeight,
+      min: minScale,
+      max: maxScale,
+    );
   }
-
-  // ============================================================
-  // 頁面主要建構
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _pageColor,
       extendBody: true,
-
-      // ==========================================================
-      // 主內容區
-      // ==========================================================
       body: SafeArea(
         top: false,
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // ======================================================
-            // 取得目前螢幕寬度
-            // ======================================================
-
             final double screenWidth = constraints.maxWidth;
-
-            // ======================================================
-            // 計算目前畫面縮放比例
-            // ======================================================
-
             final double scale = _getScale(screenWidth);
-
-            // ======================================================
-            // 根據縮放比例計算設計畫布高度
-            // ======================================================
-
-            final double designHeight = constraints.maxHeight / scale;
+            final double contentHeight = constraints.maxHeight / scale;
 
             return ColoredBox(
               color: _pageColor,
@@ -189,61 +121,34 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                     alignment: Alignment.topCenter,
                     child: SizedBox(
                       width: designWidth,
-                      height: designHeight,
-
-                      // ==================================================
-                      // 固定設計尺寸內容
-                      // ==================================================
+                      height: contentHeight,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          // ==================================================
-                          // 頁面背景
-                          // ==================================================
                           Positioned.fill(child: Container(color: _pageColor)),
-
-                          // ==================================================
-                          // 劇本列表
-                          // ==================================================
                           Positioned.fill(
                             child: ScrollConfiguration(
                               behavior: const _NoScrollbarScrollBehavior(),
                               child: ListView(
                                 physics: const BouncingScrollPhysics(),
-
-                                // ==================================================
-                                // 列表內距
-                                // ==================================================
                                 padding: const EdgeInsets.only(
                                   left: 15,
                                   right: 15,
                                   top: 30,
                                   bottom: 75,
                                 ),
-
                                 children: [
-                                  // ==================================================
-                                  // 劇本檔案館標題
-                                  // ==================================================
                                   Center(
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        // ==================================================
-                                        // 卷軸圖示
-                                        // ==================================================
                                         Image.asset(
                                           'img/Scroll.png',
                                           width: 27,
                                           height: 27,
                                           fit: BoxFit.contain,
                                         ),
-
                                         const SizedBox(width: 7),
-
-                                        // ==================================================
-                                        // 標題文字
-                                        // ==================================================
                                         _OutlinedTitle(
                                           text: '劇本檔案館',
                                           kaisei: kaisei,
@@ -251,19 +156,13 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                       ],
                                     ),
                                   ),
-
                                   const SizedBox(height: 8),
-
-                                  // ==================================================
-                                  // 頁面說明文字
-                                  // ==================================================
                                   Center(
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                         vertical: 6,
                                       ),
-
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFFE9DDC6,
@@ -276,7 +175,6 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                           width: 1,
                                         ),
                                       ),
-
                                       child: Text(
                                         '選擇您感興趣的劇本，點選車票獲得地圖',
                                         textAlign: TextAlign.center,
@@ -288,32 +186,18 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                       ),
                                     ),
                                   ),
-
                                   const SizedBox(height: 10),
-
-                                  // ==================================================
-                                  // 劇本票券列表
-                                  // ==================================================
                                   for (final script in scripts)
                                     Padding(
                                       padding: const EdgeInsets.only(
                                         bottom: 10,
                                       ),
-
                                       child: _ScriptTicket(
                                         script: script,
                                         kaisei: kaisei,
-
-                                        // ==================================================
-                                        // 點擊整張票券直接進入詳細頁
-                                        // ==================================================
                                         onTap: () {
                                           openScriptDetail(script);
                                         },
-
-                                        // ==================================================
-                                        // 點擊觀看更多直接進入詳細頁
-                                        // ==================================================
                                         onSeeMore: () {
                                           openScriptDetail(script);
                                         },
@@ -333,18 +217,10 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
           },
         ),
       ),
-
-      // ============================================================
-      // 底部導覽列
-      // ============================================================
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
 }
-
-// ============================================================
-// 劇本資料
-// ============================================================
 
 class _ScriptData {
   final String title;
@@ -362,16 +238,10 @@ class _ScriptData {
   });
 }
 
-// ============================================================
-// 劇本票券
-// ============================================================
-
 class _ScriptTicket extends StatefulWidget {
   final _ScriptData script;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
-
   final VoidCallback onTap;
   final VoidCallback onSeeMore;
 
@@ -387,19 +257,11 @@ class _ScriptTicket extends StatefulWidget {
 }
 
 class _ScriptTicketState extends State<_ScriptTicket> {
-  // ============================================================
-  // 滑鼠互動狀態
-  // ============================================================
-
   bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================================
-    // 根據互動狀態決定票券縮放
-    // ==========================================================
-
     final double scale = pressing
         ? 0.985
         : hovering
@@ -407,96 +269,53 @@ class _ScriptTicketState extends State<_ScriptTicket> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-
-      // ==========================================================
-      // 滑鼠移入
-      // ==========================================================
       onEnter: (_) {
         setState(() {
           hovering = true;
         });
       },
-
-      // ==========================================================
-      // 滑鼠移出
-      // ==========================================================
       onExit: (_) {
         setState(() {
           hovering = false;
         });
       },
-
       child: GestureDetector(
-        // ==========================================================
-        // 點擊整張票券
-        // ==========================================================
         onTap: widget.onTap,
-
-        // ==========================================================
-        // 按下票券
-        // ==========================================================
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
-
-        // ==========================================================
-        // 放開票券
-        // ==========================================================
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
-
-        // ==========================================================
-        // 取消按壓
-        // ==========================================================
         onTapCancel: () {
           setState(() {
             pressing = false;
           });
         },
-
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 130),
           curve: Curves.easeOut,
-
           child: SizedBox(
             width: 330,
             height: 169,
-
-            // ========================================================
-            // 票券主要內容
-            // ========================================================
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // ==================================================
-                // 票券背景圖片
-                // ==================================================
                 Positioned.fill(
                   child: Image.asset('img/ticket.png', fit: BoxFit.fill),
                 ),
-
-                // ==================================================
-                // 劇本標題、介紹、獎勵
-                // ==================================================
                 Positioned(
                   left: 13,
                   top: 9,
                   width: 246,
-
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
-                      // ==================================================
-                      // 劇本標題
-                      // ==================================================
                       Text(
                         widget.script.title,
                         maxLines: 1,
@@ -507,12 +326,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                           color: _ticketText,
                         ),
                       ),
-
                       const SizedBox(height: 2),
-
-                      // ==================================================
-                      // 劇本簡介
-                      // ==================================================
                       Text(
                         widget.script.description,
                         maxLines: 3,
@@ -525,12 +339,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                             )
                             .copyWith(height: 1.24),
                       ),
-
                       const SizedBox(height: 3),
-
-                      // ==================================================
-                      // 預計獲得
-                      // ==================================================
                       Text(
                         '預計獲得：${widget.script.reward}',
                         maxLines: 1,
@@ -544,44 +353,25 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                     ],
                   ),
                 ),
-
-                // ==================================================
-                // 地點、交通方式、觀看更多
-                // ==================================================
                 Positioned(
                   left: 12,
                   top: 135,
                   width: 247,
                   height: 25,
-
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.center,
-
                     children: [
-                      // ==================================================
-                      // 地點
-                      // ==================================================
                       _TicketChip(
                         text: widget.script.location,
                         kaisei: widget.kaisei,
                       ),
-
                       const SizedBox(width: 5),
-
-                      // ==================================================
-                      // 交通方式
-                      // ==================================================
                       _TicketChip(
                         text: widget.script.transport,
                         kaisei: widget.kaisei,
                       ),
-
                       const Spacer(),
-
-                      // ==================================================
-                      // 觀看更多
-                      // ==================================================
                       _SeeMoreButton(
                         kaisei: widget.kaisei,
                         onTap: widget.onSeeMore,
@@ -598,13 +388,8 @@ class _ScriptTicketState extends State<_ScriptTicket> {
   }
 }
 
-// ============================================================
-// 票券資訊標籤
-// ============================================================
-
 class _TicketChip extends StatelessWidget {
   final String text;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -614,27 +399,14 @@ class _TicketChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Flexible(
       flex: 0,
-
       child: Container(
         height: 23,
-
-        // ========================================================
-        // 標籤左右內距
-        // ========================================================
         padding: const EdgeInsets.symmetric(horizontal: 9),
-
         alignment: Alignment.center,
-
         constraints: const BoxConstraints(maxWidth: 84),
-
-        // ========================================================
-        // 標籤外觀
-        // ========================================================
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(13),
-
           border: Border.all(color: const Color(0xFF8D7B6E), width: 1),
-
           gradient: const RadialGradient(
             center: Alignment(0, -0.15),
             radius: 1.15,
@@ -642,10 +414,6 @@ class _TicketChip extends StatelessWidget {
             stops: [0.0, 0.45, 1.0],
           ),
         ),
-
-        // ========================================================
-        // 標籤文字
-        // ========================================================
         child: Text(
           text,
           maxLines: 1,
@@ -658,14 +426,9 @@ class _TicketChip extends StatelessWidget {
   }
 }
 
-// ============================================================
-// 觀看更多按鈕
-// ============================================================
-
 class _SeeMoreButton extends StatefulWidget {
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
-
   final VoidCallback onTap;
 
   const _SeeMoreButton({required this.kaisei, required this.onTap});
@@ -675,19 +438,11 @@ class _SeeMoreButton extends StatefulWidget {
 }
 
 class _SeeMoreButtonState extends State<_SeeMoreButton> {
-  // ============================================================
-  // 滑鼠互動狀態
-  // ============================================================
-
   bool hovering = false;
   bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================================
-    // 根據互動狀態決定縮放
-    // ==========================================================
-
     final double scale = pressing
         ? 0.95
         : hovering
@@ -695,75 +450,43 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
         : 1.0;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-
-      // ==========================================================
-      // 滑鼠移入
-      // ==========================================================
       onEnter: (_) {
         setState(() {
           hovering = true;
         });
       },
-
-      // ==========================================================
-      // 滑鼠移出
-      // ==========================================================
       onExit: (_) {
         setState(() {
           hovering = false;
         });
       },
-
       child: GestureDetector(
-        // ==========================================================
-        // 點擊觀看更多
-        // ==========================================================
         onTap: widget.onTap,
-
-        // ==========================================================
-        // 按下
-        // ==========================================================
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
-
-        // ==========================================================
-        // 放開
-        // ==========================================================
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
-
-        // ==========================================================
-        // 取消按壓
-        // ==========================================================
         onTapCancel: () {
           setState(() {
             pressing = false;
           });
         },
-
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
-
           child: SizedBox(
             width: 72,
-
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.max,
-
               children: [
-                // ==================================================
-                // 觀看更多文字
-                // ==================================================
                 Text(
                   '觀看更多',
                   style: widget.kaisei(
@@ -772,12 +495,7 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
                     color: _seeMoreColor,
                   ),
                 ),
-
                 const SizedBox(width: 1),
-
-                // ==================================================
-                // 觀看更多圖示
-                // ==================================================
                 Image.asset(
                   'img/see_more.png',
                   width: 13,
@@ -793,13 +511,8 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
   }
 }
 
-// ============================================================
-// 劇本檔案館標題
-// ============================================================
-
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
@@ -807,10 +520,6 @@ class _OutlinedTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================================
-    // 標題外框文字樣式
-    // ==========================================================
-
     final TextStyle outlineStyle = kaisei(size: 24, weight: FontWeight.w700)
         .copyWith(
           foreground: Paint()
@@ -821,16 +530,8 @@ class _OutlinedTitle extends StatelessWidget {
 
     return Stack(
       alignment: Alignment.center,
-
       children: [
-        // ========================================================
-        // 外框
-        // ========================================================
         Text(text, style: outlineStyle),
-
-        // ========================================================
-        // 內部白色文字
-        // ========================================================
         Text(
           text,
           style: kaisei(size: 24, weight: FontWeight.w700, color: Colors.white),
@@ -840,16 +541,8 @@ class _OutlinedTitle extends StatelessWidget {
   }
 }
 
-// ============================================================
-// 關閉 ScrollView 預設 Scrollbar / Overscroll 效果
-// ============================================================
-
 class _NoScrollbarScrollBehavior extends ScrollBehavior {
   const _NoScrollbarScrollBehavior();
-
-  // ==========================================================
-  // 隱藏 Scrollbar
-  // ==========================================================
 
   @override
   Widget buildScrollbar(
@@ -859,10 +552,6 @@ class _NoScrollbarScrollBehavior extends ScrollBehavior {
   ) {
     return child;
   }
-
-  // ==========================================================
-  // 隱藏 Overscroll Indicator
-  // ==========================================================
 
   @override
   Widget buildOverscrollIndicator(

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../block/navigationbar.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
@@ -22,10 +24,10 @@ class _HomePageState extends State<HomePage> {
   String accountName = 'EP001';
   String accountPassword = '';
 
-  static const Color pageColor = Color(0xFFB9ACA2);
-  static const Color darkText = Color(0xFF301717);
-  static const Color postcardColor = Color(0xFFCBB57C);
-  static const Color postcardLine = Color(0xFF8D7B6E);
+  static const Color pageColor = AppColors.background;
+  static const Color darkText = AppColors.textPrimary;
+  static const Color postcardColor = AppColors.postcard;
+  static const Color postcardLine = AppColors.postcardLine;
 
   @override
   void initState() {
@@ -64,9 +66,12 @@ class _HomePageState extends State<HomePage> {
           const double designWidth = 360;
           const double designHeight = 640;
 
-          final double scaleX = constraints.maxWidth / designWidth;
-          final double scaleY = constraints.maxHeight / designHeight;
-          final double scale = scaleX < scaleY ? scaleX : scaleY;
+          final double scale = AppResponsive.scale(
+            availableWidth: constraints.maxWidth,
+            availableHeight: constraints.maxHeight,
+            designWidth: designWidth,
+            designHeight: designHeight,
+          );
 
           return Center(
             child: SizedBox(
@@ -191,7 +196,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: true,
       barrierLabel: '關閉探員資訊',
-      barrierColor: const Color(0xCC000000),
+      barrierColor: AppColors.dialogBarrier,
       transitionDuration: const Duration(milliseconds: 280),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curvedAnimation = CurvedAnimation(
@@ -250,7 +255,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: true,
       barrierLabel: '關閉編輯',
-      barrierColor: const Color(0xCC000000),
+      barrierColor: AppColors.dialogBarrier,
       transitionDuration: const Duration(milliseconds: 260),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curvedAnimation = CurvedAnimation(
@@ -441,7 +446,7 @@ class _HomePageState extends State<HomePage> {
       angle: 0.015,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F4EC),
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(6),
           boxShadow: const [
             BoxShadow(
@@ -596,7 +601,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(6),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F4EC),
+            color: AppColors.card,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: postcardLine, width: 1),
             boxShadow: const [
@@ -856,7 +861,7 @@ class _EditField extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: const Color(0xFF301717),
       ),
-      cursorColor: const Color(0xFF8D1F12),
+      cursorColor: AppColors.primaryAccent,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.kaiseiHarunoUmi(
@@ -896,7 +901,7 @@ class _PopupButton extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(25),
-            color: const Color(0xFF8D1F12),
+            color: AppColors.primaryAccent,
             border: Border.all(color: const Color(0xFF551308), width: 1.5),
             boxShadow: const [
               BoxShadow(
@@ -926,7 +931,7 @@ class _HomeRoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint redLine = Paint()
-      ..color = const Color(0xFF8D1F12)
+      ..color = AppColors.primaryAccent
       ..strokeWidth = 2.4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round

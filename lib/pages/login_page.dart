@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/app_colors.dart';
+
 // ================================================================
 // Login Page
 // ================================================================
@@ -18,13 +20,13 @@ class _LoginPageState extends State<LoginPage> {
 
   final TextEditingController passwordController = TextEditingController();
 
-  static const Color pageColor = Color(0xFFB9ACA2);
-  static const Color darkText = Color(0xFF301717);
-  static const Color lineColor = Color(0xFF514A44);
+  static const Color pageColor = AppColors.background;
+  static const Color darkText = AppColors.textPrimary;
+  static const Color lineColor = AppColors.inputLine;
 
-  static const Color cursorColor = Color(0xFF7D1907);
+  static const Color cursorColor = AppColors.primary;
 
-  static const Color hintColor = Color(0xFFA9A29B);
+  static const Color hintColor = AppColors.inputHint;
 
   // ==============================================================
   // Design Size
@@ -354,138 +356,106 @@ class _LoginButton extends StatefulWidget {
 }
 
 class _LoginButtonState extends State<_LoginButton> {
-  bool isHovering = false;
   bool isPressing = false;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
+    return GestureDetector(
+      // ----------------------------------------------------------
+      // Click
+      // ----------------------------------------------------------
+      onTap: widget.onPressed,
 
-      // ------------------------------------------------------------
-      // Desktop Hover
-      // ------------------------------------------------------------
-      onEnter: (_) {
+      // ----------------------------------------------------------
+      // Press
+      // ----------------------------------------------------------
+      onTapDown: (_) {
         setState(() {
-          isHovering = true;
+          isPressing = true;
         });
       },
 
-      onExit: (_) {
+      onTapUp: (_) {
         setState(() {
-          isHovering = false;
+          isPressing = false;
         });
       },
 
-      child: GestureDetector(
-        // ----------------------------------------------------------
-        // Click
-        // ----------------------------------------------------------
-        onTap: widget.onPressed,
+      onTapCancel: () {
+        setState(() {
+          isPressing = false;
+        });
+      },
 
-        // ----------------------------------------------------------
-        // Press
-        // ----------------------------------------------------------
-        onTapDown: (_) {
-          setState(() {
-            isPressing = true;
-          });
-        },
+      child: AnimatedScale(
+        scale: isPressing ? 0.96 : 1.0,
 
-        onTapUp: (_) {
-          setState(() {
-            isPressing = false;
-          });
-        },
+        duration: const Duration(milliseconds: 180),
 
-        onTapCancel: () {
-          setState(() {
-            isPressing = false;
-          });
-        },
+        curve: Curves.easeOut,
 
-        child: AnimatedScale(
-          scale: isPressing
-              ? 0.96
-              : isHovering
-              ? 1.10
-              : 1.0,
+        child: Material(
+          color: Colors.transparent,
 
-          duration: const Duration(milliseconds: 180),
+          child: InkWell(
+            onTap: widget.onPressed,
 
-          curve: Curves.easeOut,
+            borderRadius: BorderRadius.circular(30),
 
-          child: Material(
-            color: Colors.transparent,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
 
-            child: InkWell(
-              onTap: widget.onPressed,
+              curve: Curves.easeOut,
 
-              borderRadius: BorderRadius.circular(30),
+              width: 90,
+              height: 49,
 
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+              alignment: Alignment.center,
 
-                curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
 
-                width: 90,
-                height: 49,
+                // ------------------------------------------------
+                // Border
+                // ------------------------------------------------
+                border: Border.all(color: AppColors.primaryDark, width: 2),
 
-                alignment: Alignment.center,
+                // ------------------------------------------------
+                // Gradient
+                // ------------------------------------------------
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
 
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-
-                  // ------------------------------------------------
-                  // Border
-                  // ------------------------------------------------
-                  border: Border.all(
-                    color: isHovering
-                        ? const Color(0xFF651708)
-                        : const Color(0xFF4A1106),
-
-                    width: 2,
-                  ),
-
-                  // ------------------------------------------------
-                  // Gradient
-                  // ------------------------------------------------
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-
-                    colors: isHovering
-                        ? const [Color(0xFFB83B20), Color(0xFF98220D)]
-                        : const [Color(0xFF9B2A15), Color(0xFF7D1907)],
-                  ),
-
-                  // ------------------------------------------------
-                  // Shadow
-                  // ------------------------------------------------
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0x70000000),
-
-                      blurRadius: isHovering ? 7 : 4,
-
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  colors: const [AppColors.primaryLight, AppColors.primary],
                 ),
 
-                // --------------------------------------------------
-                // Button Text
-                // --------------------------------------------------
-                child: Text(
-                  '登入',
+                // ------------------------------------------------
+                // Shadow
+                // ------------------------------------------------
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0x70000000),
 
-                  textAlign: TextAlign.center,
+                    blurRadius: 4,
 
-                  style: GoogleFonts.kaiseiHarunoUmi(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    offset: const Offset(0, 2),
                   ),
+                ],
+              ),
+
+              // --------------------------------------------------
+              // Button Text
+              // --------------------------------------------------
+              child: Text(
+                '登入',
+
+                textAlign: TextAlign.center,
+
+                style: GoogleFonts.kaiseiHarunoUmi(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),

@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-const Color _pageColor = Color(0xFFB9ACA2);
-const Color _paperColor = Color(0xFFFCF9EA);
+import '../core/app_colors.dart';
+
+const Color _pageColor = AppColors.background;
+const Color _paperColor = AppColors.card;
 const Color _paperBorder = Color(0xFF000000);
-const Color _darkText = Color(0xFF301717);
+const Color _darkText = AppColors.textPrimary;
 const Color _bodyText = Color(0xFF2F2D28);
 
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 
 const Color _accentRed = Color(0xFF7F1A08);
 
@@ -652,34 +654,13 @@ class _EditButton extends StatefulWidget {
 }
 
 class _EditButtonState extends State<_EditButton> {
-  bool hovering = false;
-
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.90
-        : hovering
-        ? 1.10
-        : 1.0;
+    final double scale = pressing ? 0.90 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-
-      child: GestureDetector(
+    return GestureDetector(
         behavior: HitTestBehavior.opaque,
 
         onTap: widget.onTap,
@@ -718,8 +699,7 @@ class _EditButtonState extends State<_EditButton> {
             fit: BoxFit.contain,
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -825,34 +805,13 @@ class _LogoutButton extends StatefulWidget {
 }
 
 class _LogoutButtonState extends State<_LogoutButton> {
-  bool hovering = false;
-
-  bool pressing = false;
+bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
-    final double scale = pressing
-        ? 0.96
-        : hovering
-        ? 1.05
-        : 1.0;
+    final double scale = pressing ? 0.96 : 1.0;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-
-      child: GestureDetector(
+    return GestureDetector(
         behavior: HitTestBehavior.opaque,
 
         onTap: widget.onTap,
@@ -929,7 +888,6 @@ class _LogoutButtonState extends State<_LogoutButton> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
