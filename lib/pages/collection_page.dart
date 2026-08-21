@@ -129,12 +129,16 @@ class _CollectionPageState extends State<CollectionPage> {
               clipBehavior: Clip.none,
               children: [
                 const Positioned.fill(child: ColoredBox(color: _pageColor)),
-                Positioned.fill(
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: MediaQuery.of(context).size.height,
                   child: ScrollConfiguration(
                     behavior: const _NoScrollbarBehavior(),
                     child: ListView.builder(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(15, 42, 15, 86),
+                      padding: const EdgeInsets.fromLTRB(15, 0, 15, 20),
                       itemCount: series.length,
                       itemBuilder: (context, index) {
                         return Padding(
@@ -311,7 +315,11 @@ class _BadgeGrid extends StatelessWidget {
         childAspectRatio: 1,
       ),
       itemBuilder: (context, index) {
-        return _BadgeItem(unlocked: index == 0, kaisei: kaisei);
+        return _BadgeItem(
+          unlocked: index == 0,
+          name: index == 0 ? '台灣古蹟' : '未解鎖',
+          kaisei: kaisei,
+        );
       },
     );
   }
@@ -319,26 +327,164 @@ class _BadgeGrid extends StatelessWidget {
 
 class _BadgeItem extends StatefulWidget {
   final bool unlocked;
+  final String name;
 
   final TextStyle Function({double size, FontWeight weight, Color color})
   kaisei;
 
-  const _BadgeItem({required this.unlocked, required this.kaisei});
+  const _BadgeItem({
+    required this.unlocked,
+    required this.name,
+    required this.kaisei,
+  });
 
   @override
   State<_BadgeItem> createState() => _BadgeItemState();
 }
 
 class _BadgeItemState extends State<_BadgeItem> {
+  bool pressing = false;
+
+  void _showBadge() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Badge',
+
+      barrierColor: Colors.black.withOpacity(0.72),
+
+      transitionDuration: const Duration(milliseconds: 300),
+
+      pageBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Animation<double> secondaryAnimation,
+          ) {
+            return _BadgePopup(
+              unlocked: widget.unlocked,
+              name: widget.name,
+              kaisei: widget.kaisei,
+            );
+          },
+
+      transitionBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Animation<double> secondaryAnimation,
+            Widget child,
+          ) {
+            final curvedAnimation = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            );
+
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(
+                  begin: 0.55,
+                  end: 1.0,
+                ).animate(curvedAnimation),
+                child: child,
+              ),
+            );
+          },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const double scale = 1.0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
 
-    return AnimatedScale(
-      scale: scale,
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOutBack,
-      child: widget.unlocked ? const _UnlockedBadge() : const _LockedBadge(),
+      onTap: _showBadge,
+
+      onTapDown: (_) {
+        setState(() {
+          pressing = true;
+        });
+      },
+
+      onTapUp: (_) {
+        setState(() {
+          pressing = false;
+        });
+      },
+
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+
+      child: AnimatedScale(
+        scale: pressing ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+
+        child: widget.unlocked ? const _UnlockedBadge() : const _LockedBadge(),
+      ),
+    );
+  }
+}
+
+class _BadgePopup extends StatelessWidget {
+  final bool unlocked;
+  final String name;
+
+  final TextStyle Function({double size, FontWeight weight, Color color})
+  kaisei;
+
+  const _BadgePopup({
+    required this.unlocked,
+    required this.name,
+    required this.kaisei,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+
+        onTap: () {
+          Navigator.of(context).pop();
+        },
+
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: unlocked
+                      ? const _UnlockedBadge()
+                      : const _LockedBadge(),
+                ),
+
+                const SizedBox(height: 18),
+
+                Text(
+                  name,
+                  textAlign: TextAlign.center,
+                  style: kaisei(
+                    size: 22,
+                    weight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
