@@ -270,8 +270,8 @@ class _VideoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 200,
-        height: 350,
+        width: 240,
+        height: 426.67,
         decoration: BoxDecoration(
           color: _videoPoster,
           borderRadius: BorderRadius.circular(5),
@@ -807,26 +807,38 @@ class _ZoomablePostcard extends StatefulWidget {
 
 class _ZoomablePostcardState extends State<_ZoomablePostcard> {
   double scale = 1.0;
+  Offset offset = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onScaleUpdate: (details) {
         setState(() {
+          // 放大倍率
           scale = details.scale.clamp(1.0, 4.0);
+
+          // 手指拖曳位置
+          offset += details.focalPointDelta;
         });
       },
+
       onScaleEnd: (_) {
+        // 放手後恢復原樣
         setState(() {
           scale = 1.0;
+          offset = Offset.zero;
         });
       },
-      child: Transform.scale(
-        scale: scale,
-        child: _ExpandedPostcard(
-          assetPath: widget.assetPath,
-          isSpecial: widget.isSpecial,
-          progress: widget.progress,
+
+      child: Transform.translate(
+        offset: offset,
+        child: Transform.scale(
+          scale: scale,
+          child: _ExpandedPostcard(
+            assetPath: widget.assetPath,
+            isSpecial: widget.isSpecial,
+            progress: widget.progress,
+          ),
         ),
       ),
     );

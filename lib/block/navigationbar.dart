@@ -159,15 +159,13 @@ class _NavigationItem extends StatelessWidget {
           AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
-            style: TextStyle(
-              fontFamily: 'sans',
-              fontSize: selected
+            style: AppTextStyles.kaisei(
+              size: selected
                   ? AppTextStyles.microSize
                   : AppTextStyles.captionSize,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              weight: selected ? FontWeight.w800 : FontWeight.w700,
               color: AppColors.textPrimary,
-              height: 1.0,
-            ),
+            ).copyWith(height: 1.0),
             child: Text(label, textAlign: TextAlign.center),
           ),
         ],

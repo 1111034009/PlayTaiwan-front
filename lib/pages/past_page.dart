@@ -115,7 +115,7 @@ class _PastPageState extends State<PastPage> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: 80,
+                    top: 95,
                     bottom: 0,
                     child: ScrollConfiguration(
                       behavior: const _NoScrollbarScrollBehavior(),
@@ -265,10 +265,7 @@ class _PastTicketState extends State<_PastTicket> {
               Positioned(
                 right: 40,
                 bottom: 12,
-                child: _ViewButton(
-                  kaisei: widget.kaisei,
-                  onTap: widget.onTap,
-                ),
+                child: _ViewButton(kaisei: widget.kaisei, onTap: widget.onTap),
               ),
             ],
           ),

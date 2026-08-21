@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 ///字體設定
 abstract final class AppTextStyles {
@@ -36,7 +35,8 @@ abstract final class AppTextStyles {
     FontWeight weight = FontWeight.w400,
     Color color = const Color(0xFF301717),
   }) {
-    return GoogleFonts.kaiseiHarunoUmi(
+    return TextStyle(
+      fontFamily: 'KaiseiHarunoUmi',
       fontSize: normalizeFontSize(size),
       fontWeight: weight,
       color: color,
