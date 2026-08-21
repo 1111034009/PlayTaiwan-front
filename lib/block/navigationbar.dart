@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 class AppNavigationBar extends StatefulWidget {
   final int currentIndex;
@@ -160,7 +161,9 @@ class _NavigationItem extends StatelessWidget {
             curve: Curves.easeOutCubic,
             style: TextStyle(
               fontFamily: 'sans',
-              fontSize: selected ? 10.5 : 11,
+              fontSize: selected
+                  ? AppTextStyles.microSize
+                  : AppTextStyles.captionSize,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
               color: AppColors.textPrimary,
               height: 1.0,

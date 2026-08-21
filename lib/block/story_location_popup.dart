@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/app_text_styles.dart';
+import '../core/app_colors.dart';
 
-const Color _popupBackground = Color(0xFFE2D8BD);
-const Color _popupText = Color(0xFF301717);
-const Color _popupRed = Color(0xFF8D1F12);
+const Color _popupBackground = AppColors.paper;
+const Color _popupText = AppColors.textPrimary;
+const Color _popupRed = AppColors.primaryAccent;
 
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 
 class StoryLocationPopup extends StatelessWidget {
   final String title;
@@ -36,7 +38,7 @@ class StoryLocationPopup extends StatelessWidget {
     Color color = _popupText,
   }) {
     return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
+      fontSize: AppTextStyles.normalizeFontSize(size),
       fontWeight: weight,
       color: color,
     );
@@ -73,15 +75,17 @@ class StoryLocationPopup extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: 60),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Flexible(
+                        Expanded(
                           child: Text(
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kaisei(size: 22, weight: FontWeight.w900),
+                            style: kaisei(
+                              size: AppTextStyles.titleSize,
+                              weight: FontWeight.w900,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -105,7 +109,7 @@ class StoryLocationPopup extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: kaisei(
-                  size: 15,
+                  size: AppTextStyles.bodySmallSize,
                   weight: FontWeight.w800,
                 ).copyWith(height: 1.4),
               ),
@@ -220,7 +224,7 @@ class _ReviewButtonState extends State<_ReviewButton> {
           '回顧劇情 >>',
           textAlign: TextAlign.center,
           style: widget.kaisei(
-            size: 13,
+            size: AppTextStyles.bodySmallSize,
             weight: FontWeight.w900,
             color: _popupRed,
           ),
@@ -300,7 +304,7 @@ class _GradientButtonState extends State<_GradientButton> {
             widget.text,
             textAlign: TextAlign.center,
             style: widget.kaisei(
-              size: 15,
+              size: AppTextStyles.bodySmallSize,
               weight: FontWeight.w700,
               color: const Color(0xFFEBE1C7),
             ),

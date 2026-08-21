@@ -13,7 +13,6 @@ import '../core/app_responsive.dart';
 
 const Color _pageColor = Color(0xFF4F4141);
 const Color _darkBrown = AppColors.darkBrown;
-const Color _videoBackground = Color(0xFF82766F);
 const Color _videoPoster = AppColors.paper;
 
 class PastMediaPage extends StatefulWidget {
@@ -103,15 +102,16 @@ class _PastMediaPageState extends State<PastMediaPage> {
       extendBody: true,
       body: Stack(
         children: [
-          Center(
-            child: Transform.translate(
-              offset: const Offset(0, -20),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: EdgeInsets.only(top: screenSize.height * 0.01),
               child: Transform.scale(
                 scale: contentScale,
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 child: FittedBox(
                   fit: BoxFit.contain,
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   child: SizedBox(
                     width: designWidth,
                     height: designHeight,
@@ -134,13 +134,13 @@ class _PastMediaPageState extends State<PastMediaPage> {
                         const Positioned(
                           left: 15,
                           right: 15,
-                          top: 126,
-                          height: 244,
+                          top: 130,
+                          height: 350,
                           child: _VideoSection(),
                         ),
                         Positioned(
                           left: 25,
-                          top: 386,
+                          top: 500,
                           child: _OutlinedTitle(text: '明信片集結', kaisei: kaisei),
                         ),
                       ],
@@ -182,10 +182,9 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
   double _postcardTop(Size size) {
     final double scale = _designScale(size);
-    final double contentHeight = designHeight * scale;
-    final double contentTop = (size.height - contentHeight) / 2 - 20;
+    final double contentTop = size.height * 0.05;
 
-    return contentTop + 417 * scale;
+    return contentTop + 510 * scale;
   }
 
   double _postcardCarouselHeight(Size size) {
@@ -269,22 +268,16 @@ class _VideoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _videoBackground,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Center(
-        child: Container(
-          width: 120,
-          height: 212,
-          decoration: BoxDecoration(
-            color: _videoPoster,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: Colors.white, width: 1.4),
-          ),
-          child: const Center(child: _PlayButton()),
+    return Center(
+      child: Container(
+        width: 200,
+        height: 350,
+        decoration: BoxDecoration(
+          color: _videoPoster,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: Colors.white, width: 1.4),
         ),
+        child: const Center(child: _PlayButton()),
       ),
     );
   }
@@ -368,7 +361,6 @@ class _PostcardCarousel extends StatelessWidget {
               ),
               child: _PostcardCard(
                 assetPath: _PastMediaPageState.postcardAssets[index],
-                rotation: _postcardRotation(index),
                 isSpecial: index == _PastMediaPageState.specialPostcardIndex,
                 onTap: () => onPostcardTap(index),
               ),
@@ -378,32 +370,15 @@ class _PostcardCarousel extends StatelessWidget {
       ),
     );
   }
-
-  double _postcardRotation(int index) {
-    switch (index % 4) {
-      case 0:
-        return -0.025;
-      case 1:
-        return -0.055;
-      case 2:
-        return 0;
-      case 3:
-        return 0.035;
-      default:
-        return 0;
-    }
-  }
 }
 
 class _PostcardCard extends StatefulWidget {
   final String assetPath;
-  final double rotation;
   final bool isSpecial;
   final VoidCallback onTap;
 
   const _PostcardCard({
     required this.assetPath,
-    required this.rotation,
     required this.isSpecial,
     required this.onTap,
   });
@@ -454,13 +429,10 @@ class _PostcardCardState extends State<_PostcardCard>
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, child) {
-            return Transform.rotate(
-              angle: widget.rotation,
-              child: _PostcardVisual(
-                assetPath: widget.assetPath,
-                isSpecial: widget.isSpecial,
-                progress: controller.value,
-              ),
+            return _PostcardVisual(
+              assetPath: widget.assetPath,
+              isSpecial: widget.isSpecial,
+              progress: controller.value,
             );
           },
         ),
@@ -776,7 +748,7 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
                       child: AnimatedBuilder(
                         animation: effectController,
                         builder: (context, child) {
-                          return _ExpandedPostcard(
+                          return _ZoomablePostcard(
                             assetPath: widget.assetPath,
                             isSpecial: widget.isSpecial,
                             progress: effectController.value,
@@ -813,6 +785,49 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ZoomablePostcard extends StatefulWidget {
+  final String assetPath;
+  final bool isSpecial;
+  final double progress;
+
+  const _ZoomablePostcard({
+    required this.assetPath,
+    required this.isSpecial,
+    required this.progress,
+  });
+
+  @override
+  State<_ZoomablePostcard> createState() => _ZoomablePostcardState();
+}
+
+class _ZoomablePostcardState extends State<_ZoomablePostcard> {
+  double scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onScaleUpdate: (details) {
+        setState(() {
+          scale = details.scale.clamp(1.0, 4.0);
+        });
+      },
+      onScaleEnd: (_) {
+        setState(() {
+          scale = 1.0;
+        });
+      },
+      child: Transform.scale(
+        scale: scale,
+        child: _ExpandedPostcard(
+          assetPath: widget.assetPath,
+          isSpecial: widget.isSpecial,
+          progress: widget.progress,
+        ),
       ),
     );
   }
