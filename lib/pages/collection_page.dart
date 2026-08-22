@@ -23,9 +23,6 @@ class CollectionPage extends StatefulWidget {
 }
 
 class _CollectionPageState extends State<CollectionPage> {
-  static const double designWidth = 360;
-  static const double designHeight = 640;
-
   static const int currentIndex = 2;
 
   final List<_BadgeSeries> series = [
@@ -118,48 +115,31 @@ class _CollectionPageState extends State<CollectionPage> {
     return Scaffold(
       backgroundColor: _pageColor,
       extendBody: true,
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Positioned.fill(child: ColoredBox(color: _pageColor)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: MediaQuery.of(context).size.height,
-                  child: ScrollConfiguration(
-                    behavior: const _NoScrollbarBehavior(),
-                    child: ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(15, 0, 15, 20),
-                      itemCount: series.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _BadgeSeriesCard(
-                            series: series[index],
-                            kaisei: kaisei,
-                            onTap: () {
-                              toggleSeries(index);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+      body: ScrollConfiguration(
+        behavior: const _NoScrollbarBehavior(),
+        child: ListView.builder(
+          physics: const BouncingScrollPhysics(),
+
+          padding: const EdgeInsets.fromLTRB(15, 55, 15, 100),
+
+          itemCount: series.length,
+
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _BadgeSeriesCard(
+                series: series[index],
+                kaisei: kaisei,
+                onTap: () {
+                  toggleSeries(index);
+                },
+              ),
+            );
+          },
         ),
       ),
+
       bottomNavigationBar: const AppNavigationBar(currentIndex: currentIndex),
     );
   }
