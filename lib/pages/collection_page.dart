@@ -121,7 +121,12 @@ class _CollectionPageState extends State<CollectionPage> {
         child: ListView.builder(
           physics: const BouncingScrollPhysics(),
 
-          padding: const EdgeInsets.fromLTRB(15, 55, 15, 100),
+          padding: EdgeInsets.fromLTRB(
+            15,
+            55,
+            15,
+            100 + MediaQuery.of(context).padding.bottom,
+          ),
 
           itemCount: series.length,
 

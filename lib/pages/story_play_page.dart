@@ -34,7 +34,7 @@ class _StoryPageState extends State<StoryPage> {
   static const double designHeight = 640.0;
 
   static const double maxScale = 1.15;
-
+  static const double topSpacePercent = 0.05;
   int currentIndex = 1;
 
   int locationCurrent = 1;
@@ -145,10 +145,11 @@ class _StoryPageState extends State<StoryPage> {
 
             final double scale = _getScale(screenWidth, screenHeight);
 
+            final double topOffset = screenHeight * topSpacePercent;
+
             final double actualTopBarWidth = topBarDesignWidth * scale;
 
             final double actualTopBarHeight = topBarDesignHeight * scale;
-
             return Stack(
               clipBehavior: Clip.none,
               fit: StackFit.expand,
@@ -167,13 +168,13 @@ class _StoryPageState extends State<StoryPage> {
                   left: 0,
                   right: 0,
                   top: 0,
-                  height: actualTopBarHeight,
+                  height: topOffset + actualTopBarHeight,
                   child: const ColoredBox(color: _topColor),
                 ),
 
                 Positioned(
                   left: 0,
-                  top: 0,
+                  top: topOffset,
                   width: screenWidth,
                   height: actualTopBarHeight,
                   child: Center(
@@ -199,7 +200,7 @@ class _StoryPageState extends State<StoryPage> {
                 ),
 
                 Positioned(
-                  top: actualTopBarHeight + (6 * scale),
+                  top: topOffset + actualTopBarHeight + (6 * scale),
                   right: math.max(
                     10 * scale,
                     (screenWidth - actualTopBarWidth) / 2 + (10 * scale),
@@ -239,6 +240,7 @@ class _StoryPageState extends State<StoryPage> {
                   designWidth: designWidth,
                   designHeight: designHeight,
                   scale: scale,
+                  topOffset: topOffset,
                   child: _StoryGameContent(
                     story: storyLines[storyIndex],
                     onNextStory: nextStory,
@@ -258,22 +260,27 @@ class _GameViewport extends StatelessWidget {
   final double designWidth;
   final double designHeight;
   final double scale;
+  final double topOffset;
   final Widget child;
 
   const _GameViewport({
     required this.designWidth,
     required this.designHeight,
     required this.scale,
+    required this.topOffset,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
     final double viewportWidth = designWidth * scale;
-
     final double viewportHeight = designHeight * scale;
 
-    return Positioned.fill(
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: topOffset,
+      bottom: 0,
       child: Center(
         child: SizedBox(
           width: viewportWidth,

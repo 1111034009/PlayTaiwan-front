@@ -115,60 +115,79 @@ class _PastMediaPageState extends State<PastMediaPage> {
       extendBody: true,
       body: Stack(
         children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: EdgeInsets.only(top: screenSize.height * 0.01),
-              child: Transform.scale(
-                scale: contentScale,
+          Positioned.fill(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Align(
                 alignment: Alignment.topCenter,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    width: designWidth,
-                    height: designHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Positioned.fill(
-                          child: ColoredBox(color: _pageColor),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: screenSize.height * 0.01,
+                    bottom: 190,
+                  ),
+                  child: Transform.scale(
+                    scale: contentScale,
+                    alignment: Alignment.topCenter,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: designWidth,
+                        height: 700,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Positioned.fill(
+                              child: ColoredBox(color: _pageColor),
+                            ),
+                            Positioned(
+                              left: 22,
+                              top: 49,
+                              child: _BackButton(
+                                onTap: backToPast,
+                                kaisei: kaisei,
+                              ),
+                            ),
+                            Positioned(
+                              left: 25,
+                              top: 88,
+                              child: _OutlinedTitle(
+                                text: '回憶vlog',
+                                kaisei: kaisei,
+                              ),
+                            ),
+                            Positioned(
+                              left: 15,
+                              right: 15,
+                              top: 130,
+                              height: 350,
+                              child: _VideoSection(onTap: openVideo),
+                            ),
+                            Positioned(
+                              left: 25,
+                              top: 500,
+                              child: _OutlinedTitle(
+                                text: '明信片集結',
+                                kaisei: kaisei,
+                              ),
+                            ),
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 535,
+                              height: 163,
+                              child: _PostcardCarousel(
+                                onPostcardTap: openPostcard,
+                              ),
+                            ),
+                          ],
                         ),
-                        Positioned(
-                          left: 22,
-                          top: 49,
-                          child: _BackButton(onTap: backToPast, kaisei: kaisei),
-                        ),
-                        Positioned(
-                          left: 25,
-                          top: 88,
-                          child: _OutlinedTitle(text: '回憶vlog', kaisei: kaisei),
-                        ),
-                        Positioned(
-                          left: 15,
-                          right: 15,
-                          top: 130,
-                          height: 350,
-                          child: _VideoSection(onTap: openVideo),
-                        ),
-                        Positioned(
-                          left: 25,
-                          top: 500,
-                          child: _OutlinedTitle(text: '明信片集結', kaisei: kaisei),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: _postcardTop(screenSize),
-            height: _postcardCarouselHeight(screenSize),
-            child: _PostcardCarousel(onPostcardTap: openPostcard),
           ),
           if (selectedPostcardIndex != null)
             Positioned.fill(

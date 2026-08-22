@@ -770,142 +770,141 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
             ),
           ),
           Center(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (BuildContext context, Widget? child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: SizedBox(
-                    width: 330,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ClipRect(
-                          child: Align(
-                            alignment: Alignment.center,
-                            widthFactor: _expandAnimation.value,
-                            child: SizedBox(
-                              width: 330,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Container(
-                                    width: 280,
-                                    constraints: const BoxConstraints(
-                                      minHeight: 260,
-                                      maxHeight: 320,
-                                    ),
-                                    padding: const EdgeInsets.fromLTRB(
-                                      38,
-                                      48,
-                                      38,
-                                      44,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEBDDC4),
-                                      border: Border.all(
-                                        color: const Color(0xFF8B6947),
-                                        width: 1.2,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (BuildContext context, Widget? child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: SizedBox(
+                      width: 330,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClipRect(
+                            child: Align(
+                              alignment: Alignment.center,
+                              widthFactor: _expandAnimation.value,
+                              child: SizedBox(
+                                width: 330,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      width: 280,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        38,
+                                        42,
+                                        38,
+                                        34,
                                       ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x70000000),
-                                          blurRadius: 15,
-                                          offset: Offset(0, 7),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEBDDC4),
+                                        border: Border.all(
+                                          color: const Color(0xFF8B6947),
+                                          width: 1.2,
                                         ),
-                                      ],
-                                    ),
-                                    child: FadeTransition(
-                                      opacity: _fadeAnimation,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '線索',
-                                            textAlign: TextAlign.center,
-                                            style:
-                                                kaisei(
-                                                  size: 27,
-                                                  weight: FontWeight.w700,
-                                                  color: const Color(
-                                                    0xFF6D2A1D,
-                                                  ),
-                                                ).copyWith(
-                                                  height: 1.2,
-                                                  letterSpacing: 2.0,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 20),
-                                          Container(
-                                            width: 44,
-                                            height: 1,
-                                            color: const Color(0xFF9A7854),
-                                          ),
-                                          const SizedBox(height: 24),
-                                          Text(
-                                            widget.clueText,
-                                            textAlign: TextAlign.center,
-                                            style:
-                                                kaisei(
-                                                  size: 18,
-                                                  weight: FontWeight.w500,
-                                                  color: const Color(
-                                                    0xFF3D281D,
-                                                  ),
-                                                ).copyWith(
-                                                  height: 2.0,
-                                                  letterSpacing: 0.8,
-                                                ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x70000000),
+                                            blurRadius: 15,
+                                            offset: Offset(0, 7),
                                           ),
                                         ],
                                       ),
+                                      child: FadeTransition(
+                                        opacity: _fadeAnimation,
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '線索',
+                                              textAlign: TextAlign.center,
+                                              style:
+                                                  kaisei(
+                                                    size: 27,
+                                                    weight: FontWeight.w700,
+                                                    color: const Color(
+                                                      0xFF6D2A1D,
+                                                    ),
+                                                  ).copyWith(
+                                                    height: 1.2,
+                                                    letterSpacing: 2.0,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Container(
+                                              width: 44,
+                                              height: 1,
+                                              color: const Color(0xFF9A7854),
+                                            ),
+                                            const SizedBox(height: 24),
+                                            Text(
+                                              widget.clueText,
+                                              textAlign: TextAlign.center,
+                                              style:
+                                                  kaisei(
+                                                    size: 18,
+                                                    weight: FontWeight.w500,
+                                                    color: const Color(
+                                                      0xFF3D281D,
+                                                    ),
+                                                  ).copyWith(
+                                                    height: 1.7,
+                                                    letterSpacing: 0.8,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    top: 0,
-                                    left: 18,
-                                    right: 18,
-                                    child: _PaperRoll(width: 294),
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 18,
-                                    right: 18,
-                                    child: _PaperRoll(width: 294),
-                                  ),
-                                ],
+                                    Positioned(
+                                      top: 0,
+                                      left: 18,
+                                      right: 18,
+                                      child: _PaperRoll(width: 294),
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 18,
+                                      right: 18,
+                                      child: _PaperRoll(width: 294),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 18),
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _close,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 6,
-                              ),
-                              child: Text(
-                                '輕觸空白處關閉',
-                                textAlign: TextAlign.center,
-                                style: kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w400,
-                                  color: Colors.white,
-                                ).copyWith(height: 1.2, letterSpacing: 0.8),
+                          const SizedBox(height: 18),
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _close,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  '輕觸空白處關閉',
+                                  textAlign: TextAlign.center,
+                                  style: kaisei(
+                                    size: 14,
+                                    weight: FontWeight.w400,
+                                    color: Colors.white,
+                                  ).copyWith(height: 1.2, letterSpacing: 0.8),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],

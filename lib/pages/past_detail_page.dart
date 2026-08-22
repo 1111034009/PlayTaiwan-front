@@ -110,9 +110,9 @@ class _PastDetailPageState extends State<PastDetailPage> {
                       ),
                       Positioned(
                         left: 16,
-                        top: 60,
+                        top: 45,
                         width: 328,
-                        height: 545,
+                        height: 565,
                         child: Image.asset(
                           'img/long_papper.png',
                           fit: BoxFit.fill,
@@ -122,7 +122,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
                       Positioned(
                         left: 35,
                         right: 35,
-                        top: 90,
+                        top: 75,
                         bottom: 20,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,7 +171,19 @@ class _PastDetailPageState extends State<PastDetailPage> {
                                 }).toList(),
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                '←  左右滑動探索  →',
+                                textAlign: TextAlign.center,
+                                style: kaisei(
+                                  size: 11,
+                                  weight: FontWeight.w700,
+                                  color: _darkBrown,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             Text(
                               '探索總覽',
                               style: kaisei(

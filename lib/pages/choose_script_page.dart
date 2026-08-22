@@ -134,7 +134,7 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                 padding: const EdgeInsets.only(
                                   left: 15,
                                   right: 15,
-                                  top: 30,
+                                  top: 50,
                                   bottom: 75,
                                 ),
                                 children: [

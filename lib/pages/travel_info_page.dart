@@ -307,7 +307,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 50,
+                            top: 45,
                             child: Center(
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -327,7 +327,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 91,
+                            top: 85,
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -362,7 +362,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                             left: 13,
                             top: 130,
                             width: 334,
-                            height: 446,
+                            height: 475,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(5),
                               child: Image.asset(
@@ -375,7 +375,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                             left: 39,
                             top: 157,
                             width: 282,
-                            height: 410,
                             child: _FormContent(
                               kaisei: kaisei,
                               peopleController: peopleController,
@@ -615,7 +614,7 @@ class _FormContent extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 15),
         Align(
           alignment: Alignment.center,
           child: _GenerateButton(text: '生成專屬劇本', onPressed: onGenerate),

@@ -102,7 +102,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
 
                 // 標題。
                 Positioned(
-                  top: 50,
+                  top: 40,
                   left: 0,
                   right: 0,
                   child: IgnorePointer(
@@ -117,7 +117,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
 
                 // 副標題。
                 Positioned(
-                  top: 85,
+                  top: 80,
                   left: 0,
                   right: 0,
                   child: IgnorePointer(
@@ -155,7 +155,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                 // 結果小卡。
                 Positioned(
                   left: 65,
-                  top: 430,
+                  top: 440,
                   width: 300,
                   height: 130,
                   child: IgnorePointer(
@@ -169,7 +169,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
 
                 // 過往提示。
                 Positioned(
-                  top: 570,
+                  top: 590,
                   left: 0,
                   right: 0,
                   child: IgnorePointer(
@@ -193,7 +193,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                 Positioned(
                   left: 45,
                   right: 45,
-                  top: 600,
+                  top: 620,
                   height: 54,
                   child: _EndButton(
                     text: '返回首頁',
@@ -1100,16 +1100,17 @@ class _EndResultCard extends StatelessWidget {
       child: CustomPaint(
         foregroundPainter: _DashedBorderPainter(),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 5, 14, 5),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _EndResultLine(text: '踏步步數：8,432 步', kaisei: kaisei),
-              const SizedBox(height: 10),
+              _EndResultLine(text: '遊踏步數：8,432 步', kaisei: kaisei),
+              const SizedBox(height: 8),
               _EndResultLine(text: '破解謎題：16/16', kaisei: kaisei),
-              const SizedBox(height: 10),
-              _EndResultLine(text: '尋獲明信片：10/10', kaisei: kaisei),
+              const SizedBox(height: 8),
+              _EndResultLine(text: '尋獲卡片：10/10', kaisei: kaisei),
             ],
           ),
         ),

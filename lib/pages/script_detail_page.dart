@@ -8,10 +8,6 @@ import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
 import 'story_play_page.dart';
 
-// ============================================================
-// 頁面配色
-// ============================================================
-
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
@@ -25,10 +21,6 @@ const Color _buttonOuter = AppColors.primary;
 
 const Color _sectionRed = AppColors.primaryAccent;
 
-// ============================================================
-// 劇本詳細頁
-// ============================================================
-
 class ScriptDetailPage extends StatefulWidget {
   final String title;
 
@@ -39,11 +31,9 @@ class ScriptDetailPage extends StatefulWidget {
 }
 
 class _ScriptDetailPageState extends State<ScriptDetailPage> {
-  // 固定設計畫布尺寸
   static const double designWidth = 360;
   static const double designHeight = 640;
 
-  // 整體內容稍微放大
   static const double contentScale = 1.06;
 
   int currentIndex = 1;
@@ -51,7 +41,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   bool buttonHovering = false;
   bool buttonPressing = false;
 
-  // 圖片輪播素材
   static const List<String> photoAssets = [
     'img/home_trip.png',
     'img/home_gogo.png',
@@ -62,7 +51,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   void initState() {
     super.initState();
 
-    // 設定系統狀態列與底部系統導覽列顏色
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: _pageColor,
@@ -74,7 +62,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     );
   }
 
-  // 統一使用 Kaisei Haruno Umi 字體
   TextStyle kaisei({
     double size = 16,
     FontWeight weight = FontWeight.w400,
@@ -87,7 +74,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     );
   }
 
-  // 返回劇本選擇頁
   void backToChooseScript() {
     Navigator.pushReplacement(
       context,
@@ -108,276 +94,250 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       backgroundColor: _pageColor,
       extendBody: true,
 
-      // ========================================================
-      // 主內容區
-      // ========================================================
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Transform.scale(
-              // 整個劇本區塊以中心點放大，保持水平與垂直置中
-              scale: contentScale,
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: designWidth,
-                height: designHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // ==================================================
-                    // 頁面背景
-                    // ==================================================
-                    Positioned.fill(child: Container(color: _pageColor)),
+      body: Transform.translate(
+        offset: const Offset(0, -32),
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: designWidth,
+              height: designHeight,
+              child: Transform.scale(
+                scale: contentScale,
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: designWidth,
+                  height: designHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(child: Container(color: _pageColor)),
 
-                    // ==================================================
-                    // 長紙張背景
-                    // ==================================================
-                    Positioned(
-                      left: 12,
-                      top: 37,
-                      width: 336,
-                      height: 598,
-                      child: Image.asset(
-                        'img/long_papper.png',
-                        fit: BoxFit.fill,
-                      ),
-                    ),
-
-                    // ==================================================
-                    // 劇本標題
-                    // ==================================================
-                    Positioned(
-                      left: 34,
-                      right: 82,
-                      top: 63,
-                      child: Text(
-                        widget.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: kaisei(
-                          size: 22,
-                          weight: FontWeight.w700,
-                          color: _darkText,
+                      Positioned(
+                        left: 12,
+                        top: 37,
+                        width: 336,
+                        height: 590,
+                        child: Image.asset(
+                          'img/long_papper.png',
+                          fit: BoxFit.fill,
                         ),
                       ),
-                    ),
 
-                    // ==================================================
-                    // 右上角關閉按鈕
-                    // ==================================================
-                    Positioned(
-                      right: 28,
-                      top: 57,
-                      child: _CloseButton(onTap: backToChooseScript),
-                    ),
-
-                    // ==================================================
-                    // 圖片輪播
-                    // ==================================================
-                    Positioned(
-                      left: 30,
-                      top: 107,
-                      width: 300,
-                      height: 154,
-                      child: FlutterCarousel(
-                        options: FlutterCarouselOptions(
-                          height: 154,
-                          viewportFraction: 0.68,
-                          initialPage: 0,
-                          enableInfiniteScroll: true,
-                          autoPlay: false,
-                          enlargeCenterPage: true,
-                          showIndicator: false,
-                          pageSnapping: true,
-                          scrollDirection: Axis.horizontal,
-                          enlargeStrategy: CenterPageEnlargeStrategy.scale,
-                        ),
-                        items: photoAssets.map((asset) {
-                          return _PolaroidPhoto(
-                            assetPath: asset,
-                            kaisei: kaisei,
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    // ==================================================
-                    // 劇本內容區
-                    // ==================================================
-                    Positioned(
-                      left: 34,
-                      right: 34,
-                      top: 260,
-                      bottom: 112,
-                      child: ScrollConfiguration(
-                        behavior: const _NoScrollbarScrollBehavior(),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(right: 8, bottom: 14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ==================================================
-                              // 前傳
-                              // ==================================================
-                              Text(
-                                '前傳',
-                                style: kaisei(
-                                  size: 18,
-                                  weight: FontWeight.w700,
-                                  color: _sectionRed,
-                                ),
-                              ),
-
-                              const SizedBox(height: 5),
-
-                              Text(
-                                '清朝年間，一位準備赴考的考生，在考試前夕離奇失去了所有記憶。醒來後，他只記得自己必須尋回某樣重要的東西，卻忘了那究竟是什麼。循著府城百年街巷的足跡，尋回逝去的一段段記憶，逐漸拼回真相。',
-                                style: kaisei(
-                                  size: 13.5,
-                                  weight: FontWeight.w700,
-                                  color: _darkText,
-                                ).copyWith(height: 1.42),
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              // ==================================================
-                              // 探索總覽
-                              // ==================================================
-                              Text(
-                                '探索總覽',
-                                style: kaisei(
-                                  size: 18,
-                                  weight: FontWeight.w700,
-                                  color: _sectionRed,
-                                ),
-                              ),
-
-                              const SizedBox(height: 6),
-
-                              // ==================================================
-                              // 第一站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第一站',
-                                title: '臺南孔廟',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第二站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第二站',
-                                title: '尋找文字的故鄉',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第三站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第三站',
-                                title: '追尋百年前的繁華',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第四站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第四站',
-                                title: '破解古城石碑',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第五站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第五站',
-                                title: '尋找失落記憶',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第六站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第六站',
-                                title: '解開最後謎題',
-                                kaisei: kaisei,
-                              ),
-
-                              // ==================================================
-                              // 第七站
-                              // ==================================================
-                              _ChapterItem(
-                                number: '第七站',
-                                title: '回到故事最初的地方',
-                                kaisei: kaisei,
-                              ),
-
-                              const SizedBox(height: 10),
-                            ],
+                      Positioned(
+                        left: 34,
+                        right: 82,
+                        top: 63,
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: kaisei(
+                            size: 22,
+                            weight: FontWeight.w700,
+                            color: _darkText,
                           ),
                         ),
                       ),
-                    ),
 
-                    // ==================================================
-                    // 底部確認按鈕
-                    // ==================================================
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 57,
-                      child: Center(
-                        child: _ConfirmButton(
-                          text: '確認此卷',
-                          hovering: buttonHovering,
-                          pressing: buttonPressing,
+                      Positioned(
+                        right: 28,
+                        top: 57,
+                        child: _CloseButton(onTap: backToChooseScript),
+                      ),
 
-                          // 滑鼠移入
-                          onHoverEnter: () {
-                            setState(() {
-                              buttonHovering = true;
-                            });
-                          },
-
-                          // 滑鼠移出
-                          onHoverExit: () {
-                            setState(() {
-                              buttonHovering = false;
-                            });
-                          },
-
-                          // 按下按鈕
-                          onPress: () {
-                            setState(() {
-                              buttonPressing = true;
-                            });
-                          },
-
-                          // 放開按鈕
-                          onRelease: () {
-                            setState(() {
-                              buttonPressing = false;
-                            });
-                          },
-
-                          // 點擊確認
-                          onTap: confirmScript,
-                          kaisei: kaisei,
+                      Positioned(
+                        left: 30,
+                        top: 107,
+                        width: 300,
+                        height: 154,
+                        child: FlutterCarousel(
+                          options: FlutterCarouselOptions(
+                            height: 154,
+                            viewportFraction: 0.68,
+                            initialPage: 0,
+                            enableInfiniteScroll: true,
+                            autoPlay: false,
+                            enlargeCenterPage: true,
+                            showIndicator: false,
+                            pageSnapping: true,
+                            scrollDirection: Axis.horizontal,
+                            enlargeStrategy: CenterPageEnlargeStrategy.scale,
+                          ),
+                          items: photoAssets.map((asset) {
+                            return _PolaroidPhoto(
+                              assetPath: asset,
+                              kaisei: kaisei,
+                            );
+                          }).toList(),
                         ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 265,
+                        child: Text(
+                          '←  左右滑動探索  →',
+                          textAlign: TextAlign.center,
+                          style: kaisei(
+                            size: 11,
+                            weight: FontWeight.w700,
+                            color: _darkBrown,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 34,
+                        right: 34,
+                        top: 285,
+                        bottom: 112,
+                        child: ScrollConfiguration(
+                          behavior: const _NoScrollbarScrollBehavior(),
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(
+                              right: 8,
+                              bottom: 14,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '前傳',
+                                  style: kaisei(
+                                    size: 18,
+                                    weight: FontWeight.w700,
+                                    color: _sectionRed,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 5),
+
+                                Text(
+                                  '清朝年間，一位準備赴考的考生，在考試前夕離奇失去了所有記憶。醒來後，他只記得自己必須尋回某樣重要的東西，卻忘了那究竟是什麼。循著府城百年街巷的足跡，尋回逝去的一段段記憶，逐漸拼回真相。',
+                                  style: kaisei(
+                                    size: 13.5,
+                                    weight: FontWeight.w700,
+                                    color: _darkText,
+                                  ).copyWith(height: 1.42),
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                Row(
+                                  children: [
+                                    Text(
+                                      '探索總覽',
+                                      style: kaisei(
+                                        size: 18,
+                                        weight: FontWeight.w700,
+                                        color: _sectionRed,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '往上滑動看更多',
+                                      textAlign: TextAlign.center,
+                                      style: kaisei(
+                                        size: 10,
+                                        weight: FontWeight.w700,
+                                        color: _darkBrown.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 6),
+                                _ChapterItem(
+                                  number: '第一站',
+                                  title: '臺南孔廟',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第二站',
+                                  title: '尋找文字的故鄉',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第三站',
+                                  title: '追尋百年前的繁華',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第四站',
+                                  title: '破解古城石碑',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第五站',
+                                  title: '尋找失落記憶',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第六站',
+                                  title: '解開最後謎題',
+                                  kaisei: kaisei,
+                                ),
+
+                                _ChapterItem(
+                                  number: '第七站',
+                                  title: '回到故事最初的地方',
+                                  kaisei: kaisei,
+                                ),
+
+                                const SizedBox(height: 10),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 55,
+                        child: Center(
+                          child: _ConfirmButton(
+                            text: '確認此卷',
+                            hovering: buttonHovering,
+                            pressing: buttonPressing,
+
+                            onHoverEnter: () {
+                              setState(() {
+                                buttonHovering = true;
+                              });
+                            },
+                            onHoverExit: () {
+                              setState(() {
+                                buttonHovering = false;
+                              });
+                            },
+                            onPress: () {
+                              setState(() {
+                                buttonPressing = true;
+                              });
+                            },
+
+                            onRelease: () {
+                              setState(() {
+                                buttonPressing = false;
+                              });
+                            },
+                            onTap: confirmScript,
+                            kaisei: kaisei,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -385,17 +345,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         ),
       ),
 
-      // ============================================================
-      // 底部導覽列
-      // ============================================================
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
 }
-
-// ============================================================
-// 圖片卡片
-// ============================================================
 
 class _PolaroidPhoto extends StatelessWidget {
   final String assetPath;
@@ -418,7 +371,6 @@ class _PolaroidPhoto extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // 圖片
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
@@ -433,7 +385,6 @@ class _PolaroidPhoto extends StatelessWidget {
 
           const SizedBox(height: 5),
 
-          // 圖片名稱
           Text(
             '臺南景點',
             textAlign: TextAlign.center,
@@ -448,10 +399,6 @@ class _PolaroidPhoto extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// 探索章節項目
-// ============================================================
 
 class _ChapterItem extends StatelessWidget {
   final String number;
@@ -473,19 +420,16 @@ class _ChapterItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 項目符號
           Text(
             '• ',
             style: kaisei(size: 13, weight: FontWeight.w700, color: _darkText),
           ),
 
-          // 站點編號
           Text(
             '$number：',
             style: kaisei(size: 13, weight: FontWeight.w700, color: _darkText),
           ),
 
-          // 站點名稱
           Expanded(
             child: Text(
               title,
@@ -502,10 +446,6 @@ class _ChapterItem extends StatelessWidget {
   }
 }
 
-// ============================================================
-// 右上角關閉按鈕
-// ============================================================
-
 class _CloseButton extends StatefulWidget {
   final VoidCallback onTap;
 
@@ -521,7 +461,6 @@ class _CloseButtonState extends State<_CloseButton> {
 
   @override
   Widget build(BuildContext context) {
-    // 控制滑鼠移入與按下時的縮放效果
     final double scale = pressing
         ? 0.90
         : hovering
@@ -529,15 +468,12 @@ class _CloseButtonState extends State<_CloseButton> {
         : 1.0;
 
     return MouseRegion(
-
-      // 滑鼠移入
       onEnter: (_) {
         setState(() {
           hovering = true;
         });
       },
 
-      // 滑鼠移出
       onExit: (_) {
         setState(() {
           hovering = false;
@@ -545,24 +481,20 @@ class _CloseButtonState extends State<_CloseButton> {
       },
 
       child: GestureDetector(
-        // 點擊關閉
         onTap: widget.onTap,
 
-        // 按下
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
 
-        // 放開
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
 
-        // 取消按壓
         onTapCancel: () {
           setState(() {
             pressing = false;
@@ -574,7 +506,6 @@ class _CloseButtonState extends State<_CloseButton> {
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOutBack,
           child: SizedBox(
-            // 增加實際點擊範圍
             width: 30,
             height: 30,
             child: Center(
@@ -591,10 +522,6 @@ class _CloseButtonState extends State<_CloseButton> {
     );
   }
 }
-
-// ============================================================
-// 確認按鈕
-// ============================================================
 
 class _ConfirmButton extends StatelessWidget {
   final String text;
@@ -627,7 +554,6 @@ class _ConfirmButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 控制滑鼠移入與按下時的縮放效果
     final double scale = pressing
         ? 0.96
         : hovering
@@ -635,32 +561,25 @@ class _ConfirmButton extends StatelessWidget {
         : 1.0;
 
     return MouseRegion(
-
-      // 滑鼠移入
       onEnter: (_) {
         onHoverEnter();
       },
 
-      // 滑鼠移出
       onExit: (_) {
         onHoverExit();
       },
 
       child: GestureDetector(
-        // 點擊確認
         onTap: onTap,
 
-        // 按下
         onTapDown: (_) {
           onPress();
         },
 
-        // 放開
         onTapUp: (_) {
           onRelease();
         },
 
-        // 取消按壓
         onTapCancel: () {
           onRelease();
         },
@@ -705,10 +624,6 @@ class _ConfirmButton extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// 關閉 ScrollView 的預設 Scrollbar 與 Overscroll 效果
-// ============================================================
 
 class _NoScrollbarScrollBehavior extends ScrollBehavior {
   const _NoScrollbarScrollBehavior();
