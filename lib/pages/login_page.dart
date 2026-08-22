@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_session.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -89,6 +90,23 @@ class _LoginPageState extends State<LoginPage> {
         final bool isSuccess = data['isSuccess'] == true;
         final String message = data['message']?.toString() ?? '登入失敗';
         if (isSuccess) {
+          final Map<String, dynamic>? result =
+              data['Result'] as Map<String, dynamic>?;
+
+          final String? token = result?['token']?.toString();
+          final String? epId = result?['ep_id']?.toString();
+          final String? epName = result?['ep_name']?.toString();
+
+          if (token == null || token.isEmpty) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('權限失敗')));
+            return;
+          }
+          AppSession.token = token;
+          AppSession.epId = epId;
+          AppSession.epName = epName;
           if (!mounted) return;
 
           Navigator.pushReplacementNamed(context, '/user-type');

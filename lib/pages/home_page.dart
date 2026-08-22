@@ -7,6 +7,7 @@ import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
+import '../core/app_session.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
@@ -23,6 +24,36 @@ class _HomePageState extends State<HomePage> {
 
   String accountName = 'EP001';
   String accountPassword = '';
+  Future<void> _fetchProfile() async {
+    final token = AppSession.token;
+    if (token == null || token.isEmpty) {
+      return;
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5501/api/Auth/Profile'),
+        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 300) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['isSuccess'] == true) {
+          final result = data['Result'];
+
+          final String? epName = result?['ep_name']?.toString();
+
+          if (epName != null && epName.isNotEmpty) {
+            if (!mounted) return;
+
+            setState(() {
+              accountName = epName;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Profile Error: $e');
+    }
+  }
 
   static const Color pageColor = AppColors.background;
   static const Color darkText = AppColors.textPrimary;
@@ -42,6 +73,7 @@ class _HomePageState extends State<HomePage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+    _fetchProfile();
   }
 
   @override
@@ -294,19 +326,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _logout() async {
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+
+      return;
+    }
+
     try {
       final response = await http.post(
         Uri.parse('http://localhost:5501/api/Auth/Logout'),
+        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode >= 200 && response.statusCode <= 300) {
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        AppSession.clear();
+
+        if (!mounted) return;
+
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/login', (route) => false);
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('登出失敗')));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('登出失敗：HTTP ${response.statusCode}')),
+        );
       }
     } catch (e) {
       if (!mounted) return;
