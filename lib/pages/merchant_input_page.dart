@@ -160,7 +160,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                       ),
                       Positioned(
                         left: 23,
-                        top: 20,
+                        top: 10,
                         child: _BackButton(
                           onTap: () => Navigator.pop(context),
                           kaisei: kaisei,
@@ -208,7 +208,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                         left: 22,
                         top: 108,
                         width: 318,
-                        height: 507,
+                        height: 515,
                         child: _InputPaper(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +467,6 @@ class _BackButtonState extends State<_BackButton> {
     final scale = pressing ? 0.95 : 1.0;
 
     return MouseRegion(
-
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -527,7 +526,6 @@ class _ToneButtonState extends State<_ToneButton> {
     final scale = pressing ? 0.96 : 1.0;
 
     return MouseRegion(
-
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -581,7 +579,6 @@ class _UploadAreaState extends State<_UploadArea> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-
       child: AnimatedScale(
         scale: 1.0,
         duration: const Duration(milliseconds: 150),
@@ -701,7 +698,6 @@ class _UploadButtonState extends State<_UploadButton> {
     final scale = pressing ? 0.90 : 1.0;
 
     return MouseRegion(
-
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
@@ -756,7 +752,6 @@ class _GenerateButtonState extends State<_GenerateButton> {
     final scale = pressing ? 0.96 : 1.0;
 
     return MouseRegion(
-
       child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),

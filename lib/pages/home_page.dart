@@ -459,8 +459,8 @@ class _HomePageState extends State<HomePage> {
         child: Stack(
           children: [
             Positioned(
-              left: 9,
-              top: 15,
+              left: 5,
+              top: 20,
               width: 55,
               height: 55,
               child: Image.asset('img/Badge.png', fit: BoxFit.contain),

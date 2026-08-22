@@ -28,9 +28,6 @@ TextStyle kaisei({
 class MerchantVideoPage extends StatelessWidget {
   const MerchantVideoPage({super.key});
 
-  static const double designWidth = 360;
-  static const double designHeight = 820;
-
   void _goHome(BuildContext context) {
     Navigator.pushAndRemoveUntil(
       context,
@@ -44,78 +41,74 @@ class MerchantVideoPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: designWidth,
-                height: designHeight,
-                child: Stack(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 42,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Positioned.fill(
-                      child: ColoredBox(color: _backgroundColor),
-                    ),
-                    Positioned(
-                      top: 10,
-                      left: 23,
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _goHome(context),
-                        child: Text(
-                          '<< 返回',
-                          style:
-                              kaisei(
-                                size: 14,
-                                weight: FontWeight.w600,
-                                color: _lightText,
-                              ).copyWith(
-                                shadows: const [
-                                  Shadow(
-                                    color: Color(0x55000000),
-                                    offset: Offset(1, 1),
-                                    blurRadius: 3,
-                                  ),
-                                ],
-                              ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 5,
+                          ),
+                          child: Text(
+                            '<< 返回',
+                            style:
+                                kaisei(
+                                  size: 14,
+                                  weight: FontWeight.w600,
+                                  color: _lightText,
+                                ).copyWith(
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0x55000000),
+                                      offset: Offset(1, 1),
+                                      blurRadius: 3,
+                                    ),
+                                  ],
+                                ),
+                          ),
                         ),
                       ),
                     ),
-                    const Positioned(
-                      top: 45,
-                      left: 23,
-                      right: 23,
-                      child: _ContentCard(),
-                    ),
-                    Positioned(
-                      left: 22,
-                      right: 22,
-                      top: 740,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _ShareButton(
-                              text: '一鍵分享ig',
-                              onTap: _shareInstagram,
-                            ),
+                    const SizedBox(height: 10),
+                    const _ContentCard(),
+                    const SizedBox(height: 18),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ShareButton(
+                            text: '一鍵分享ig',
+                            onTap: _shareInstagram,
                           ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: _ShareButton(
-                              text: '一鍵分享脆',
-                              onTap: _shareThreads,
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ShareButton(
+                            text: '一鍵分享脆',
+                            onTap: _shareThreads,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -132,7 +125,8 @@ class _ContentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
       decoration: BoxDecoration(
         color: _cardColor,
         border: Border.all(color: _black, width: 1),
@@ -140,6 +134,7 @@ class _ContentCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           const _SectionHeader(
             icon: 'img/reel.png',
@@ -148,7 +143,13 @@ class _ContentCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Center(
-            child: Container(width: 230, height: 318, color: Colors.black),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 230),
+              child: AspectRatio(
+                aspectRatio: 230 / 318,
+                child: Container(width: double.infinity, color: Colors.black),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           const _SectionHeader(
@@ -200,26 +201,37 @@ class _SectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Image.asset(icon, width: 22, height: 22, fit: BoxFit.contain),
-        const SizedBox(width: 7),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: kaisei(size: 20, weight: FontWeight.w900, color: _textColor),
+            maxLines: 2,
+            overflow: TextOverflow.visible,
+            style: kaisei(size: 18, weight: FontWeight.w900, color: _textColor),
           ),
         ),
-        for (final action in actions) ...[
-          const SizedBox(width: 8),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {},
-            child: Image.asset(
-              action,
-              width: 21,
-              height: 21,
-              fit: BoxFit.contain,
-            ),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: 5),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < actions.length; i++) ...[
+                if (i > 0) const SizedBox(width: 5),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {},
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Image.asset(
+                      actions[i],
+                      width: 21,
+                      height: 21,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ],
@@ -244,6 +256,7 @@ class _ContentTextBox extends StatelessWidget {
       ),
       child: Text(
         text,
+        softWrap: true,
         style: kaisei(
           size: 13,
           weight: FontWeight.w700,
@@ -273,6 +286,7 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         text,
+        softWrap: false,
         style: kaisei(
           size: 12,
           weight: FontWeight.w700,
@@ -318,7 +332,7 @@ class _ShareButtonState extends State<_ShareButton> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        height: 44,
+        constraints: const BoxConstraints(minHeight: 44),
         transform: Matrix4.translationValues(0, _pressed ? 2 : 0, 0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
@@ -332,14 +346,21 @@ class _ShareButtonState extends State<_ShareButton> {
             BoxShadow(color: _black, offset: Offset(0, 3), blurRadius: 0),
           ],
         ),
-        child: Center(
-          child: Text(
-            widget.text,
-            style: kaisei(
-              size: 16,
-              weight: FontWeight.w700,
-              color: _buttonText,
-            ).copyWith(height: 1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                widget.text,
+                maxLines: 1,
+                style: kaisei(
+                  size: 16,
+                  weight: FontWeight.w700,
+                  color: _buttonText,
+                ).copyWith(height: 1),
+              ),
+            ),
           ),
         ),
       ),
