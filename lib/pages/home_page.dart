@@ -1,5 +1,6 @@
 import 'dart:math' as math;
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../block/navigationbar.dart';
@@ -42,6 +43,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -291,8 +293,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _logout() {
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  Future<void> _logout() async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5501/api/Auth/Logout'),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 300) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/login', (route) => false);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('登出失敗')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('無法連線到伺服器')));
+    }
   }
 
   Widget _OverviewCard() {
@@ -322,7 +344,9 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                   '目前總覽',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.heading.copyWith(color: const Color(0xFF3D342E)),
+                  style: AppTextStyles.heading.copyWith(
+                    color: const Color(0xFF3D342E),
+                  ),
                 ),
               ),
             ),
@@ -343,13 +367,17 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       '已完成探險',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.captionBold.copyWith(color: darkText),
+                      style: AppTextStyles.captionBold.copyWith(
+                        color: darkText,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text(
                       '1',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.heroTitle.copyWith(color: const Color(0xFF8C1D13)),
+                      style: AppTextStyles.heroTitle.copyWith(
+                        color: const Color(0xFF8C1D13),
+                      ),
                     ),
                   ],
                 ),
@@ -657,7 +685,9 @@ class _AgentInfoDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '探員帳號',
-                        style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
+                        style: AppTextStyles.title.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -667,7 +697,9 @@ class _AgentInfoDialog extends StatelessWidget {
                     children: [
                       Text(
                         '帳號名稱：$accountName',
-                        style: AppTextStyles.subtitle.copyWith(color: const Color(0xFF40342D)),
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: const Color(0xFF40342D),
+                        ),
                       ),
                       const Spacer(),
                       _EditIconButton(onTap: onEdit),
@@ -724,7 +756,9 @@ class _EditAccountDialog extends StatelessWidget {
                   Text(
                     '編輯探員資料',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.heading.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.heading.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   _EditField(
@@ -796,11 +830,15 @@ class _EditField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       textAlign: TextAlign.center,
-      style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.textPrimary),
+      style: AppTextStyles.bodyEmphasisBold.copyWith(
+        color: AppColors.textPrimary,
+      ),
       cursorColor: AppColors.primaryAccent,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: AppTextStyles.captionBold.copyWith(color: const Color(0xFF6F6258)),
+        labelStyle: AppTextStyles.captionBold.copyWith(
+          color: const Color(0xFF6F6258),
+        ),
         filled: true,
         fillColor: const Color(0x55FFFFFF),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -810,7 +848,10 @@ class _EditField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.3),
+          borderSide: const BorderSide(
+            color: AppColors.primaryAccent,
+            width: 1.3,
+          ),
         ),
       ),
     );

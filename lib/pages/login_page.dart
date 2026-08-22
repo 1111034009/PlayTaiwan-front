@@ -1,11 +1,9 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
-
-// ================================================================
-// Login Page
-// ================================================================
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,8 +13,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool isLoading = false;
   final TextEditingController accountController = TextEditingController();
-
   final TextEditingController passwordController = TextEditingController();
 
   static const Color pageColor = AppColors.background;
@@ -60,17 +58,66 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ==============================================================
-  // Login
-  // ==============================================================
+  Future<void> login() async {
+    final String account = accountController.text.trim();
+    final String password = passwordController.text;
+    if (account.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請輸入帳號與密碼')));
+      return;
+    }
 
-  void login() {
-    Navigator.pushReplacementNamed(context, '/user-type');
+    if (isLoading) {
+      return;
+    }
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5501/api/Auth/Login'),
+        headers: {'accept': '*/*', 'Content-Type': 'application/json'},
+        body: jsonEncode({'ep_name': account, 'ep_pswd': password}),
+      );
+      print('${response.statusCode}');
+      print('Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final bool isSuccess = data['isSuccess'] == true;
+        final String message = data['message']?.toString() ?? '登入失敗';
+        if (isSuccess) {
+          if (!mounted) return;
+
+          Navigator.pushReplacementNamed(context, '/user-type');
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('伺服器錯誤 (${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      print('Login Error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請探員確認連線~')));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  // ==============================================================
-  // Font
-  // ==============================================================
   InputDecoration inputDecoration({required String hintText}) {
     return InputDecoration(
       hintText: hintText,
@@ -113,7 +160,10 @@ class _LoginPageState extends State<LoginPage> {
 
           const SizedBox(width: 7),
 
-          Text(title, style: AppTextStyles.bodyEmphasisBold.copyWith(color: darkText)),
+          Text(
+            title,
+            style: AppTextStyles.bodyEmphasisBold.copyWith(color: darkText),
+          ),
         ],
       ),
     );
@@ -213,7 +263,9 @@ class _LoginPageState extends State<LoginPage> {
 
                       textAlign: TextAlign.center,
 
-                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF292522)),
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: const Color(0xFF292522),
+                      ),
                     ),
                   ),
                 ),
@@ -232,7 +284,9 @@ class _LoginPageState extends State<LoginPage> {
 
                       textAlign: TextAlign.center,
 
-                      style: AppTextStyles.bodySmallBold.copyWith(color: const Color(0xFF66615C)),
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: const Color(0xFF66615C),
+                      ),
                     ),
                   ),
                 ),
@@ -307,7 +361,10 @@ class _LoginPageState extends State<LoginPage> {
                       width: 90,
                       height: 49,
 
-                      child: _LoginButton(onPressed: login),
+                      child: _LoginButton(
+                        onPressed: login,
+                        isLoading: isLoading,
+                      ),
                     ),
                   ),
                 ),
@@ -326,8 +383,8 @@ class _LoginPageState extends State<LoginPage> {
 
 class _LoginButton extends StatefulWidget {
   final VoidCallback onPressed;
-
-  const _LoginButton({required this.onPressed});
+  final bool isLoading;
+  const _LoginButton({required this.onPressed, required this.isLoading});
 
   @override
   State<_LoginButton> createState() => _LoginButtonState();
@@ -425,13 +482,22 @@ class _LoginButtonState extends State<_LoginButton> {
               // --------------------------------------------------
               // Button Text
               // --------------------------------------------------
-              child: Text(
-                '登入',
-
-                textAlign: TextAlign.center,
-
-                style: AppTextStyles.subtitle.copyWith(color: Colors.white),
-              ),
+              child: widget.isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      '登入',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.subtitle.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),
