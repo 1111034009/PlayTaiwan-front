@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
 import '../../block/navigationbar.dart';
@@ -19,9 +19,9 @@ const Color _pageColor = AppColors.background;
 const Color _topColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
 
-const Color _daySelectedBackground = Color(0xFF7F1A08);
-const Color _daySelectedText = Color(0xFFEBE1C7);
-const Color _dayUnselectedText = Color(0xFF301717);
+const Color _daySelectedBackground = AppColors.deepRed;
+const Color _daySelectedText = AppColors.paper;
+const Color _dayUnselectedText = AppColors.textPrimary;
 
 class StoryMapPage extends StatefulWidget {
   const StoryMapPage({super.key});
@@ -67,19 +67,6 @@ class _StoryMapPageState extends State<StoryMapPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   double _getScale(double width, double height) {
     return AppResponsive.scale(
       availableWidth: width,
@@ -170,13 +157,9 @@ class _StoryMapPageState extends State<StoryMapPage> {
           content: Text(
             message,
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
           ),
-          backgroundColor: const Color(0xFF473737),
+          backgroundColor: AppColors.storyBackground,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -283,8 +266,7 @@ class _StoryMapPageState extends State<StoryMapPage> {
                           selectedDay = day;
                         });
                       },
-                      kaisei: kaisei,
-                    ),
+),
                   ),
                 ),
 
@@ -439,15 +421,10 @@ class _MapContent extends StatelessWidget {
 class _DaySelector extends StatelessWidget {
   final int selectedDay;
   final ValueChanged<int> onDayChanged;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _DaySelector({
     required this.selectedDay,
     required this.onDayChanged,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -470,8 +447,7 @@ class _DaySelector extends StatelessWidget {
                 onTap: () {
                   onDayChanged(1);
                 },
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(width: 7),
               _DayButton(
                 text: '第二日',
@@ -479,8 +455,7 @@ class _DaySelector extends StatelessWidget {
                 onTap: () {
                   onDayChanged(2);
                 },
-                kaisei: kaisei,
-              ),
+),
             ],
           ),
         ),
@@ -493,16 +468,11 @@ class _DayButton extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _DayButton({
     required this.text,
     required this.selected,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_DayButton> createState() => _DayButtonState();
@@ -565,11 +535,7 @@ class _DayButtonState extends State<_DayButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 13,
-                weight: FontWeight.w700,
-                color: widget.selected ? _daySelectedText : _dayUnselectedText,
-              ),
+              style: AppTextStyles.captionBold.copyWith(color: widget.selected ? _daySelectedText : _dayUnselectedText),
             ),
           ),
         ),

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import 'past_detail_page.dart';
 
-const Color _pageColor = Color(0xFF4F4141);
+const Color _pageColor = AppColors.pastBackground;
 const Color _subtitleText = Color(0xCCFFFFFF);
 const Color _ticketText = AppColors.textPrimary;
-const Color _seeMoreColor = Color(0xFF871E0C);
+const Color _seeMoreColor = AppColors.secondaryRed;
 
 class PastPage extends StatefulWidget {
   const PastPage({super.key});
@@ -39,19 +38,6 @@ class _PastPageState extends State<PastPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _ticketText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void openPastRecord() {
     Navigator.push(
       context,
@@ -106,18 +92,14 @@ class _PastPageState extends State<PastPage> {
                                     fit: BoxFit.contain,
                                   ),
                                   const SizedBox(width: 7),
-                                  _OutlinedTitle(text: '收藏館', kaisei: kaisei),
+                                  _OutlinedTitle(text: '收藏館'),
                                 ],
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 '查看你過往紀錄',
                                 textAlign: TextAlign.center,
-                                style: kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w700,
-                                  color: _subtitleText,
-                                ).copyWith(height: 1.1),
+                                style: AppTextStyles.bodySmallBold.copyWith(color: _subtitleText).copyWith(height: 1.1),
                               ),
                             ],
                           ),
@@ -142,7 +124,6 @@ class _PastPageState extends State<PastPage> {
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 9),
                                   child: _PastTicket(
-                                    kaisei: kaisei,
                                     onTap: openPastRecord,
                                   ),
                                 );
@@ -165,12 +146,9 @@ class _PastPageState extends State<PastPage> {
 }
 
 class _PastTicket extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onTap;
 
-  const _PastTicket({required this.kaisei, required this.onTap});
+  const _PastTicket({ required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -191,9 +169,9 @@ class _PastTicket extends StatelessWidget {
                 errorBuilder: (_, __, ___) {
                   return Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEBE1C7),
+                      color: AppColors.paper,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF8D7B6E)),
+                      border: Border.all(color: AppColors.postcardLine),
                     ),
                   );
                 },
@@ -222,22 +200,14 @@ class _PastTicket extends StatelessWidget {
                     '府城儒生失落卷',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kaisei(
-                      size: 17,
-                      weight: FontWeight.w900,
-                      color: _seeMoreColor,
-                    ),
+                    style: AppTextStyles.subtitle.copyWith(color: _seeMoreColor),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '尋著百年軌跡，找回失落記憶...',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: kaisei(
-                      size: 11.5,
-                      weight: FontWeight.w700,
-                      color: _ticketText,
-                    ).copyWith(height: 1.35),
+                    style: AppTextStyles.microLabelWide.copyWith(color: _ticketText).copyWith(height: 1.35),
                   ),
                 ],
               ),
@@ -245,7 +215,7 @@ class _PastTicket extends StatelessWidget {
             Positioned(
               right: 40,
               bottom: 12,
-              child: _ViewButton(kaisei: kaisei, onTap: onTap),
+              child: _ViewButton(onTap: onTap),
             ),
           ],
         ),
@@ -255,12 +225,9 @@ class _PastTicket extends StatelessWidget {
 }
 
 class _ViewButton extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onTap;
 
-  const _ViewButton({required this.kaisei, required this.onTap});
+  const _ViewButton({ required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -277,16 +244,12 @@ class _ViewButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFFE4D4B5),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8D7B6E)),
+            border: Border.all(color: AppColors.postcardLine),
           ),
           child: Text(
             '查看資料→',
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 10,
-              weight: FontWeight.w900,
-              color: _ticketText,
-            ),
+            style: AppTextStyles.microBold.copyWith(color: _ticketText),
           ),
         ),
       ),
@@ -340,15 +303,11 @@ class _PressScaleState extends State<_PressScale> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = kaisei(size: 24, weight: FontWeight.w700)
+    final TextStyle outlineStyle = AppTextStyles.displayMedium.copyWith(color: _ticketText)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -362,7 +321,7 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(
           text,
-          style: kaisei(size: 24, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.displayMedium.copyWith(color: Colors.white),
         ),
       ],
     );

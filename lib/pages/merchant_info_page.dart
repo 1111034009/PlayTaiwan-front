@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.card;
@@ -14,7 +13,7 @@ const Color _buttonBorder = AppColors.primaryDark;
 const Color _buttonCenter = AppColors.primaryLight;
 const Color _buttonOuter = AppColors.primary;
 
-const Color _accentRed = Color(0xFF7F1A08);
+const Color _accentRed = AppColors.deepRed;
 
 class MerchantInfoPage extends StatefulWidget {
   const MerchantInfoPage({super.key});
@@ -41,19 +40,6 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   Future<void> editAccount() async {
     final String? result = await _showEditDialog(
       title: '編輯帳號名稱',
@@ -104,8 +90,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
           title: title,
           label: label,
           initialValue: initialValue,
-          kaisei: kaisei,
-        );
+);
       },
     );
   }
@@ -136,7 +121,6 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
           child: _InfoCard(
             accountName: accountName,
             shopName: shopName,
-            kaisei: kaisei,
             onEditAccount: editAccount,
             onEditShop: editShop,
             onLogout: logout,
@@ -151,16 +135,11 @@ class _EditDialog extends StatefulWidget {
   final String title;
   final String label;
   final String initialValue;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _EditDialog({
     required this.title,
     required this.label,
     required this.initialValue,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_EditDialog> createState() => _EditDialogState();
@@ -226,22 +205,13 @@ class _EditDialogState extends State<_EditDialog> {
             children: [
               Text(
                 widget.title,
-                style: widget
-                    .kaisei(
-                      size: 22,
-                      weight: FontWeight.w900,
-                      color: Colors.black,
-                    )
+                style: AppTextStyles.titleLarge.copyWith(color: Colors.black)
                     .copyWith(height: 1.0),
               ),
               const SizedBox(height: 18),
               Text(
                 widget.label,
-                style: widget.kaisei(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: _bodyText,
-                ),
+                style: AppTextStyles.bodyEmphasisBold.copyWith(color: _bodyText),
               ),
               const SizedBox(height: 7),
               TextField(
@@ -250,11 +220,7 @@ class _EditDialogState extends State<_EditDialog> {
                 autofocus: true,
                 maxLength: 30,
                 textInputAction: TextInputAction.done,
-                style: widget.kaisei(
-                  size: 17,
-                  weight: FontWeight.w700,
-                  color: _bodyText,
-                ),
+                style: AppTextStyles.subtitle.copyWith(color: _bodyText),
                 decoration: InputDecoration(
                   counterText: '',
                   filled: true,
@@ -295,11 +261,7 @@ class _EditDialogState extends State<_EditDialog> {
                     },
                     child: Text(
                       '取消',
-                      style: widget.kaisei(
-                        size: 15,
-                        weight: FontWeight.w700,
-                        color: _bodyText,
-                      ),
+                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: _bodyText),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -320,11 +282,7 @@ class _EditDialogState extends State<_EditDialog> {
                     onPressed: submit,
                     child: Text(
                       '儲存',
-                      style: widget.kaisei(
-                        size: 15,
-                        weight: FontWeight.w700,
-                        color: _paperColor,
-                      ),
+                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: _paperColor),
                     ),
                   ),
                 ],
@@ -340,10 +298,6 @@ class _EditDialogState extends State<_EditDialog> {
 class _InfoCard extends StatelessWidget {
   final String accountName;
   final String shopName;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onEditAccount;
   final VoidCallback onEditShop;
   final VoidCallback onLogout;
@@ -351,7 +305,6 @@ class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.accountName,
     required this.shopName,
-    required this.kaisei,
     required this.onEditAccount,
     required this.onEditShop,
     required this.onLogout,
@@ -385,51 +338,41 @@ class _InfoCard extends StatelessWidget {
               _SectionTitle(
                 icon: 'img/user_icon.png',
                 title: '帳號資訊',
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(height: 14),
               _InfoRow(
                 text: '帳號名稱：$accountName',
                 showEdit: true,
                 onEdit: onEditAccount,
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(height: 20),
               _SectionTitle(
                 icon: 'img/shop_icon.png',
                 title: '預設資訊',
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(height: 14),
               _InfoRow(
                 text: '店家名稱：',
                 showEdit: false,
                 onEdit: onEditShop,
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(height: 3),
               _InfoRow(
                 text: shopName,
                 showEdit: true,
                 onEdit: onEditShop,
-                kaisei: kaisei,
-              ),
+),
               const SizedBox(height: 12),
               Text(
                 '輸出格式：9:16',
-                style: kaisei(
-                  size: 18,
-                  weight: FontWeight.w700,
-                  color: _bodyText,
-                ).copyWith(height: 1.15),
+                style: AppTextStyles.sectionTitle.copyWith(color: _bodyText).copyWith(height: 1.15),
               ),
               const Spacer(),
               Center(
                 child: _LogoutButton(
                   text: '登出',
                   onTap: onLogout,
-                  kaisei: kaisei,
-                ),
+),
               ),
             ],
           ),
@@ -448,15 +391,10 @@ class _InfoCard extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   final String icon;
   final String title;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _SectionTitle({
     required this.icon,
     required this.title,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -467,11 +405,7 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: 7),
         Text(
           title,
-          style: kaisei(
-            size: 23,
-            weight: FontWeight.w900,
-            color: Colors.black,
-          ).copyWith(height: 1.0),
+          style: AppTextStyles.pageTitle.copyWith(color: Colors.black).copyWith(height: 1.0),
         ),
       ],
     );
@@ -482,16 +416,11 @@ class _InfoRow extends StatelessWidget {
   final String text;
   final bool showEdit;
   final VoidCallback onEdit;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _InfoRow({
     required this.text,
     required this.showEdit,
     required this.onEdit,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -503,11 +432,7 @@ class _InfoRow extends StatelessWidget {
             text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: kaisei(
-              size: 18,
-              weight: FontWeight.w700,
-              color: _bodyText,
-            ).copyWith(height: 1.25),
+            style: AppTextStyles.sectionTitle.copyWith(color: _bodyText).copyWith(height: 1.25),
           ),
         ),
         if (showEdit) ...[const SizedBox(width: 8), _EditButton(onTap: onEdit)],
@@ -587,12 +512,12 @@ class _Pin extends StatelessWidget {
                 colors: [
                   Color(0xFFE52F0E),
                   Color(0xFFB91F0C),
-                  Color(0xFF7F1A08),
+                  AppColors.deepRed,
                 ],
                 stops: [0.0, 0.42, 1.0],
               ),
               border: Border.fromBorderSide(
-                BorderSide(color: Color(0xFF7E1616), width: 1),
+                BorderSide(color: AppColors.dangerDark, width: 1),
               ),
               boxShadow: [
                 BoxShadow(
@@ -624,15 +549,10 @@ class _Pin extends StatelessWidget {
 class _LogoutButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _LogoutButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_LogoutButton> createState() => _LogoutButtonState();
@@ -692,12 +612,7 @@ class _LogoutButtonState extends State<_LogoutButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(
-                    size: 18,
-                    weight: FontWeight.w800,
-                    color: const Color(0xFFEBE1C7),
-                  )
+              style: AppTextStyles.sectionTitle.copyWith(color: AppColors.paper)
                   .copyWith(height: 1.0),
             ),
           ),

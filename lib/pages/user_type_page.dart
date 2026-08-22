@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 class UserTypePage extends StatelessWidget {
   const UserTypePage({super.key});
@@ -9,19 +8,6 @@ class UserTypePage extends StatelessWidget {
   static const Color pageColor = AppColors.background;
   static const Color darkText = AppColors.textPrimary;
   static const Color red = AppColors.primaryAccent;
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void goTraveler(BuildContext context) {
     Navigator.pushReplacementNamed(context, '/home');
   }
@@ -40,13 +26,12 @@ class UserTypePage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('選擇使用模式', style: kaisei(size: 26, weight: FontWeight.w700)),
+              Text('選擇使用模式', style: AppTextStyles.displayLargeWide.copyWith(color: darkText)),
               const SizedBox(height: 36),
 
               _ModeButton(
                 text: '旅客使用',
                 color: red,
-                kaisei: kaisei,
                 onTap: () => goTraveler(context),
               ),
 
@@ -55,7 +40,6 @@ class UserTypePage extends StatelessWidget {
               _ModeButton(
                 text: '商家使用',
                 color: red,
-                kaisei: kaisei,
                 onTap: () => goMerchant(context),
               ),
             ],
@@ -69,14 +53,11 @@ class UserTypePage extends StatelessWidget {
 class _ModeButton extends StatefulWidget {
   final String text;
   final Color color;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
   final VoidCallback onTap;
 
   const _ModeButton({
     required this.text,
     required this.color,
-    required this.kaisei,
     required this.onTap,
   });
 
@@ -127,11 +108,7 @@ class _ModeButtonState extends State<_ModeButton> {
           ),
           child: Text(
             widget.text,
-            style: widget.kaisei(
-              size: 17,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.subtitle.copyWith(color: Colors.white),
           ),
         ),
       ),

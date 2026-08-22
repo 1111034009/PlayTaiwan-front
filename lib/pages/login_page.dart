@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 // ================================================================
 // Login Page
@@ -72,24 +71,11 @@ class _LoginPageState extends State<LoginPage> {
   // ==============================================================
   // Font
   // ==============================================================
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   InputDecoration inputDecoration({required String hintText}) {
     return InputDecoration(
       hintText: hintText,
 
-      hintStyle: kaisei(size: 14, color: hintColor),
+      hintStyle: AppTextStyles.bodySmall.copyWith(color: hintColor),
 
       contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 6),
 
@@ -127,7 +113,7 @@ class _LoginPageState extends State<LoginPage> {
 
           const SizedBox(width: 7),
 
-          Text(title, style: kaisei(size: 15, weight: FontWeight.w700)),
+          Text(title, style: AppTextStyles.bodyEmphasisBold.copyWith(color: darkText)),
         ],
       ),
     );
@@ -227,11 +213,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       textAlign: TextAlign.center,
 
-                      style: kaisei(
-                        size: 22,
-                        weight: FontWeight.w700,
-                        color: const Color(0xFF292522),
-                      ),
+                      style: AppTextStyles.titleLarge.copyWith(color: const Color(0xFF292522)),
                     ),
                   ),
                 ),
@@ -250,11 +232,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       textAlign: TextAlign.center,
 
-                      style: kaisei(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: const Color(0xFF66615C),
-                      ),
+                      style: AppTextStyles.bodySmallBold.copyWith(color: const Color(0xFF66615C)),
                     ),
                   ),
                 ),
@@ -278,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     textAlign: TextAlign.center,
 
-                    style: kaisei(size: 14, color: darkText),
+                    style: AppTextStyles.bodySmall.copyWith(color: darkText),
 
                     cursorColor: cursorColor,
 
@@ -307,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     textAlign: TextAlign.center,
 
-                    style: kaisei(size: 14, color: darkText),
+                    style: AppTextStyles.bodySmall.copyWith(color: darkText),
 
                     cursorColor: cursorColor,
 
@@ -452,11 +430,7 @@ class _LoginButtonState extends State<_LoginButton> {
 
                 textAlign: TextAlign.center,
 
-                style: GoogleFonts.kaiseiHarunoUmi(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+                style: AppTextStyles.subtitle.copyWith(color: Colors.white),
               ),
             ),
           ),

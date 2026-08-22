@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import 'story_end_page.dart';
+import '../core/app_text_styles.dart';
+import '../core/app_colors.dart';
 
-const Color _backgroundColor = Color(0xFF473737);
-const Color _lightText = Color(0xFFEBE1C7);
+const Color _backgroundColor = AppColors.storyBackground;
+const Color _lightText = AppColors.paper;
 const Color _white80 = Color(0xCCFFFFFF);
 
-const Color _secondaryBorder = Color(0xFFEBE1C7);
+const Color _secondaryBorder = AppColors.paper;
 const Color _secondaryCenter = Color(0xFF724E4E);
-const Color _secondaryOuter = Color(0xFF4F4141);
+const Color _secondaryOuter = AppColors.pastBackground;
 
-const Color _primaryBorder = Color(0xFF4A1106);
-const Color _primaryCenter = Color(0xFF9B2A15);
-const Color _primaryOuter = Color(0xFF7D1907);
+const Color _primaryBorder = AppColors.primaryDark;
+const Color _primaryCenter = AppColors.primaryLight;
+const Color _primaryOuter = AppColors.primary;
 
 class StoryPostcardPage extends StatefulWidget {
   final VoidCallback? onNext;
@@ -50,19 +50,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
   // ============================================================
   // 字體
   // ============================================================
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _lightText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   // ============================================================
   // 下一站功能
   // ============================================================
@@ -93,11 +80,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
           content: Text(
             message,
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ).copyWith(height: 1.2),
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white).copyWith(height: 1.2),
           ),
           backgroundColor: _backgroundColor,
           behavior: SnackBarBehavior.floating,
@@ -141,7 +124,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                   right: 0,
                   top: 90,
                   child: Center(
-                    child: _OutlinedTitle(text: '謎題解開', kaisei: kaisei),
+                    child: _OutlinedTitle(text: '謎題解開'),
                   ),
                 ),
 
@@ -156,11 +139,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                     child: Text(
                       '獲得專屬記憶明信片',
                       textAlign: TextAlign.center,
-                      style: kaisei(
-                        size: 18,
-                        weight: FontWeight.w700,
-                        color: _white80,
-                      ).copyWith(height: 1.2, letterSpacing: 0.35),
+                      style: AppTextStyles.sectionTitle.copyWith(color: _white80).copyWith(height: 1.2, letterSpacing: 0.35),
                     ),
                   ),
                 ),
@@ -186,7 +165,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                   height: 52,
                   child: _SecondaryButton(
                     text: '實體列印',
-                    kaisei: kaisei,
                     onTap: () {
                       showMessage('已準備列印功能');
                     },
@@ -203,7 +181,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                   height: 52,
                   child: _SecondaryButton(
                     text: '分享',
-                    kaisei: kaisei,
                     onTap: () {
                       showMessage('已準備分享功能');
                     },
@@ -220,7 +197,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                   height: 53,
                   child: _PrimaryButton(
                     text: '前往下一站',
-                    kaisei: kaisei,
                     onTap: goNext,
                   ),
                 ),
@@ -244,11 +220,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +230,7 @@ class _OutlinedTitle extends StatelessWidget {
         // 黑色外框
         Text(
           text,
-          style: kaisei(size: 30, weight: FontWeight.w900).copyWith(
+          style: AppTextStyles.heroDisplay.copyWith(color: _lightText).copyWith(
             height: 1.0,
             foreground: Paint()
               ..style = PaintingStyle.stroke
@@ -270,11 +242,7 @@ class _OutlinedTitle extends StatelessWidget {
         // 白色文字
         Text(
           text,
-          style: kaisei(
-            size: 30,
-            weight: FontWeight.w900,
-            color: Colors.white,
-          ).copyWith(height: 1.0),
+          style: AppTextStyles.heroDisplay.copyWith(color: Colors.white).copyWith(height: 1.0),
         ),
       ],
     );
@@ -326,15 +294,10 @@ class _PostcardDisplay extends StatelessWidget {
 class _SecondaryButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _SecondaryButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_SecondaryButton> createState() => _SecondaryButtonState();
@@ -421,8 +384,7 @@ class _SecondaryButtonState extends State<_SecondaryButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(size: 18, weight: FontWeight.w700, color: _lightText)
+              style: AppTextStyles.sectionTitle.copyWith(color: _lightText)
                   .copyWith(height: 1.1, letterSpacing: 0.3),
             ),
           ),
@@ -439,15 +401,10 @@ class _SecondaryButtonState extends State<_SecondaryButton> {
 class _PrimaryButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _PrimaryButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_PrimaryButton> createState() => _PrimaryButtonState();
@@ -534,8 +491,7 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(size: 19, weight: FontWeight.w700, color: _lightText)
+              style: AppTextStyles.titleMediumBold.copyWith(color: _lightText)
                   .copyWith(height: 1.1, letterSpacing: 0.35),
             ),
           ),

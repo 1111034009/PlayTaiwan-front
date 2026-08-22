@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'merchant_loading_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
-const Color _lineColor = Color(0xFF473737);
+const Color _lineColor = AppColors.storyBackground;
 const Color _hintColor = Color(0xFF7F756D);
-const Color _red = Color(0xFF7F1A08);
+const Color _red = AppColors.deepRed;
 const Color _buttonBorder = AppColors.primaryDark;
 const Color _buttonCenter = AppColors.primaryLight;
 const Color _buttonOuter = AppColors.primary;
-const Color _uploadBorder = Color(0xFF6D625B);
+const Color _uploadBorder = AppColors.softBrown;
 
 class MerchantInputPage extends StatefulWidget {
   const MerchantInputPage({super.key});
@@ -57,19 +57,6 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
     promotionController.dispose();
     super.dispose();
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -78,11 +65,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
           content: Text(
             message,
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
           ),
           backgroundColor: _red,
           behavior: SnackBarBehavior.floating,
@@ -163,8 +146,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                         top: 10,
                         child: _BackButton(
                           onTap: () => Navigator.pop(context),
-                          kaisei: kaisei,
-                        ),
+),
                       ),
                       Positioned(
                         top: 48,
@@ -174,8 +156,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           child: _PageTitle(
                             text: '輸入資訊',
                             iconPath: 'img/user_icon_line.png',
-                            kaisei: kaisei,
-                          ),
+),
                         ),
                       ),
                       Positioned(
@@ -187,11 +168,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                             '輸入資訊，生成專屬推廣短影音',
                             textAlign: TextAlign.center,
                             style:
-                                kaisei(
-                                  size: 15,
-                                  weight: FontWeight.w700,
-                                  color: Colors.white,
-                                ).copyWith(
+                                AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white).copyWith(
                                   height: 1.05,
                                   shadows: const [
                                     Shadow(
@@ -215,10 +192,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                             children: [
                               Text(
                                 '店家名稱',
-                                style: kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w700,
-                                ),
+                                style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
                               ),
                               const SizedBox(height: 2),
                               SizedBox(
@@ -226,10 +200,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                 child: TextField(
                                   controller: shopNameController,
                                   maxLines: 1,
-                                  style: kaisei(
-                                    size: 21,
-                                    weight: FontWeight.w700,
-                                  ),
+                                  style: AppTextStyles.title.copyWith(color: _darkText),
                                   cursorColor: _red,
                                   decoration: const InputDecoration(
                                     contentPadding: EdgeInsets.only(
@@ -255,10 +226,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                               const SizedBox(height: 9),
                               Text(
                                 '敘事語氣',
-                                style: kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w700,
-                                ),
+                                style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
                               ),
                               const SizedBox(height: 5),
                               Row(
@@ -269,8 +237,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                       selected: selectedTone == 0,
                                       onTap: () =>
                                           setState(() => selectedTone = 0),
-                                      kaisei: kaisei,
-                                    ),
+),
                                   ),
                                   const SizedBox(width: 9),
                                   Expanded(
@@ -279,8 +246,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                       selected: selectedTone == 1,
                                       onTap: () =>
                                           setState(() => selectedTone = 1),
-                                      kaisei: kaisei,
-                                    ),
+),
                                   ),
                                   const SizedBox(width: 9),
                                   Expanded(
@@ -289,18 +255,14 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                       selected: selectedTone == 2,
                                       onTap: () =>
                                           setState(() => selectedTone = 2),
-                                      kaisei: kaisei,
-                                    ),
+),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 11),
                               Text(
                                 '推廣資訊',
-                                style: kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w700,
-                                ),
+                                style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
                               ),
                               const SizedBox(height: 4),
                               Container(
@@ -319,17 +281,11 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   maxLines: null,
                                   expands: true,
                                   textAlignVertical: TextAlignVertical.top,
-                                  style: kaisei(
-                                    size: 14,
-                                    weight: FontWeight.w500,
-                                  ),
+                                  style: AppTextStyles.bodySmallMedium.copyWith(color: _darkText),
                                   cursorColor: _red,
                                   decoration: InputDecoration(
                                     hintText: '請輸入店家優惠、特色、活動資訊',
-                                    hintStyle: kaisei(
-                                      size: 13,
-                                      color: _hintColor,
-                                    ),
+                                    hintStyle: AppTextStyles.captionSmall.copyWith(color: _hintColor),
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.all(10),
                                   ),
@@ -340,10 +296,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                 children: [
                                   Text(
                                     '上傳',
-                                    style: kaisei(
-                                      size: 14,
-                                      weight: FontWeight.w700,
-                                    ),
+                                    style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
                                   ),
                                   const Spacer(),
                                   _UploadButton(onTap: uploadFile),
@@ -353,15 +306,13 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                               _UploadArea(
                                 files: uploadedFiles,
                                 onRemove: removeFile,
-                                kaisei: kaisei,
-                              ),
+),
                               const SizedBox(height: 12),
                               Center(
                                 child: _GenerateButton(
                                   text: '生成推薦',
                                   onTap: generate,
-                                  kaisei: kaisei,
-                                ),
+),
                               ),
                             ],
                           ),
@@ -400,14 +351,10 @@ class _InputPaper extends StatelessWidget {
 class _PageTitle extends StatelessWidget {
   final String text;
   final String iconPath;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _PageTitle({
     required this.text,
     required this.iconPath,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -422,11 +369,7 @@ class _PageTitle extends StatelessWidget {
             Text(
               text,
               style:
-                  kaisei(
-                    size: 23,
-                    weight: FontWeight.w700,
-                    color: Colors.white,
-                  ).copyWith(
+                  AppTextStyles.pageTitle.copyWith(color: Colors.white).copyWith(
                     foreground: Paint()
                       ..style = PaintingStyle.stroke
                       ..strokeWidth = 2.6
@@ -435,11 +378,7 @@ class _PageTitle extends StatelessWidget {
             ),
             Text(
               text,
-              style: kaisei(
-                size: 23,
-                weight: FontWeight.w700,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.pageTitle.copyWith(color: Colors.white),
             ),
           ],
         ),
@@ -450,10 +389,7 @@ class _PageTitle extends StatelessWidget {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BackButton({required this.onTap, required this.kaisei});
+const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -478,12 +414,7 @@ class _BackButtonState extends State<_BackButton> {
           curve: Curves.easeOutBack,
           child: Text(
             '<< 返回',
-            style: widget
-                .kaisei(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: const Color(0xFFFAF7F1),
-                )
+            style: AppTextStyles.bodySmallBold.copyWith(color: const Color(0xFFFAF7F1))
                 .copyWith(
                   shadows: const [
                     Shadow(
@@ -504,15 +435,11 @@ class _ToneButton extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _ToneButton({
     required this.text,
     required this.selected,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_ToneButton> createState() => _ToneButtonState();
@@ -546,11 +473,7 @@ class _ToneButtonState extends State<_ToneButton> {
             ),
             child: Text(
               widget.text,
-              style: widget.kaisei(
-                size: 12.5,
-                weight: FontWeight.w700,
-                color: widget.selected ? _paperColor : _lineColor,
-              ),
+              style: AppTextStyles.labelWide.copyWith(color: widget.selected ? _paperColor : _lineColor),
             ),
           ),
         ),
@@ -562,14 +485,10 @@ class _ToneButtonState extends State<_ToneButton> {
 class _UploadArea extends StatefulWidget {
   final List<String> files;
   final Function(int) onRemove;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _UploadArea({
     required this.files,
     required this.onRemove,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_UploadArea> createState() => _UploadAreaState();
@@ -603,11 +522,7 @@ class _UploadAreaState extends State<_UploadArea> {
                     const SizedBox(height: 4),
                     Text(
                       '尚未選擇素材',
-                      style: widget.kaisei(
-                        size: 12,
-                        weight: FontWeight.w700,
-                        color: _uploadBorder,
-                      ),
+                      style: AppTextStyles.label.copyWith(color: _uploadBorder),
                     ),
                   ],
                 )
@@ -618,11 +533,7 @@ class _UploadAreaState extends State<_UploadArea> {
                       padding: const EdgeInsets.fromLTRB(10, 5, 8, 2),
                       child: Text(
                         '已上傳 ${widget.files.length} 個素材',
-                        style: widget.kaisei(
-                          size: 11,
-                          weight: FontWeight.w700,
-                          color: _darkText,
-                        ),
+                        style: AppTextStyles.microLabel.copyWith(color: _darkText),
                       ),
                     ),
                     Expanded(
@@ -649,11 +560,7 @@ class _UploadAreaState extends State<_UploadArea> {
                                     widget.files[index],
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: widget.kaisei(
-                                      size: 10.5,
-                                      weight: FontWeight.w700,
-                                      color: _darkText,
-                                    ),
+                                    style: AppTextStyles.microTightBold.copyWith(color: _darkText),
                                   ),
                                 ),
                                 GestureDetector(
@@ -731,14 +638,10 @@ class _UploadButtonState extends State<_UploadButton> {
 class _GenerateButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _GenerateButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_GenerateButton> createState() => _GenerateButtonState();
@@ -784,11 +687,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
             ),
             child: Text(
               widget.text,
-              style: widget.kaisei(
-                size: 17,
-                weight: FontWeight.w700,
-                color: _paperColor,
-              ),
+              style: AppTextStyles.subtitle.copyWith(color: _paperColor),
             ),
           ),
         ),

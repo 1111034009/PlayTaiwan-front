@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
 import 'home_page.dart';
@@ -21,9 +21,9 @@ class _SelectionPageState extends State<SelectionPage> {
 
   static const Color pageColor = AppColors.background;
 
-  static const Color darkText = Color(0xFF301717);
+  static const Color darkText = AppColors.textPrimary;
 
-  static const Color red = Color(0xFF8D1F12);
+  static const Color red = AppColors.primaryAccent;
 
   // ==================================================================
   // Design Size
@@ -85,19 +85,6 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
   // Font
   // ==================================================================
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   // ==================================================================
   // 使用當前定位
   // ==================================================================
@@ -120,7 +107,7 @@ class _SelectionPageState extends State<SelectionPage> {
         content: Text(
           '目前位置：$fakeLocation',
           textAlign: TextAlign.center,
-          style: kaisei(size: 14, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
         ),
         backgroundColor: red,
         behavior: SnackBarBehavior.floating,
@@ -141,7 +128,7 @@ class _SelectionPageState extends State<SelectionPage> {
         content: Text(
           fakeLocation.isEmpty ? '請先輸入地區' : '準備前往 $fakeLocation 探險！',
           textAlign: TextAlign.center,
-          style: kaisei(size: 14, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
         ),
         backgroundColor: red,
         behavior: SnackBarBehavior.floating,
@@ -219,7 +206,6 @@ class _SelectionPageState extends State<SelectionPage> {
                       height: 218,
                       child: _AdventurePaper(
                         child: _StartAdventureContent(
-                          kaisei: kaisei,
                           locationController: locationController,
                           onLocationChanged: (value) {
                             fakeLocation = value;
@@ -247,7 +233,6 @@ class _SelectionPageState extends State<SelectionPage> {
                       height: 205,
                       child: _AdventurePaper(
                         child: _RandomAdventureContent(
-                          kaisei: kaisei,
                           onPressed: randomAdventure,
                         ),
                       ),
@@ -317,9 +302,6 @@ class _AdventurePaper extends StatelessWidget {
 // ======================================================================
 
 class _StartAdventureContent extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final TextEditingController locationController;
 
   final ValueChanged<String> onLocationChanged;
@@ -329,7 +311,6 @@ class _StartAdventureContent extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _StartAdventureContent({
-    required this.kaisei,
     required this.locationController,
     required this.onLocationChanged,
     required this.onLocationPressed,
@@ -362,7 +343,7 @@ class _StartAdventureContent extends StatelessWidget {
               Text(
                 '現在揪出發',
                 textAlign: TextAlign.left,
-                style: kaisei(size: 21, weight: FontWeight.w700),
+                style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -375,11 +356,7 @@ class _StartAdventureContent extends StatelessWidget {
           Text(
             '請輸入地區',
             textAlign: TextAlign.left,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: const Color(0xFF8B837B),
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: AppColors.mutedText),
           ),
 
           const SizedBox(height: 1),
@@ -400,13 +377,9 @@ class _StartAdventureContent extends StatelessWidget {
 
               maxLines: 1,
 
-              cursorColor: const Color(0xFF8D1F12),
+              cursorColor: AppColors.primaryAccent,
 
-              style: kaisei(
-                size: 15,
-                weight: FontWeight.w700,
-                color: const Color(0xFF301717),
-              ),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.textPrimary),
 
               decoration: InputDecoration(
                 isDense: true,
@@ -421,11 +394,7 @@ class _StartAdventureContent extends StatelessWidget {
 
                 hintText: '例如：臺中市 西屯區',
 
-                hintStyle: kaisei(
-                  size: 15,
-                  weight: FontWeight.w400,
-                  color: const Color(0xFF8B837B),
-                ),
+                hintStyle: AppTextStyles.bodyCompact.copyWith(color: AppColors.mutedText),
               ),
             ),
           ),
@@ -446,7 +415,7 @@ class _StartAdventureContent extends StatelessWidget {
           // ============================================================
           Align(
             alignment: Alignment.centerLeft,
-            child: _LocationButton(onTap: onLocationPressed, kaisei: kaisei),
+            child: _LocationButton(onTap: onLocationPressed),
           ),
 
           const Spacer(),
@@ -470,11 +439,7 @@ class _StartAdventureContent extends StatelessWidget {
 
 class _LocationButton extends StatefulWidget {
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _LocationButton({required this.onTap, required this.kaisei});
+const _LocationButton({required this.onTap});
 
   @override
   State<_LocationButton> createState() => _LocationButtonState();
@@ -543,11 +508,7 @@ class _LocationButtonState extends State<_LocationButton> {
               Text(
                 '使用當前定位',
                 textAlign: TextAlign.left,
-                style: widget.kaisei(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: const Color(0xFF8D1F12),
-                ),
+                style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.primaryAccent),
               ),
 
               const SizedBox(width: 3),
@@ -571,13 +532,9 @@ class _LocationButtonState extends State<_LocationButton> {
 // ======================================================================
 
 class _RandomAdventureContent extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onPressed;
 
   const _RandomAdventureContent({
-    required this.kaisei,
     required this.onPressed,
   });
 
@@ -606,7 +563,7 @@ class _RandomAdventureContent extends StatelessWidget {
               Text(
                 '來點遊意思',
                 textAlign: TextAlign.left,
-                style: kaisei(size: 21, weight: FontWeight.w700),
+                style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -619,11 +576,7 @@ class _RandomAdventureContent extends StatelessWidget {
           Text(
             '轉動命運的轉盤，來點遊意思',
             textAlign: TextAlign.left,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: const Color(0xFF8B837B),
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: AppColors.mutedText),
           ),
 
           const Spacer(),
@@ -809,10 +762,10 @@ class _RedStartButtonState extends State<_RedStartButton> {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF9B2A15), Color(0xFF7D1907)],
+                colors: [AppColors.primaryLight, AppColors.primary],
               ),
 
-              border: Border.all(color: const Color(0xFF4A1106), width: 2),
+              border: Border.all(color: AppColors.primaryDark, width: 2),
 
               boxShadow: const [
                 BoxShadow(
@@ -826,11 +779,7 @@ class _RedStartButtonState extends State<_RedStartButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: GoogleFonts.kaiseiHarunoUmi(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.button.copyWith(color: Colors.white),
             ),
           ),
         ),

@@ -24,4 +24,12 @@ abstract final class AppColors {
   static const Color navigationButton = Colors.white;
   static const Color progressTrack = Color(0xFFC5B27C);
   static const Color progressValue = Color(0xFF93412E);
+  static const Color deepRed = Color(0xFF7F1A08);
+  static const Color secondaryRed = Color(0xFF871E0C);
+  static const Color dangerDark = Color(0xFF7E1616);
+  static const Color mutedText = Color(0xFF8B837B);
+  static const Color softBrown = Color(0xFF6D625B);
+  static const Color pastBackground = Color(0xFF4F4141);
+  static const Color warmPaper = Color(0xFFE9DDC6);
+  static const Color merchantPaper = Color(0xFFFCF9EA);
 }

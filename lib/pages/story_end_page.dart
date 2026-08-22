@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
 
@@ -13,7 +13,7 @@ const Color _subtitleColor = Color(0xCCFFFFFF);
 
 const Color _cardBackground = Color(0xFFF4F4F4);
 const Color _cardBorder = Color(0xFFDEB019);
-const Color _cardText = Color(0xFF301717);
+const Color _cardText = AppColors.textPrimary;
 
 const Color _buttonBorder = AppColors.primaryDark;
 const Color _buttonCenter = AppColors.primaryLight;
@@ -51,19 +51,6 @@ class _StoryEndPageState extends State<StoryEndPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _titleColor,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void goHome() {
     Navigator.pushReplacementNamed(context, '/home');
   }
@@ -109,7 +96,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                     child: Center(
                       child: Transform.scale(
                         scale: 1.07,
-                        child: _OutlinedTitle(text: '府城儒生的失落卷', kaisei: kaisei),
+                        child: _OutlinedTitle(text: '府城儒生的失落卷'),
                       ),
                     ),
                   ),
@@ -126,11 +113,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                         scale: 1.06,
                         child: Text(
                           '尋回真相',
-                          style: kaisei(
-                            size: 17,
-                            weight: FontWeight.w700,
-                            color: _subtitleColor,
-                          ).copyWith(height: 1, letterSpacing: 1.2),
+                          style: AppTextStyles.subtitle.copyWith(color: _subtitleColor).copyWith(height: 1, letterSpacing: 1.2),
                         ),
                       ),
                     ),
@@ -162,7 +145,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                     child: Transform.scale(
                       scale: 1.08,
                       alignment: Alignment.center,
-                      child: _EndResultCard(kaisei: kaisei),
+                      child: _EndResultCard(),
                     ),
                   ),
                 ),
@@ -178,11 +161,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                         scale: 1.06,
                         child: Text(
                           '回憶紀錄片請至過往查看',
-                          style: kaisei(
-                            size: 15,
-                            weight: FontWeight.w700,
-                            color: const Color.fromARGB(188, 255, 255, 255),
-                          ).copyWith(height: 1, letterSpacing: 0.5),
+                          style: AppTextStyles.bodyEmphasisBold.copyWith(color: const Color.fromARGB(188, 255, 255, 255)).copyWith(height: 1, letterSpacing: 0.5),
                         ),
                       ),
                     ),
@@ -197,7 +176,6 @@ class _StoryEndPageState extends State<StoryEndPage> {
                   height: 54,
                   child: _EndButton(
                     text: '返回首頁',
-                    kaisei: kaisei,
                     onTap: goHome,
                   ),
                 ),
@@ -217,11 +195,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +204,7 @@ class _OutlinedTitle extends StatelessWidget {
       children: [
         Text(
           text,
-          style: kaisei(size: 28, weight: FontWeight.w900).copyWith(
+          style: AppTextStyles.display.copyWith(color: _titleColor).copyWith(
             height: 1,
             foreground: Paint()
               ..style = PaintingStyle.stroke
@@ -240,11 +214,7 @@ class _OutlinedTitle extends StatelessWidget {
         ),
         Text(
           text,
-          style: kaisei(
-            size: 28,
-            weight: FontWeight.w900,
-            color: Colors.white,
-          ).copyWith(height: 1),
+          style: AppTextStyles.display.copyWith(color: Colors.white).copyWith(height: 1),
         ),
       ],
     );
@@ -893,14 +863,9 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                     child: Text(
                       '獲得府城探索徽章',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.kaiseiHarunoUmi(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFFFFF4C9),
-                        shadows: const [
+                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: const Color(0xFFFFF4C9)).copyWith(shadows: const [
                           Shadow(color: Colors.black, blurRadius: 5),
-                        ],
-                      ),
+                        ]),
                     ),
                   ),
                 ),
@@ -1074,10 +1039,7 @@ class _CapsuleHalf extends StatelessWidget {
 // ============================================================
 
 class _EndResultCard extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _EndResultCard({required this.kaisei});
+const _EndResultCard();
 
   @override
   Widget build(BuildContext context) {
@@ -1106,11 +1068,11 @@ class _EndResultCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _EndResultLine(text: '遊踏步數：8,432 步', kaisei: kaisei),
+              _EndResultLine(text: '遊踏步數：8,432 步'),
               const SizedBox(height: 8),
-              _EndResultLine(text: '破解謎題：16/16', kaisei: kaisei),
+              _EndResultLine(text: '破解謎題：16/16'),
               const SizedBox(height: 8),
-              _EndResultLine(text: '尋獲卡片：10/10', kaisei: kaisei),
+              _EndResultLine(text: '尋獲卡片：10/10'),
             ],
           ),
         ),
@@ -1172,21 +1134,13 @@ class _DashedBorderPainter extends CustomPainter {
 
 class _EndResultLine extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _EndResultLine({required this.text, required this.kaisei});
+const _EndResultLine({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: kaisei(
-        size: 18,
-        weight: FontWeight.w700,
-        color: _cardText,
-      ).copyWith(height: 1),
+      style: AppTextStyles.sectionTitle.copyWith(color: _cardText).copyWith(height: 1),
     );
   }
 }
@@ -1198,15 +1152,10 @@ class _EndResultLine extends StatelessWidget {
 class _EndButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _EndButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_EndButton> createState() => _EndButtonState();
@@ -1279,12 +1228,7 @@ class _EndButtonState extends State<_EndButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(
-                    size: 18,
-                    weight: FontWeight.w700,
-                    color: const Color(0xFFEBE1C7),
-                  )
+              style: AppTextStyles.sectionTitle.copyWith(color: AppColors.paper)
                   .copyWith(height: 1.1, letterSpacing: 0.4),
             ),
           ),

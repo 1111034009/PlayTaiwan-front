@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
 const Color pageColor = AppColors.background;
-const Color paperColor = Color(0xFFFCF9EA);
+const Color paperColor = AppColors.merchantPaper;
 const Color paperBorder = Color(0xFF000000);
 const Color darkText = AppColors.textPrimary;
 const Color red = AppColors.primaryDark;
@@ -45,19 +45,6 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void openSettings() {
     showDialog<void>(
       context: context,
@@ -88,7 +75,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
           content: Text(
             message,
             textAlign: TextAlign.center,
-            style: kaisei(size: 14, weight: FontWeight.w700, color: paperColor),
+            style: AppTextStyles.bodySmallBold.copyWith(color: paperColor),
           ),
           backgroundColor: red,
           behavior: SnackBarBehavior.floating,
@@ -131,7 +118,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 78,
                         width: 198,
                         height: 118,
-                        child: _GeneratedFileCard(kaisei: kaisei),
+                        child: _GeneratedFileCard(),
                       ),
                       Positioned(
                         left: 224,
@@ -142,8 +129,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                           icon: Icons.settings,
                           text: '資訊設定',
                           onTap: openSettings,
-                          kaisei: kaisei,
-                        ),
+),
                       ),
                       Positioned(
                         left: 224,
@@ -153,8 +139,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         child: _GenerateVideoButton(
                           text: '前往生成影音',
                           onTap: openVideoGenerator,
-                          kaisei: kaisei,
-                        ),
+),
                       ),
                       Positioned(
                         left: 24,
@@ -164,8 +149,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         child: _RecentFilesCard(
                           files: recentFiles,
                           onPlay: playFile,
-                          kaisei: kaisei,
-                        ),
+),
                       ),
                     ],
                   ),
@@ -200,14 +184,14 @@ class _Pin extends StatelessWidget {
               height: size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF7E1616), width: 1),
+                border: Border.all(color: AppColors.dangerDark, width: 1),
                 gradient: const RadialGradient(
                   center: Alignment(-0.35, -0.4),
                   radius: 0.9,
                   colors: [
                     Color(0xFFE52F0E),
                     Color(0xFFB91F0C),
-                    Color(0xFF7F1A08),
+                    AppColors.deepRed,
                   ],
                   stops: [0.0, 0.42, 1.0],
                 ),
@@ -244,10 +228,7 @@ class _Pin extends StatelessWidget {
 }
 
 class _GeneratedFileCard extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _GeneratedFileCard({required this.kaisei});
+const _GeneratedFileCard();
 
   static const double cardWidth = 190;
   static const double cardHeight = 118;
@@ -275,11 +256,7 @@ class _GeneratedFileCard extends StatelessWidget {
                   Text(
                     '目前已生成檔案',
                     textAlign: TextAlign.center,
-                    style: kaisei(
-                      size: 18,
-                      weight: FontWeight.w700,
-                      color: darkText,
-                    ),
+                    style: AppTextStyles.sectionTitle.copyWith(color: darkText),
                   ),
                   const SizedBox(height: 6),
                   Container(width: 105, height: 1, color: darkText),
@@ -287,11 +264,7 @@ class _GeneratedFileCard extends StatelessWidget {
                   Text(
                     '25',
                     textAlign: TextAlign.center,
-                    style: kaisei(
-                      size: 39,
-                      weight: FontWeight.w700,
-                      color: red,
-                    ).copyWith(height: 1),
+                    style: AppTextStyles.merchantStat.copyWith(color: red).copyWith(height: 1),
                   ),
                 ],
               ),
@@ -314,16 +287,11 @@ class _SmallActionButton extends StatefulWidget {
   final IconData icon;
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _SmallActionButton({
     required this.icon,
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_SmallActionButton> createState() => _SmallActionButtonState();
@@ -382,11 +350,7 @@ bool pressing = false;
                     const SizedBox(width: 5),
                     Text(
                       widget.text,
-                      style: widget.kaisei(
-                        size: 13,
-                        weight: FontWeight.w700,
-                        color: darkText,
-                      ),
+                      style: AppTextStyles.captionBold.copyWith(color: darkText),
                     ),
                   ],
                 ),
@@ -402,15 +366,10 @@ bool pressing = false;
 class _GenerateVideoButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _GenerateVideoButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_GenerateVideoButton> createState() => _GenerateVideoButtonState();
@@ -463,8 +422,7 @@ bool pressing = false;
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(size: 14, weight: FontWeight.w700, color: paperColor)
+              style: AppTextStyles.bodySmallBold.copyWith(color: paperColor)
                   .copyWith(height: 1.25),
             ),
           ),
@@ -476,15 +434,10 @@ bool pressing = false;
 class _RecentFilesCard extends StatelessWidget {
   final List<_MerchantFile> files;
   final ValueChanged<_MerchantFile> onPlay;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _RecentFilesCard({
     required this.files,
     required this.onPlay,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -506,11 +459,7 @@ class _RecentFilesCard extends StatelessWidget {
             children: [
               Text(
                 '近期檔案',
-                style: kaisei(
-                  size: 19,
-                  weight: FontWeight.w700,
-                  color: darkText,
-                ),
+                style: AppTextStyles.titleMediumBold.copyWith(color: darkText),
               ),
               const SizedBox(height: 10),
               Expanded(
@@ -521,8 +470,7 @@ class _RecentFilesCard extends StatelessWidget {
                         child: _RecentFileItem(
                           file: files[i],
                           onPlay: () => onPlay(files[i]),
-                          kaisei: kaisei,
-                        ),
+),
                       ),
                       if (i != files.length - 1) const SizedBox(height: 9),
                     ],
@@ -541,15 +489,10 @@ class _RecentFilesCard extends StatelessWidget {
 class _RecentFileItem extends StatefulWidget {
   final _MerchantFile file;
   final VoidCallback onPlay;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _RecentFileItem({
     required this.file,
     required this.onPlay,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_RecentFileItem> createState() => _RecentFileItemState();
@@ -611,22 +554,13 @@ bool pressing = false;
                         widget.file.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: widget
-                            .kaisei(
-                              size: 13,
-                              weight: FontWeight.w700,
-                              color: Colors.black,
-                            )
+                        style: AppTextStyles.captionBold.copyWith(color: Colors.black)
                             .copyWith(height: 1.15),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         widget.file.date,
-                        style: widget.kaisei(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: Colors.black.withOpacity(0.8),
-                        ),
+                        style: AppTextStyles.captionBold.copyWith(color: Colors.black.withOpacity(0.8)),
                       ),
                     ],
                   ),

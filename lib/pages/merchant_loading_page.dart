@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'merchant_video_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 const Color _backgroundColor = AppColors.textPrimary;
 const Color _lightText = AppColors.paper;
@@ -58,19 +58,6 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
     _progressController.dispose();
     super.dispose();
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _lightText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +108,7 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
                   child: Center(
                     child: _OutlinedText(
                       text: '檔案生成中...',
-                      style: kaisei(size: 27, weight: FontWeight.w900),
+                      style: AppTextStyles.heroTitle.copyWith(color: _lightText),
                       strokeWidth: 3,
                     ),
                   ),
@@ -133,7 +120,7 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
                   child: Center(
                     child: _OutlinedText(
                       text: 'Loading...',
-                      style: kaisei(size: 21, weight: FontWeight.w700),
+                      style: AppTextStyles.title.copyWith(color: _lightText),
                       strokeWidth: 2.2,
                     ),
                   ),

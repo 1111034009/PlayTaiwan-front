@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
@@ -13,7 +13,7 @@ const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
 
 const Color _photoColor = Color(0xFFCBB57C);
-const Color _photoBorder = Color(0xFF8D7B6E);
+const Color _photoBorder = AppColors.postcardLine;
 
 const Color _buttonBorder = AppColors.primaryDark;
 const Color _buttonCenter = AppColors.primaryLight;
@@ -61,19 +61,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void backToChooseScript() {
     Navigator.pushReplacement(
       context,
@@ -133,11 +120,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                           widget.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: kaisei(
-                            size: 22,
-                            weight: FontWeight.w700,
-                            color: _darkText,
-                          ),
+                          style: AppTextStyles.titleLarge.copyWith(color: _darkText),
                         ),
                       ),
 
@@ -168,8 +151,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                           items: photoAssets.map((asset) {
                             return _PolaroidPhoto(
                               assetPath: asset,
-                              kaisei: kaisei,
-                            );
+);
                           }).toList(),
                         ),
                       ),
@@ -180,11 +162,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         child: Text(
                           '←  左右滑動探索  →',
                           textAlign: TextAlign.center,
-                          style: kaisei(
-                            size: 11,
-                            weight: FontWeight.w700,
-                            color: _darkBrown,
-                          ),
+                          style: AppTextStyles.microLabel.copyWith(color: _darkBrown),
                         ),
                       ),
                       Positioned(
@@ -205,22 +183,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                               children: [
                                 Text(
                                   '前傳',
-                                  style: kaisei(
-                                    size: 18,
-                                    weight: FontWeight.w700,
-                                    color: _sectionRed,
-                                  ),
+                                  style: AppTextStyles.sectionTitle.copyWith(color: _sectionRed),
                                 ),
 
                                 const SizedBox(height: 5),
 
                                 Text(
                                   '清朝年間，一位準備赴考的考生，在考試前夕離奇失去了所有記憶。醒來後，他只記得自己必須尋回某樣重要的東西，卻忘了那究竟是什麼。循著府城百年街巷的足跡，尋回逝去的一段段記憶，逐漸拼回真相。',
-                                  style: kaisei(
-                                    size: 13.5,
-                                    weight: FontWeight.w700,
-                                    color: _darkText,
-                                  ).copyWith(height: 1.42),
+                                  style: AppTextStyles.captionWide.copyWith(color: _darkText).copyWith(height: 1.42),
                                 ),
 
                                 const SizedBox(height: 14),
@@ -229,23 +199,15 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                                   children: [
                                     Text(
                                       '探索總覽',
-                                      style: kaisei(
-                                        size: 18,
-                                        weight: FontWeight.w700,
-                                        color: _sectionRed,
-                                      ),
+                                      style: AppTextStyles.sectionTitle.copyWith(color: _sectionRed),
                                     ),
                                     const Spacer(),
                                     Text(
                                       '往上滑動看更多',
                                       textAlign: TextAlign.center,
-                                      style: kaisei(
-                                        size: 10,
-                                        weight: FontWeight.w700,
-                                        color: _darkBrown.withValues(
+                                      style: AppTextStyles.microBold.copyWith(color: _darkBrown.withValues(
                                           alpha: 0.55,
-                                        ),
-                                      ),
+                                        )),
                                     ),
                                   ],
                                 ),
@@ -254,44 +216,37 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                                 _ChapterItem(
                                   number: '第一站',
                                   title: '臺南孔廟',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第二站',
                                   title: '尋找文字的故鄉',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第三站',
                                   title: '追尋百年前的繁華',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第四站',
                                   title: '破解古城石碑',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第五站',
                                   title: '尋找失落記憶',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第六站',
                                   title: '解開最後謎題',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 _ChapterItem(
                                   number: '第七站',
                                   title: '回到故事最初的地方',
-                                  kaisei: kaisei,
-                                ),
+),
 
                                 const SizedBox(height: 10),
                               ],
@@ -332,8 +287,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                               });
                             },
                             onTap: confirmScript,
-                            kaisei: kaisei,
-                          ),
+),
                         ),
                       ),
                     ],
@@ -352,11 +306,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
 class _PolaroidPhoto extends StatelessWidget {
   final String assetPath;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _PolaroidPhoto({required this.assetPath, required this.kaisei});
+const _PolaroidPhoto({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
@@ -388,11 +338,7 @@ class _PolaroidPhoto extends StatelessWidget {
           Text(
             '臺南景點',
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 10.5,
-              weight: FontWeight.w700,
-              color: _darkBrown,
-            ),
+            style: AppTextStyles.microTightBold.copyWith(color: _darkBrown),
           ),
         ],
       ),
@@ -403,15 +349,10 @@ class _PolaroidPhoto extends StatelessWidget {
 class _ChapterItem extends StatelessWidget {
   final String number;
   final String title;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _ChapterItem({
     required this.number,
     required this.title,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -422,22 +363,18 @@ class _ChapterItem extends StatelessWidget {
         children: [
           Text(
             '• ',
-            style: kaisei(size: 13, weight: FontWeight.w700, color: _darkText),
+            style: AppTextStyles.captionBold.copyWith(color: _darkText),
           ),
 
           Text(
             '$number：',
-            style: kaisei(size: 13, weight: FontWeight.w700, color: _darkText),
+            style: AppTextStyles.captionBold.copyWith(color: _darkText),
           ),
 
           Expanded(
             child: Text(
               title,
-              style: kaisei(
-                size: 13,
-                weight: FontWeight.w700,
-                color: _darkText,
-              ),
+              style: AppTextStyles.captionBold.copyWith(color: _darkText),
             ),
           ),
         ],
@@ -536,10 +473,6 @@ class _ConfirmButton extends StatelessWidget {
   final VoidCallback onRelease;
 
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _ConfirmButton({
     required this.text,
     required this.hovering,
@@ -549,8 +482,7 @@ class _ConfirmButton extends StatelessWidget {
     required this.onPress,
     required this.onRelease,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -612,11 +544,7 @@ class _ConfirmButton extends StatelessWidget {
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: kaisei(
-                size: 15,
-                weight: FontWeight.w700,
-                color: const Color(0xFFEBE1C7),
-              ),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.paper),
             ),
           ),
         ),

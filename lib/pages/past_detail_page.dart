@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import 'past_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import 'past_media_page.dart';
 
-const Color _pageColor = Color(0xFF4F4141);
+const Color _pageColor = AppColors.pastBackground;
 
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
@@ -62,19 +61,6 @@ class _PastDetailPageState extends State<PastDetailPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 12,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void backToPast() {
     Navigator.pushReplacement(
       context,
@@ -131,19 +117,11 @@ class _PastDetailPageState extends State<PastDetailPage> {
                               widget.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kaisei(
-                                size: 20,
-                                weight: FontWeight.w900,
-                                color: _darkText,
-                              ),
+                              style: AppTextStyles.heading.copyWith(color: _darkText),
                             ),
                             Text(
                               '完成日期：${widget.completedDate}',
-                              style: kaisei(
-                                size: 12,
-                                weight: FontWeight.w700,
-                                color: _sectionRed,
-                              ),
+                              style: AppTextStyles.label.copyWith(color: _sectionRed),
                             ),
                             const SizedBox(height: 10),
                             SizedBox(
@@ -166,8 +144,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
                                 items: photoAssets.map((asset) {
                                   return _PastPhoto(
                                     assetPath: asset,
-                                    kaisei: kaisei,
-                                  );
+);
                                 }).toList(),
                               ),
                             ),
@@ -176,58 +153,43 @@ class _PastDetailPageState extends State<PastDetailPage> {
                               child: Text(
                                 '←  左右滑動探索  →',
                                 textAlign: TextAlign.center,
-                                style: kaisei(
-                                  size: 11,
-                                  weight: FontWeight.w700,
-                                  color: _darkBrown,
-                                ),
+                                style: AppTextStyles.microLabel.copyWith(color: _darkBrown),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               '探索總覽',
-                              style: kaisei(
-                                size: 16,
-                                weight: FontWeight.w900,
-                                color: _sectionRed,
-                              ),
+                              style: AppTextStyles.button.copyWith(color: _sectionRed),
                             ),
                             const SizedBox(height: 6),
                             _ChapterItem(
                               number: '第一站',
                               title: '臺南孔廟',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第二站',
                               title: '國立臺灣文學館',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第三站',
                               title: '林百貨',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第四站',
                               title: '神農街',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第五站',
                               title: '臺南孔武廟',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第六站',
                               title: '天后宮',
-                              kaisei: kaisei,
-                            ),
+),
                             _ChapterItem(
                               number: '第七站',
                               title: '最後真相',
-                              kaisei: kaisei,
-                            ),
+),
                             const SizedBox(height: 5),
                             Center(
                               child: _PrimaryButton(
@@ -240,8 +202,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
                                     ),
                                   );
                                 },
-                                kaisei: kaisei,
-                              ),
+),
                             ),
                           ],
                         ),
@@ -258,7 +219,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
             child: Transform.scale(
               scale: contentScale,
               alignment: Alignment.topLeft,
-              child: _BackButton(onTap: backToPast, kaisei: kaisei),
+              child: _BackButton(onTap: backToPast),
             ),
           ),
         ],
@@ -270,11 +231,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
 
 class _PastPhoto extends StatelessWidget {
   final String assetPath;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _PastPhoto({required this.assetPath, required this.kaisei});
+const _PastPhoto({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +262,7 @@ class _PastPhoto extends StatelessWidget {
           Text(
             '臺南赤崁樓',
             textAlign: TextAlign.center,
-            style: kaisei(size: 10, weight: FontWeight.w700, color: _darkBrown),
+            style: AppTextStyles.microBold.copyWith(color: _darkBrown),
           ),
         ],
       ),
@@ -316,15 +273,10 @@ class _PastPhoto extends StatelessWidget {
 class _ChapterItem extends StatelessWidget {
   final String number;
   final String title;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _ChapterItem({
     required this.number,
     required this.title,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -335,20 +287,16 @@ class _ChapterItem extends StatelessWidget {
         children: [
           Text(
             '• ',
-            style: kaisei(size: 14, weight: FontWeight.w700, color: _darkText),
+            style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
           ),
           Text(
             '$number：',
-            style: kaisei(size: 14, weight: FontWeight.w700, color: _darkText),
+            style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
           ),
           Expanded(
             child: Text(
               title,
-              style: kaisei(
-                size: 14,
-                weight: FontWeight.w700,
-                color: _darkText,
-              ),
+              style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
             ),
           ),
         ],
@@ -359,11 +307,7 @@ class _ChapterItem extends StatelessWidget {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BackButton({required this.onTap, required this.kaisei});
+const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -398,11 +342,7 @@ class _BackButtonState extends State<_BackButton> {
         curve: Curves.easeOutBack,
         child: Text(
           '<< 返回',
-          style: widget.kaisei(
-            size: 16,
-            weight: FontWeight.w700,
-            color: const Color(0xFFE8DCC6),
-          ),
+          style: AppTextStyles.button.copyWith(color: const Color(0xFFE8DCC6)),
         ),
       ),
     );
@@ -412,15 +352,10 @@ class _BackButtonState extends State<_BackButton> {
 class _PrimaryButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _PrimaryButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_PrimaryButton> createState() => _PrimaryButtonState();
@@ -477,11 +412,7 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
           child: Text(
             widget.text,
             textAlign: TextAlign.center,
-            style: widget.kaisei(
-              size: 16,
-              weight: FontWeight.w400,
-              color: const Color(0xFFEBE1C7),
-            ),
+            style: AppTextStyles.body.copyWith(color: AppColors.paper),
           ),
         ),
       ),

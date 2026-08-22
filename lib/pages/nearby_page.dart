@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
-const Color _darkBrown = Color(0xFF473737);
-const Color _backColor = Color(0xFF7E1616);
+const Color _darkBrown = AppColors.storyBackground;
+const Color _backColor = AppColors.dangerDark;
 const Color _titleColor = Color(0xFF841D0B);
-const Color _addressColor = Color(0xFF871E0C);
+const Color _addressColor = AppColors.secondaryRed;
 const Color _tagText = Color(0xFF483425);
-const Color _tagBorder = Color(0xFF8D7B6E);
+const Color _tagBorder = AppColors.postcardLine;
 const Color _selectedTagColor = Color(0xFF6B4537);
 const Color _selectedTagText = Colors.white;
 const Color _bottomPanelColor = Color(0xFFE2D8BD);
@@ -85,19 +84,6 @@ class _NearbyPageState extends State<NearbyPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   List<_NearbyPlace> get filteredPlaces {
     if (selectedCategory == 0) return places;
 
@@ -113,11 +99,7 @@ class _NearbyPageState extends State<NearbyPage> {
           content: Text(
             '前往：${place.title}',
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
           ),
           backgroundColor: _titleColor,
           behavior: SnackBarBehavior.floating,
@@ -185,7 +167,6 @@ class _NearbyPageState extends State<NearbyPage> {
                               ),
                               child: _NearbyTicket(
                                 place: place,
-                                kaisei: kaisei,
                                 onAddressTap: () => openAddress(place),
                               ),
                             );
@@ -205,8 +186,7 @@ class _NearbyPageState extends State<NearbyPage> {
                           setState(() => selectedCategory = index);
                         },
                         onBack: () => Navigator.pop(context),
-                        kaisei: kaisei,
-                      ),
+),
                     ),
                   ],
                 ),
@@ -225,15 +205,11 @@ class _TopCategoryBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onCategoryChanged;
   final VoidCallback onBack;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _TopCategoryBar({
     required this.categories,
     required this.selectedIndex,
     required this.onCategoryChanged,
     required this.onBack,
-    required this.kaisei,
   });
 
   @override
@@ -243,7 +219,7 @@ class _TopCategoryBar extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _BackTextButton(onTap: onBack, kaisei: kaisei),
+          _BackTextButton(onTap: onBack),
           const SizedBox(width: 14),
           Expanded(
             child: Row(
@@ -256,8 +232,7 @@ class _TopCategoryBar extends StatelessWidget {
                       text: categories[index],
                       selected: selectedIndex == index,
                       onTap: () => onCategoryChanged(index),
-                      kaisei: kaisei,
-                    ),
+),
                   ),
                 ),
               ),
@@ -271,10 +246,7 @@ class _TopCategoryBar extends StatelessWidget {
 
 class _BackTextButton extends StatefulWidget {
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BackTextButton({required this.onTap, required this.kaisei});
+const _BackTextButton({required this.onTap});
 
   @override
   State<_BackTextButton> createState() => _BackTextButtonState();
@@ -299,11 +271,7 @@ class _BackTextButtonState extends State<_BackTextButton> {
           padding: const EdgeInsets.only(top: 7),
           child: Text(
             '<< 返回',
-            style: widget.kaisei(
-              size: 12,
-              weight: FontWeight.w900,
-              color: _backColor,
-            ),
+            style: AppTextStyles.label.copyWith(color: _backColor),
           ),
         ),
       ),
@@ -315,14 +283,10 @@ class _CategoryButton extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _CategoryButton({
     required this.text,
     required this.selected,
     required this.onTap,
-    required this.kaisei,
   });
 
   @override
@@ -358,11 +322,7 @@ class _CategoryButtonState extends State<_CategoryButton> {
           ),
           child: Text(
             widget.text,
-            style: widget.kaisei(
-              size: 13,
-              weight: FontWeight.w700,
-              color: widget.selected ? _selectedTagText : _tagText,
-            ),
+            style: AppTextStyles.captionBold.copyWith(color: widget.selected ? _selectedTagText : _tagText),
           ),
         ),
       ),
@@ -372,13 +332,10 @@ class _CategoryButtonState extends State<_CategoryButton> {
 
 class _NearbyTicket extends StatelessWidget {
   final _NearbyPlace place;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
   final VoidCallback onAddressTap;
 
   const _NearbyTicket({
     required this.place,
-    required this.kaisei,
     required this.onAddressTap,
   });
 
@@ -404,11 +361,7 @@ class _NearbyTicket extends StatelessWidget {
               place.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: kaisei(
-                size: 18,
-                weight: FontWeight.w700,
-                color: _titleColor,
-              ),
+              style: AppTextStyles.sectionTitle.copyWith(color: _titleColor),
             ),
           ),
           Positioned(
@@ -417,11 +370,7 @@ class _NearbyTicket extends StatelessWidget {
             right: 58,
             child: Text(
               place.time,
-              style: kaisei(
-                size: 11,
-                weight: FontWeight.w700,
-                color: Colors.black,
-              ),
+              style: AppTextStyles.microLabel.copyWith(color: Colors.black),
             ),
           ),
           Positioned(
@@ -439,7 +388,7 @@ class _NearbyTicket extends StatelessWidget {
                   .map(
                     (tag) => Padding(
                       padding: const EdgeInsets.only(right: 7),
-                      child: _Tag(text: tag, kaisei: kaisei),
+                      child: _Tag(text: tag),
                     ),
                   )
                   .toList(),
@@ -450,7 +399,6 @@ class _NearbyTicket extends StatelessWidget {
             bottom: 14,
             child: _AddressButton(
               text: place.address,
-              kaisei: kaisei,
               onTap: onAddressTap,
             ),
           ),
@@ -490,10 +438,7 @@ class _PhotoRow extends StatelessWidget {
 
 class _Tag extends StatelessWidget {
   final String text;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _Tag({required this.text, required this.kaisei});
+const _Tag({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -508,7 +453,7 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: kaisei(size: 10, weight: FontWeight.w700, color: _tagText),
+        style: AppTextStyles.microBold.copyWith(color: _tagText),
       ),
     );
   }
@@ -517,13 +462,9 @@ class _Tag extends StatelessWidget {
 class _AddressButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _AddressButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
   });
 
   @override
@@ -550,11 +491,7 @@ class _AddressButtonState extends State<_AddressButton> {
           children: [
             Text(
               widget.text,
-              style: widget.kaisei(
-                size: 11,
-                weight: FontWeight.w700,
-                color: _addressColor,
-              ),
+              style: AppTextStyles.microLabel.copyWith(color: _addressColor),
             ),
             const SizedBox(width: 2),
             Image.asset(

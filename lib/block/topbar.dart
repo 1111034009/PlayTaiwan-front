@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
-// const Color _topColor = Color(0xFFEBE1C7);
+// const Color _topColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
 
 const double topBarDesignWidth = 360.0;
@@ -156,12 +155,7 @@ class _ProgressItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
-                  style: GoogleFonts.kaiseiHarunoUmi(
-                    fontSize: titleFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: _darkText,
-                    height: 1.0,
-                  ),
+                  style: AppTextStyles.topBarTitle(scale).copyWith(color: _darkText),
                 ),
               ),
             ],
@@ -171,12 +165,7 @@ class _ProgressItem extends StatelessWidget {
             padding: EdgeInsets.only(left: 27.0 * scale, top: 2.0 * scale),
             child: Text(
               '$current/$total',
-              style: GoogleFonts.kaiseiHarunoUmi(
-                fontSize: numberFontSize,
-                fontWeight: FontWeight.w700,
-                color: _darkText,
-                height: 1.0,
-              ),
+              style: AppTextStyles.topBarNumber(scale).copyWith(color: _darkText),
             ),
           ),
 

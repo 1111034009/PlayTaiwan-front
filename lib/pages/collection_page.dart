@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
-const Color _shadowColor = Color(0xFF7F1A08);
+const Color _shadowColor = AppColors.deepRed;
 
 const Color _darkText = AppColors.textPrimary;
 const Color _lockedColor = Color(0xFF82766F);
-const Color _lockedBorder = Color(0xFF7E1616);
-const Color _badgeBorder = Color(0xFF8D7B6E);
+const Color _lockedBorder = AppColors.dangerDark;
+const Color _badgeBorder = AppColors.postcardLine;
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({super.key});
@@ -91,19 +91,6 @@ class _CollectionPageState extends State<CollectionPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void toggleSeries(int index) {
     setState(() {
       series[index] = series[index].copyWith(expanded: !series[index].expanded);
@@ -135,7 +122,6 @@ class _CollectionPageState extends State<CollectionPage> {
               padding: const EdgeInsets.only(bottom: 10),
               child: _BadgeSeriesCard(
                 series: series[index],
-                kaisei: kaisei,
                 onTap: () {
                   toggleSeries(index);
                 },
@@ -152,15 +138,10 @@ class _CollectionPageState extends State<CollectionPage> {
 
 class _BadgeSeriesCard extends StatefulWidget {
   final _BadgeSeries series;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onTap;
 
   const _BadgeSeriesCard({
     required this.series,
-    required this.kaisei,
     required this.onTap,
   });
 
@@ -233,7 +214,7 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
                     children: [
                       Text(
                         widget.series.icon,
-                        style: const TextStyle(fontSize: 18, height: 1.0),
+                        style: AppTextStyles.sectionTitle.copyWith(height: 1.0),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -241,21 +222,13 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
                           widget.series.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: widget.kaisei(
-                            size: 15,
-                            weight: FontWeight.w700,
-                            color: _darkText,
-                          ),
+                          style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkText),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${widget.series.unlocked}/${widget.series.total}',
-                        style: widget.kaisei(
-                          size: 14,
-                          weight: FontWeight.w700,
-                          color: _darkText,
-                        ),
+                        style: AppTextStyles.bodySmallBold.copyWith(color: _darkText),
                       ),
                     ],
                   ),
@@ -266,7 +239,7 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
                     child: expanded
                         ? Padding(
                             padding: const EdgeInsets.only(top: 12, bottom: 0),
-                            child: _BadgeGrid(kaisei: widget.kaisei),
+                            child: _BadgeGrid(),
                           )
                         : const SizedBox.shrink(),
                   ),
@@ -281,10 +254,7 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
 }
 
 class _BadgeGrid extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BadgeGrid({required this.kaisei});
+const _BadgeGrid();
 
   @override
   Widget build(BuildContext context) {
@@ -303,8 +273,7 @@ class _BadgeGrid extends StatelessWidget {
         return _BadgeItem(
           unlocked: index == 0,
           name: index == 0 ? '台灣古蹟' : '未解鎖',
-          kaisei: kaisei,
-        );
+);
       },
     );
   }
@@ -313,15 +282,10 @@ class _BadgeGrid extends StatelessWidget {
 class _BadgeItem extends StatefulWidget {
   final bool unlocked;
   final String name;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _BadgeItem({
     required this.unlocked,
     required this.name,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_BadgeItem> createState() => _BadgeItemState();
@@ -349,8 +313,7 @@ class _BadgeItemState extends State<_BadgeItem> {
             return _BadgePopup(
               unlocked: widget.unlocked,
               name: widget.name,
-              kaisei: widget.kaisei,
-            );
+);
           },
 
       transitionBuilder:
@@ -418,15 +381,10 @@ class _BadgeItemState extends State<_BadgeItem> {
 class _BadgePopup extends StatelessWidget {
   final bool unlocked;
   final String name;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _BadgePopup({
     required this.unlocked,
     required this.name,
-    required this.kaisei,
-  });
+});
 
   @override
   Widget build(BuildContext context) {
@@ -459,11 +417,7 @@ class _BadgePopup extends StatelessWidget {
                 Text(
                   name,
                   textAlign: TextAlign.center,
-                  style: kaisei(
-                    size: 22,
-                    weight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                  style: AppTextStyles.titleLarge.copyWith(color: Colors.white),
                 ),
               ],
             ),

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
+import '../core/app_text_styles.dart';
+import '../core/app_colors.dart';
 const Color _taskBackground = Color(0xFFE2D8BD);
-const Color _taskText = Color(0xFF301717);
-const Color _taskRed = Color(0xFF8D1F12);
+const Color _taskText = AppColors.textPrimary;
+const Color _taskRed = AppColors.primaryAccent;
 
 const Color _dialogBackground = Color(0xFFF7F2E8);
 const Color _dialogBorder = Color(0xFFD8CFBC);
 
-const Color _buttonBorder = Color(0xFF4A1106);
-const Color _buttonCenter = Color(0xFF9B2A15);
-const Color _buttonOuter = Color(0xFF7D1907);
+const Color _buttonBorder = AppColors.primaryDark;
+const Color _buttonCenter = AppColors.primaryLight;
+const Color _buttonOuter = AppColors.primary;
 
 class StoryTaskPopup extends StatelessWidget {
   final String title;
@@ -28,19 +28,6 @@ class StoryTaskPopup extends StatelessWidget {
     required this.onBack,
     required this.onStartTask,
   });
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _taskText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -78,18 +65,13 @@ class StoryTaskPopup extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kaisei(
-                              size: 22,
-                              weight: FontWeight.w900,
-                              color: _taskText,
-                            ),
+                            style: AppTextStyles.titleLarge.copyWith(color: _taskText),
                           ),
                         ),
                         const SizedBox(width: 10),
                         _ReviewStoryButton(
                           onTap: onReviewStory,
-                          kaisei: kaisei,
-                        ),
+),
                       ],
                     ),
                   ),
@@ -129,11 +111,7 @@ class StoryTaskPopup extends StatelessWidget {
                       '若想找回最初的那段記憶……\n'
                       '就從最早留下的一方開始尋找吧。',
                       textAlign: TextAlign.left,
-                      style: kaisei(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: _taskText,
-                      ).copyWith(height: 1.45),
+                      style: AppTextStyles.bodySmallBold.copyWith(color: _taskText).copyWith(height: 1.45),
                     ),
                   ),
                 ),
@@ -146,8 +124,7 @@ class StoryTaskPopup extends StatelessWidget {
               child: _GradientButton(
                 text: '解開彌封',
                 onTap: onStartTask,
-                kaisei: kaisei,
-              ),
+),
             ),
 
             const SizedBox(height: 30),
@@ -266,11 +243,7 @@ class _CloseButtonState extends State<_CloseButton> {
 
 class _ReviewStoryButton extends StatefulWidget {
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _ReviewStoryButton({required this.onTap, required this.kaisei});
+const _ReviewStoryButton({required this.onTap});
 
   @override
   State<_ReviewStoryButton> createState() => _ReviewStoryButtonState();
@@ -308,11 +281,7 @@ class _ReviewStoryButtonState extends State<_ReviewStoryButton> {
         child: Text(
           '回顧劇情 >>',
           textAlign: TextAlign.center,
-          style: widget.kaisei(
-            size: 12,
-            weight: FontWeight.w900,
-            color: _taskRed,
-          ),
+          style: AppTextStyles.label.copyWith(color: _taskRed),
         ),
       ),
     );
@@ -322,15 +291,10 @@ class _ReviewStoryButtonState extends State<_ReviewStoryButton> {
 class _GradientButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _GradientButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_GradientButton> createState() => _GradientButtonState();
@@ -389,11 +353,7 @@ class _GradientButtonState extends State<_GradientButton> {
           child: Text(
             widget.text,
             textAlign: TextAlign.center,
-            style: widget.kaisei(
-              size: 16,
-              weight: FontWeight.w700,
-              color: const Color(0xFFEBE1C7),
-            ),
+            style: AppTextStyles.button.copyWith(color: AppColors.paper),
           ),
         ),
       ),

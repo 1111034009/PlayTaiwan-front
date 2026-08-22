@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import '../block/navigationbar.dart';
 import 'script_detail_page.dart';
@@ -10,8 +9,8 @@ import 'script_detail_page.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _ticketText = AppColors.textPrimary;
-const Color _ticketSubText = Color(0xFF6D625B);
-const Color _seeMoreColor = Color(0xFF871E0C);
+const Color _ticketSubText = AppColors.softBrown;
+const Color _seeMoreColor = AppColors.secondaryRed;
 
 class ChooseScriptPage extends StatefulWidget {
   const ChooseScriptPage({super.key});
@@ -66,19 +65,6 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void openScriptDetail(_ScriptData script) {
     Navigator.push(
       context,
@@ -151,8 +137,7 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                         const SizedBox(width: 7),
                                         _OutlinedTitle(
                                           text: '劇本檔案館',
-                                          kaisei: kaisei,
-                                        ),
+),
                                       ],
                                     ),
                                   ),
@@ -178,11 +163,7 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                       child: Text(
                                         '選擇您感興趣的劇本，點選車票獲得地圖',
                                         textAlign: TextAlign.center,
-                                        style: kaisei(
-                                          size: 14,
-                                          weight: FontWeight.w700,
-                                          color: _darkBrown,
-                                        ),
+                                        style: AppTextStyles.bodySmallBold.copyWith(color: _darkBrown),
                                       ),
                                     ),
                                   ),
@@ -194,7 +175,6 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                       ),
                                       child: _ScriptTicket(
                                         script: script,
-                                        kaisei: kaisei,
                                         onTap: () {
                                           openScriptDetail(script);
                                         },
@@ -240,14 +220,11 @@ class _ScriptData {
 
 class _ScriptTicket extends StatefulWidget {
   final _ScriptData script;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
   final VoidCallback onTap;
   final VoidCallback onSeeMore;
 
   const _ScriptTicket({
     required this.script,
-    required this.kaisei,
     required this.onTap,
     required this.onSeeMore,
   });
@@ -320,23 +297,14 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                         widget.script.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: widget.kaisei(
-                          size: 18,
-                          weight: FontWeight.w700,
-                          color: _ticketText,
-                        ),
+                        style: AppTextStyles.sectionTitle.copyWith(color: _ticketText),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         widget.script.description,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: widget
-                            .kaisei(
-                              size: 12.5,
-                              weight: FontWeight.w700,
-                              color: _ticketText,
-                            )
+                        style: AppTextStyles.labelWide.copyWith(color: _ticketText)
                             .copyWith(height: 1.24),
                       ),
                       const SizedBox(height: 3),
@@ -344,11 +312,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                         '預計獲得：${widget.script.reward}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: widget.kaisei(
-                          size: 11.5,
-                          weight: FontWeight.w700,
-                          color: _ticketSubText,
-                        ),
+                        style: AppTextStyles.microLabelWide.copyWith(color: _ticketSubText),
                       ),
                     ],
                   ),
@@ -364,16 +328,13 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                     children: [
                       _TicketChip(
                         text: widget.script.location,
-                        kaisei: widget.kaisei,
-                      ),
+),
                       const SizedBox(width: 5),
                       _TicketChip(
                         text: widget.script.transport,
-                        kaisei: widget.kaisei,
-                      ),
+),
                       const Spacer(),
                       _SeeMoreButton(
-                        kaisei: widget.kaisei,
                         onTap: widget.onSeeMore,
                       ),
                     ],
@@ -390,10 +351,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
 
 class _TicketChip extends StatelessWidget {
   final String text;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _TicketChip({required this.text, required this.kaisei});
+const _TicketChip({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -406,11 +364,11 @@ class _TicketChip extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 84),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: const Color(0xFF8D7B6E), width: 1),
+          border: Border.all(color: AppColors.postcardLine, width: 1),
           gradient: const RadialGradient(
             center: Alignment(0, -0.15),
             radius: 1.15,
-            colors: [Color(0xFFEBE1C7), Color(0xFFEBE1C7), Color(0xFFE5D7B2)],
+            colors: [AppColors.paper, AppColors.paper, Color(0xFFE5D7B2)],
             stops: [0.0, 0.45, 1.0],
           ),
         ),
@@ -419,7 +377,7 @@ class _TicketChip extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: kaisei(size: 11.5, weight: FontWeight.w700, color: _darkBrown),
+          style: AppTextStyles.microLabelWide.copyWith(color: _darkBrown),
         ),
       ),
     );
@@ -427,11 +385,9 @@ class _TicketChip extends StatelessWidget {
 }
 
 class _SeeMoreButton extends StatefulWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
   final VoidCallback onTap;
 
-  const _SeeMoreButton({required this.kaisei, required this.onTap});
+  const _SeeMoreButton({ required this.onTap});
 
   @override
   State<_SeeMoreButton> createState() => _SeeMoreButtonState();
@@ -489,11 +445,7 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
               children: [
                 Text(
                   '觀看更多',
-                  style: widget.kaisei(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: _seeMoreColor,
-                  ),
+                  style: AppTextStyles.label.copyWith(color: _seeMoreColor),
                 ),
                 const SizedBox(width: 1),
                 Image.asset(
@@ -513,14 +465,11 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = kaisei(size: 24, weight: FontWeight.w700)
+    final TextStyle outlineStyle = AppTextStyles.displayMedium.copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -534,7 +483,7 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(
           text,
-          style: kaisei(size: 24, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.displayMedium.copyWith(color: Colors.white),
         ),
       ],
     );

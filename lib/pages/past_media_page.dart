@@ -4,14 +4,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import 'past_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
-const Color _pageColor = Color(0xFF4F4141);
+const Color _pageColor = AppColors.pastBackground;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _videoPoster = AppColors.paper;
 
@@ -62,19 +61,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 12,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void backToPast() {
     Navigator.pushReplacement(
       context,
@@ -145,16 +131,14 @@ class _PastMediaPageState extends State<PastMediaPage> {
                               top: 49,
                               child: _BackButton(
                                 onTap: backToPast,
-                                kaisei: kaisei,
-                              ),
+),
                             ),
                             Positioned(
                               left: 25,
                               top: 88,
                               child: _OutlinedTitle(
                                 text: '回憶vlog',
-                                kaisei: kaisei,
-                              ),
+),
                             ),
                             Positioned(
                               left: 15,
@@ -168,8 +152,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                               top: 500,
                               child: _OutlinedTitle(
                                 text: '明信片集結',
-                                kaisei: kaisei,
-                              ),
+),
                             ),
                             Positioned(
                               left: 0,
@@ -228,10 +211,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BackButton({required this.onTap, required this.kaisei});
+const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -256,11 +236,7 @@ class _BackButtonState extends State<_BackButton> {
         curve: Curves.easeOutBack,
         child: Text(
           '<< 返回',
-          style: widget.kaisei(
-            size: 16,
-            weight: FontWeight.w700,
-            color: const Color(0xFFE8DCC6),
-          ),
+          style: AppTextStyles.button.copyWith(color: const Color(0xFFE8DCC6)),
         ),
       ),
     );
@@ -269,15 +245,12 @@ class _BackButtonState extends State<_BackButton> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
     final TextStyle outlineStyle =
-        kaisei(size: 20, weight: FontWeight.w900, color: Colors.white).copyWith(
+        AppTextStyles.heading.copyWith(color: Colors.white).copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3
@@ -290,7 +263,7 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(
           text,
-          style: kaisei(size: 20, weight: FontWeight.w900, color: Colors.white),
+          style: AppTextStyles.heading.copyWith(color: Colors.white),
         ),
       ],
     );

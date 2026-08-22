@@ -2,10 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
@@ -43,19 +42,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = darkText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -279,7 +265,6 @@ class _HomePageState extends State<HomePage> {
           child: _EditAccountDialog(
             accountController: accountController,
             passwordController: passwordController,
-            kaisei: kaisei,
             onSave: () {
               final String newAccount = accountController.text.trim();
 
@@ -337,11 +322,7 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                   '目前總覽',
                   textAlign: TextAlign.center,
-                  style: kaisei(
-                    size: 20,
-                    weight: FontWeight.w700,
-                    color: const Color(0xFF3D342E),
-                  ),
+                  style: AppTextStyles.heading.copyWith(color: const Color(0xFF3D342E)),
                 ),
               ),
             ),
@@ -362,17 +343,13 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       '已完成探險',
                       textAlign: TextAlign.center,
-                      style: kaisei(size: 13, weight: FontWeight.w700),
+                      style: AppTextStyles.captionBold.copyWith(color: darkText),
                     ),
                     const SizedBox(width: 10),
                     Text(
                       '1',
                       textAlign: TextAlign.center,
-                      style: kaisei(
-                        size: 27,
-                        weight: FontWeight.w700,
-                        color: const Color(0xFF8C1D13),
-                      ),
+                      style: AppTextStyles.heroTitle.copyWith(color: const Color(0xFF8C1D13)),
                     ),
                   ],
                 ),
@@ -425,17 +402,13 @@ class _HomePageState extends State<HomePage> {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: kaisei(size: 13, weight: FontWeight.w700, color: titleColor),
+          style: AppTextStyles.captionBold.copyWith(color: titleColor),
         ),
         const SizedBox(height: 2),
         Text(
           number,
           textAlign: TextAlign.center,
-          style: kaisei(
-            size: 28,
-            weight: FontWeight.w700,
-            color: const Color(0xFF8C1D13),
-          ),
+          style: AppTextStyles.display.copyWith(color: const Color(0xFF8C1D13)),
         ),
       ],
     );
@@ -472,11 +445,7 @@ class _HomePageState extends State<HomePage> {
                   child: Text(
                     '徽章收藏',
                     textAlign: TextAlign.center,
-                    style: kaisei(
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: darkText,
-                    ),
+                    style: AppTextStyles.captionBold.copyWith(color: darkText),
                   ),
                 ),
               ),
@@ -532,11 +501,7 @@ class _HomePageState extends State<HomePage> {
               child: Text(
                 '過往旅途',
                 textAlign: TextAlign.center,
-                style: kaisei(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: darkText,
-                ),
+                style: AppTextStyles.bodySmallBold.copyWith(color: darkText),
               ),
             ),
           ],
@@ -580,11 +545,7 @@ class _HomePageState extends State<HomePage> {
               child: Text(
                 '出發探險',
                 textAlign: TextAlign.center,
-                style: kaisei(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: darkText,
-                ),
+                style: AppTextStyles.bodySmallBold.copyWith(color: darkText),
               ),
             ),
           ],
@@ -620,11 +581,7 @@ class _HomePageState extends State<HomePage> {
               Text(
                 '探員資訊',
                 textAlign: TextAlign.center,
-                style: kaisei(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  color: darkText,
-                ),
+                style: AppTextStyles.captionBold.copyWith(color: darkText),
               ),
             ],
           ),
@@ -700,11 +657,7 @@ class _AgentInfoDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '探員帳號',
-                        style: GoogleFonts.kaiseiHarunoUmi(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF301717),
-                        ),
+                        style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
                       ),
                     ],
                   ),
@@ -714,11 +667,7 @@ class _AgentInfoDialog extends StatelessWidget {
                     children: [
                       Text(
                         '帳號名稱：$accountName',
-                        style: GoogleFonts.kaiseiHarunoUmi(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF40342D),
-                        ),
+                        style: AppTextStyles.subtitle.copyWith(color: const Color(0xFF40342D)),
                       ),
                       const Spacer(),
                       _EditIconButton(onTap: onEdit),
@@ -743,16 +692,11 @@ class _AgentInfoDialog extends StatelessWidget {
 class _EditAccountDialog extends StatelessWidget {
   final TextEditingController accountController;
   final TextEditingController passwordController;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onSave;
 
   const _EditAccountDialog({
     required this.accountController,
     required this.passwordController,
-    required this.kaisei,
     required this.onSave,
   });
 
@@ -780,11 +724,7 @@ class _EditAccountDialog extends StatelessWidget {
                   Text(
                     '編輯探員資料',
                     textAlign: TextAlign.center,
-                    style: kaisei(
-                      size: 20,
-                      weight: FontWeight.w700,
-                      color: const Color(0xFF301717),
-                    ),
+                    style: AppTextStyles.heading.copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 14),
                   _EditField(
@@ -856,29 +796,21 @@ class _EditField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       textAlign: TextAlign.center,
-      style: GoogleFonts.kaiseiHarunoUmi(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: const Color(0xFF301717),
-      ),
+      style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.textPrimary),
       cursorColor: AppColors.primaryAccent,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.kaiseiHarunoUmi(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF6F6258),
-        ),
+        labelStyle: AppTextStyles.captionBold.copyWith(color: const Color(0xFF6F6258)),
         filled: true,
         fillColor: const Color(0x55FFFFFF),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Color(0xFF8D7B6E), width: 1),
+          borderSide: const BorderSide(color: AppColors.postcardLine, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Color(0xFF8D1F12), width: 1.3),
+          borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.3),
         ),
       ),
     );
@@ -915,11 +847,7 @@ class _PopupButton extends StatelessWidget {
           child: Text(
             text,
             textAlign: TextAlign.center,
-            style: GoogleFonts.kaiseiHarunoUmi(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.button.copyWith(color: Colors.white),
           ),
         ),
       ),

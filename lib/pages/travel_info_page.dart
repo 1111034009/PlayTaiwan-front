@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
@@ -9,11 +9,11 @@ import 'choose_script_page.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
-const Color _optionColor = Color(0xFF473737);
+const Color _optionColor = AppColors.storyBackground;
 
-const Color _redrawBorder = Color(0xFF4A1106);
-const Color _redrawCenter = Color(0xFF9B2A15);
-const Color _redrawOuter = Color(0xFF7D1907);
+const Color _redrawBorder = AppColors.primaryDark;
+const Color _redrawCenter = AppColors.primaryLight;
+const Color _redrawOuter = AppColors.primary;
 
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
@@ -57,19 +57,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     peopleController.dispose();
     super.dispose();
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   void togglePreference(String value) {
     setState(() {
       if (selectedPreferences.contains(value)) {
@@ -176,7 +163,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
             decoration: BoxDecoration(
-              color: const Color(0xFFE9DDC6),
+              color: AppColors.warmPaper,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: _redrawBorder, width: 2),
               boxShadow: const [
@@ -210,11 +197,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                 Text(
                   '劇本生成完成',
                   textAlign: TextAlign.center,
-                  style: kaisei(
-                    size: 23,
-                    weight: FontWeight.w700,
-                    color: _darkText,
-                  ),
+                  style: AppTextStyles.pageTitle.copyWith(color: _darkText),
                 ),
                 const SizedBox(height: 22),
                 SizedBox(
@@ -241,11 +224,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                     ),
                     child: Text(
                       '前往選擇劇本',
-                      style: kaisei(
-                        size: 15,
-                        weight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white),
                     ),
                   ),
                 ),
@@ -265,11 +244,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           content: Text(
             message,
             textAlign: TextAlign.center,
-            style: kaisei(
-              size: 14,
-              weight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
           ),
           backgroundColor: _optionColor,
           behavior: SnackBarBehavior.floating,
@@ -319,7 +294,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                     fit: BoxFit.contain,
                                   ),
                                   const SizedBox(width: 8),
-                                  _OutlinedTitle(text: '組隊集結', kaisei: kaisei),
+                                  _OutlinedTitle(text: '組隊集結'),
                                 ],
                               ),
                             ),
@@ -349,11 +324,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                 child: Text(
                                   '輸入資訊，讓這場解謎旅程正式展開',
                                   textAlign: TextAlign.center,
-                                  style: kaisei(
-                                    size: 15,
-                                    weight: FontWeight.w700,
-                                    color: _darkBrown,
-                                  ),
+                                  style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkBrown),
                                 ),
                               ),
                             ),
@@ -376,7 +347,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                             top: 157,
                             width: 282,
                             child: _FormContent(
-                              kaisei: kaisei,
                               peopleController: peopleController,
                               selectedPreferences: selectedPreferences,
                               selectedTransports: selectedTransports,
@@ -400,8 +370,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             child: _ScriptGeneratingOverlay(
               message: generatingText,
               step: generatingStep,
-              kaisei: kaisei,
-            ),
+),
           ),
       ],
     );
@@ -410,15 +379,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = kaisei(size: 25, weight: FontWeight.w700)
+    final TextStyle outlineStyle = AppTextStyles.displayLarge.copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -432,7 +397,7 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(
           text,
-          style: kaisei(size: 25, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.displayLarge.copyWith(color: Colors.white),
         ),
       ],
     );
@@ -440,9 +405,6 @@ class _OutlinedTitle extends StatelessWidget {
 }
 
 class _FormContent extends StatelessWidget {
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final TextEditingController peopleController;
   final Set<String> selectedPreferences;
   final Set<String> selectedTransports;
@@ -451,7 +413,6 @@ class _FormContent extends StatelessWidget {
   final VoidCallback onGenerate;
 
   const _FormContent({
-    required this.kaisei,
     required this.peopleController,
     required this.selectedPreferences,
     required this.selectedTransports,
@@ -469,7 +430,6 @@ class _FormContent extends StatelessWidget {
       child: _ChoiceButton(
         text: text,
         selected: selected,
-        kaisei: kaisei,
         onTap: onTap,
       ),
     );
@@ -485,7 +445,6 @@ class _FormContent extends StatelessWidget {
       child: _ChoiceButton(
         text: text,
         selected: selected,
-        kaisei: kaisei,
         onTap: onTap,
       ),
     );
@@ -498,7 +457,7 @@ class _FormContent extends StatelessWidget {
       children: [
         Text(
           '旅程人數',
-          style: kaisei(size: 19, weight: FontWeight.w700, color: _darkText),
+          style: AppTextStyles.titleMediumBold.copyWith(color: _darkText),
         ),
         const SizedBox(height: 5),
         SizedBox(
@@ -507,11 +466,11 @@ class _FormContent extends StatelessWidget {
             controller: peopleController,
             keyboardType: TextInputType.number,
             textAlign: TextAlign.left,
-            style: kaisei(size: 15, weight: FontWeight.w700, color: _darkText),
+            style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkText),
             cursorColor: _optionColor,
             decoration: InputDecoration(
               hintText: '請輸入數字',
-              hintStyle: kaisei(size: 14, color: const Color(0xFF8B837B)),
+              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedText),
               contentPadding: const EdgeInsets.only(
                 left: 5,
                 right: 5,
@@ -531,7 +490,7 @@ class _FormContent extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           '偏好(可複選)',
-          style: kaisei(size: 18, weight: FontWeight.w700, color: _darkText),
+          style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
         ),
         const SizedBox(height: 8),
         Row(
@@ -580,7 +539,7 @@ class _FormContent extends StatelessWidget {
         const SizedBox(height: 9),
         Text(
           '交通方式(可複選)',
-          style: kaisei(size: 18, weight: FontWeight.w700, color: _darkText),
+          style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -627,16 +586,11 @@ class _FormContent extends StatelessWidget {
 class _ChoiceButton extends StatefulWidget {
   final String text;
   final bool selected;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   final VoidCallback onTap;
 
   const _ChoiceButton({
     required this.text,
     required this.selected,
-    required this.kaisei,
     required this.onTap,
   });
 
@@ -696,7 +650,7 @@ class _ChoiceButtonState extends State<_ChoiceButton> {
             decoration: BoxDecoration(
               color: widget.selected
                   ? _optionColor
-                  : const Color(0xFFE9DDC6).withOpacity(0.65),
+                  : AppColors.warmPaper.withOpacity(0.65),
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: _optionColor, width: 1.4),
               boxShadow: widget.selected
@@ -712,11 +666,7 @@ class _ChoiceButtonState extends State<_ChoiceButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget.kaisei(
-                size: 14,
-                weight: FontWeight.w700,
-                color: widget.selected ? Colors.white : _optionColor,
-              ),
+              style: AppTextStyles.bodySmallBold.copyWith(color: widget.selected ? Colors.white : _optionColor),
             ),
           ),
         ),
@@ -803,11 +753,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: GoogleFonts.kaiseiHarunoUmi(
-                fontSize: 15.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.bodyCompactBold.copyWith(color: Colors.white),
             ),
           ),
         ),
@@ -819,15 +765,10 @@ class _GenerateButtonState extends State<_GenerateButton> {
 class _ScriptGeneratingOverlay extends StatefulWidget {
   final String message;
   final int step;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _ScriptGeneratingOverlay({
     required this.message,
     required this.step,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_ScriptGeneratingOverlay> createState() =>
@@ -864,7 +805,7 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
             width: 282,
             padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
             decoration: BoxDecoration(
-              color: const Color(0xFFE9DDC6),
+              color: AppColors.warmPaper,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: _redrawBorder, width: 2),
               boxShadow: const [
@@ -914,11 +855,7 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                 Text(
                   '劇本撰寫中',
                   textAlign: TextAlign.center,
-                  style: widget.kaisei(
-                    size: 22,
-                    weight: FontWeight.w700,
-                    color: _darkText,
-                  ),
+                  style: AppTextStyles.titleLarge.copyWith(color: _darkText),
                 ),
                 const SizedBox(height: 8),
                 AnimatedSwitcher(
@@ -927,11 +864,7 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                     widget.message,
                     key: ValueKey(widget.message),
                     textAlign: TextAlign.center,
-                    style: widget.kaisei(
-                      size: 14,
-                      weight: FontWeight.w600,
-                      color: _darkBrown,
-                    ),
+                    style: AppTextStyles.bodySmallBold.copyWith(color: _darkBrown),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -964,11 +897,7 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                 Text(
                   '請稍候，線索正在重新排列……',
                   textAlign: TextAlign.center,
-                  style: widget.kaisei(
-                    size: 11,
-                    weight: FontWeight.w400,
-                    color: const Color(0xFF77685F),
-                  ),
+                  style: AppTextStyles.microSmall.copyWith(color: const Color(0xFF77685F)),
                 ),
               ],
             ),

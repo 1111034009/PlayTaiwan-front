@@ -1,30 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'merchant_home_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 const Color _backgroundColor = Color(0xFFC4ADA0);
-const Color _cardColor = Color(0xFFFCF9EA);
+const Color _cardColor = AppColors.merchantPaper;
 const Color _darkRed = AppColors.primaryAccent;
 const Color _textColor = Color(0xFF17110F);
-const Color _lightText = Color(0xFFFCF9EA);
+const Color _lightText = AppColors.merchantPaper;
 const Color _buttonText = AppColors.paper;
 const Color _buttonInner = Color(0xFF724E4E);
 const Color _buttonOuter = AppColors.textPrimary;
 const Color _black = Colors.black;
-
-TextStyle kaisei({
-  double size = 16,
-  FontWeight weight = FontWeight.w400,
-  Color color = _textColor,
-}) {
-  return GoogleFonts.kaiseiHarunoUmi(
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-  );
-}
-
 class MerchantVideoPage extends StatelessWidget {
   const MerchantVideoPage({super.key});
 
@@ -66,11 +53,7 @@ class MerchantVideoPage extends StatelessWidget {
                           child: Text(
                             '<< 返回',
                             style:
-                                kaisei(
-                                  size: 14,
-                                  weight: FontWeight.w600,
-                                  color: _lightText,
-                                ).copyWith(
+                                AppTextStyles.bodySmallBold.copyWith(color: _lightText).copyWith(
                                   shadows: const [
                                     Shadow(
                                       color: Color(0x55000000),
@@ -207,7 +190,7 @@ class _SectionHeader extends StatelessWidget {
             title,
             maxLines: 2,
             overflow: TextOverflow.visible,
-            style: kaisei(size: 18, weight: FontWeight.w900, color: _textColor),
+            style: AppTextStyles.sectionTitle.copyWith(color: _textColor),
           ),
         ),
         if (actions.isNotEmpty) ...[
@@ -257,11 +240,7 @@ class _ContentTextBox extends StatelessWidget {
       child: Text(
         text,
         softWrap: true,
-        style: kaisei(
-          size: 13,
-          weight: FontWeight.w700,
-          color: _textColor,
-        ).copyWith(height: 1.42),
+        style: AppTextStyles.captionBold.copyWith(color: _textColor).copyWith(height: 1.42),
       ),
     );
   }
@@ -287,11 +266,7 @@ class _Tag extends StatelessWidget {
       child: Text(
         text,
         softWrap: false,
-        style: kaisei(
-          size: 12,
-          weight: FontWeight.w700,
-          color: _lightText,
-        ).copyWith(height: 1),
+        style: AppTextStyles.label.copyWith(color: _lightText).copyWith(height: 1),
       ),
     );
   }
@@ -354,11 +329,7 @@ class _ShareButtonState extends State<_ShareButton> {
               child: Text(
                 widget.text,
                 maxLines: 1,
-                style: kaisei(
-                  size: 16,
-                  weight: FontWeight.w700,
-                  color: _buttonText,
-                ).copyWith(height: 1),
+                style: AppTextStyles.button.copyWith(color: _buttonText).copyWith(height: 1),
               ),
             ),
           ),

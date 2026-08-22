@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
 import 'story_postcard_page.dart';
@@ -12,7 +12,7 @@ const Color _background = AppColors.questionBackground;
 const Color _textColor = AppColors.textPrimary;
 const Color _optionTextColor = Color(0xFF000000);
 const Color _selectedTextColor = AppColors.paper;
-const Color _selectedBackground = Color(0xFF7E1616);
+const Color _selectedBackground = AppColors.dangerDark;
 const Color _answerBorder = Color(0xFF000000);
 const Color _hintTextColor = Color(0x99000000);
 const Color _red = AppColors.primaryAccent;
@@ -54,21 +54,6 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
       ),
     );
   }
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _textColor,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-      height: 1.0,
-      letterSpacing: 0.18,
-    );
-  }
-
   void _goBack() {
     Navigator.pop(context);
   }
@@ -153,13 +138,9 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
             content: Text(
               '請先選擇一個答案',
               textAlign: TextAlign.center,
-              style: kaisei(
-                size: 15,
-                weight: FontWeight.w600,
-                color: Colors.white,
-              ).copyWith(height: 1.1, letterSpacing: 0.2),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white).copyWith(height: 1.1, letterSpacing: 0.2),
             ),
-            backgroundColor: const Color(0xFF473737),
+            backgroundColor: AppColors.storyBackground,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -222,7 +203,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                     Positioned(
                       left: 14,
                       top: 79,
-                      child: _BackButton(onTap: _goBack, kaisei: kaisei),
+                      child: _BackButton(onTap: _goBack),
                     ),
                     Positioned(
                       right: 10,
@@ -245,8 +226,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                               children: [
                                 _QuestionPaper(
                                   question: question,
-                                  kaisei: kaisei,
-                                ),
+),
                                 const SizedBox(height: 22),
                                 ...List.generate(answers.length, (index) {
                                   return Padding(
@@ -262,8 +242,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                                             selectedAnswer = index;
                                           });
                                         },
-                                        kaisei: kaisei,
-                                      ),
+),
                                     ),
                                   );
                                 }),
@@ -272,8 +251,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                                   child: _SubmitButton(
                                     text: '確認送出',
                                     onTap: _submitAnswer,
-                                    kaisei: kaisei,
-                                  ),
+),
                                 ),
                               ],
                             ),
@@ -295,11 +273,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _BackButton({required this.onTap, required this.kaisei});
+const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -352,8 +326,7 @@ class _BackButtonState extends State<_BackButton> {
           curve: Curves.easeOutBack,
           child: Text(
             '<< 返回',
-            style: widget
-                .kaisei(size: 17, weight: FontWeight.w600, color: _red)
+            style: AppTextStyles.subtitle.copyWith(color: _red)
                 .copyWith(height: 1.0, letterSpacing: 0.08),
           ),
         ),
@@ -430,11 +403,7 @@ class _TipButtonState extends State<_TipButton> {
 
 class _QuestionPaper extends StatelessWidget {
   final String question;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _QuestionPaper({required this.question, required this.kaisei});
+const _QuestionPaper({required this.question});
 
   @override
   Widget build(BuildContext context) {
@@ -450,11 +419,7 @@ class _QuestionPaper extends StatelessWidget {
               child: Text(
                 '請在附近尋找線索，並回答以下問題。',
                 textAlign: TextAlign.left,
-                style: kaisei(
-                  size: 14,
-                  weight: FontWeight.w500,
-                  color: _hintTextColor,
-                ).copyWith(height: 1.6, letterSpacing: 0.5, wordSpacing: 0.7),
+                style: AppTextStyles.bodySmallMedium.copyWith(color: _hintTextColor).copyWith(height: 1.6, letterSpacing: 0.5, wordSpacing: 0.7),
               ),
             ),
             SizedBox(
@@ -462,11 +427,7 @@ class _QuestionPaper extends StatelessWidget {
               child: Text(
                 question,
                 textAlign: TextAlign.left,
-                style: kaisei(
-                  size: 19,
-                  weight: FontWeight.w900,
-                  color: _textColor,
-                ).copyWith(height: 1.45, letterSpacing: 0.45, wordSpacing: 0.7),
+                style: AppTextStyles.titleMediumBold.copyWith(color: _textColor).copyWith(height: 1.45, letterSpacing: 0.45, wordSpacing: 0.7),
               ),
             ),
           ],
@@ -480,16 +441,11 @@ class _AnswerOption extends StatefulWidget {
   final String text;
   final bool selected;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _AnswerOption({
     required this.text,
     required this.selected,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_AnswerOption> createState() => _AnswerOptionState();
@@ -573,8 +529,7 @@ class _AnswerOptionState extends State<_AnswerOption> {
                 applyHeightToFirstAscent: true,
                 applyHeightToLastDescent: true,
               ),
-              style: widget
-                  .kaisei(size: 19, weight: FontWeight.w600, color: textColor)
+              style: AppTextStyles.titleMediumBold.copyWith(color: textColor)
                   .copyWith(
                     height: 1.15,
                     letterSpacing: 0.45,
@@ -591,15 +546,10 @@ class _AnswerOptionState extends State<_AnswerOption> {
 class _SubmitButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _SubmitButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_SubmitButton> createState() => _SubmitButtonState();
@@ -669,12 +619,7 @@ class _SubmitButtonState extends State<_SubmitButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: widget
-                  .kaisei(
-                    size: 19,
-                    weight: FontWeight.w600,
-                    color: const Color(0xFFEBE1C7),
-                  )
+              style: AppTextStyles.titleMediumBold.copyWith(color: AppColors.paper)
                   .copyWith(height: 1.05, letterSpacing: 0.45),
             ),
           ),
@@ -739,21 +684,6 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle Function({double size, FontWeight weight, Color color})
-    kaisei =
-        ({
-          double size = 16,
-          FontWeight weight = FontWeight.w400,
-          Color color = _textColor,
-        }) {
-          return GoogleFonts.kaiseiHarunoUmi(
-            fontSize: size,
-            fontWeight: weight,
-            color: color,
-            height: 1.0,
-            letterSpacing: 0.18,
-          );
-        };
 
     return Material(
       color: Colors.transparent,
@@ -822,13 +752,9 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                               '線索',
                                               textAlign: TextAlign.center,
                                               style:
-                                                  kaisei(
-                                                    size: 27,
-                                                    weight: FontWeight.w700,
-                                                    color: const Color(
+                                                  AppTextStyles.heroTitle.copyWith(color: const Color(
                                                       0xFF6D2A1D,
-                                                    ),
-                                                  ).copyWith(
+                                                    )).copyWith(
                                                     height: 1.2,
                                                     letterSpacing: 2.0,
                                                   ),
@@ -844,13 +770,9 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                               widget.clueText,
                                               textAlign: TextAlign.center,
                                               style:
-                                                  kaisei(
-                                                    size: 18,
-                                                    weight: FontWeight.w500,
-                                                    color: const Color(
+                                                  AppTextStyles.sectionTitleMedium.copyWith(color: const Color(
                                                       0xFF3D281D,
-                                                    ),
-                                                  ).copyWith(
+                                                    )).copyWith(
                                                     height: 1.7,
                                                     letterSpacing: 0.8,
                                                   ),
@@ -890,11 +812,7 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                 child: Text(
                                   '輕觸空白處關閉',
                                   textAlign: TextAlign.center,
-                                  style: kaisei(
-                                    size: 14,
-                                    weight: FontWeight.w400,
-                                    color: Colors.white,
-                                  ).copyWith(height: 1.2, letterSpacing: 0.8),
+                                  style: AppTextStyles.bodySmall.copyWith(color: Colors.white).copyWith(height: 1.2, letterSpacing: 0.8),
                                 ),
                               ),
                             ),

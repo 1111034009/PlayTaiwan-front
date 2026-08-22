@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
 
@@ -31,19 +30,6 @@ class StoryLocationPopup extends StatelessWidget {
     required this.onMission,
     required this.onNavigate,
   });
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _popupText,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: AppTextStyles.normalizeFontSize(size),
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -82,14 +68,11 @@ class StoryLocationPopup extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kaisei(
-                              size: AppTextStyles.titleSize,
-                              weight: FontWeight.w900,
-                            ),
+                            style: AppTextStyles.title.copyWith(color: _popupText),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        _ReviewButton(onTap: onReviewStory, kaisei: kaisei),
+                        _ReviewButton(onTap: onReviewStory),
                       ],
                     ),
                   ),
@@ -108,10 +91,7 @@ class StoryLocationPopup extends StatelessWidget {
                 description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: kaisei(
-                  size: AppTextStyles.bodySmallSize,
-                  weight: FontWeight.w800,
-                ).copyWith(height: 1.4),
+                style: AppTextStyles.bodySmallBold.copyWith(color: _popupText).copyWith(height: 1.4),
               ),
             ),
             const SizedBox(height: 14),
@@ -123,24 +103,21 @@ class StoryLocationPopup extends StatelessWidget {
                     child: _GradientButton(
                       text: '周邊好去',
                       onTap: onAround,
-                      kaisei: kaisei,
-                    ),
+),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: _GradientButton(
                       text: '查看任務',
                       onTap: onMission,
-                      kaisei: kaisei,
-                    ),
+),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: _GradientButton(
                       text: '開始導航',
                       onTap: onNavigate,
-                      kaisei: kaisei,
-                    ),
+),
                   ),
                 ],
               ),
@@ -181,11 +158,7 @@ class _CloseButton extends StatelessWidget {
 
 class _ReviewButton extends StatefulWidget {
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _ReviewButton({required this.onTap, required this.kaisei});
+const _ReviewButton({required this.onTap});
 
   @override
   State<_ReviewButton> createState() => _ReviewButtonState();
@@ -223,11 +196,7 @@ class _ReviewButtonState extends State<_ReviewButton> {
         child: Text(
           '回顧劇情 >>',
           textAlign: TextAlign.center,
-          style: widget.kaisei(
-            size: AppTextStyles.bodySmallSize,
-            weight: FontWeight.w900,
-            color: _popupRed,
-          ),
+          style: AppTextStyles.bodySmallBold.copyWith(color: _popupRed),
         ),
       ),
     );
@@ -237,15 +206,10 @@ class _ReviewButtonState extends State<_ReviewButton> {
 class _GradientButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
   const _GradientButton({
     required this.text,
     required this.onTap,
-    required this.kaisei,
-  });
+});
 
   @override
   State<_GradientButton> createState() => _GradientButtonState();
@@ -303,11 +267,7 @@ class _GradientButtonState extends State<_GradientButton> {
           child: Text(
             widget.text,
             textAlign: TextAlign.center,
-            style: widget.kaisei(
-              size: AppTextStyles.bodySmallSize,
-              weight: FontWeight.w700,
-              color: const Color(0xFFEBE1C7),
-            ),
+            style: AppTextStyles.bodySmallBold.copyWith(color: AppColors.paper),
           ),
         ),
       ),

@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 
 import 'travel_info_page.dart';
 import '../block/navigationbar.dart';
@@ -22,9 +22,9 @@ const Color _startBorder = Color(0xFF144A06);
 const Color _startCenter = Color(0xFF209B15);
 const Color _startOuter = Color(0xFF1F7D07);
 
-const Color _redrawBorder = Color(0xFF4A1106);
-const Color _redrawCenter = Color(0xFF9B2A15);
-const Color _redrawOuter = Color(0xFF7D1907);
+const Color _redrawBorder = AppColors.primaryDark;
+const Color _redrawCenter = AppColors.primaryLight;
+const Color _redrawOuter = AppColors.primary;
 
 class PlayIdeaPage extends StatefulWidget {
   const PlayIdeaPage({super.key});
@@ -131,19 +131,6 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
   // ============================================================
   // 字體
   // ============================================================
-
-  TextStyle kaisei({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = _darkBrown,
-  }) {
-    return GoogleFonts.kaiseiHarunoUmi(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
-  }
-
   // ============================================================
   // 轉盤
   // ============================================================
@@ -262,7 +249,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                     fit: BoxFit.contain,
                   ),
                   const SizedBox(width: 8),
-                  _OutlinedTitle(text: '來點遊意思', kaisei: kaisei),
+                  _OutlinedTitle(text: '來點遊意思'),
                 ],
               ),
             ),
@@ -282,7 +269,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE9DDC6).withOpacity(0.88),
+                  color: AppColors.warmPaper.withOpacity(0.88),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: const Color(0xFF8A7163).withOpacity(0.30),
@@ -292,11 +279,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                 child: Text(
                   '轉動命運的轉盤，來點遊意思',
                   textAlign: TextAlign.center,
-                  style: kaisei(
-                    size: 15,
-                    weight: FontWeight.w700,
-                    color: _darkBrown,
-                  ),
+                  style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkBrown),
                 ),
               ),
             ),
@@ -402,11 +385,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.visible,
-                style: kaisei(
-                  size: selectedIndex == null ? 21 : 25,
-                  weight: FontWeight.w700,
-                  color: _resultText,
-                ),
+                style: (selectedIndex == null ? AppTextStyles.title : AppTextStyles.displayLarge).copyWith(color: _resultText),
               ),
             ),
           ),
@@ -476,15 +455,11 @@ class _Location {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-
-  final TextStyle Function({double size, FontWeight weight, Color color})
-  kaisei;
-
-  const _OutlinedTitle({required this.text, required this.kaisei});
+const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = kaisei(size: 25, weight: FontWeight.w700)
+    final TextStyle outlineStyle = AppTextStyles.displayLarge.copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -498,7 +473,7 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(
           text,
-          style: kaisei(size: 25, weight: FontWeight.w700, color: Colors.white),
+          style: AppTextStyles.displayLarge.copyWith(color: Colors.white),
         ),
       ],
     );
@@ -588,11 +563,7 @@ class _WheelPainter extends CustomPainter {
     // 轉盤文字
     // ------------------------------------------------------------
 
-    final TextStyle labelStyle = GoogleFonts.kaiseiHarunoUmi(
-      fontSize: 9.8,
-      fontWeight: FontWeight.w700,
-      color: _darkBrown,
-    );
+    final TextStyle labelStyle = AppTextStyles.microTightBold.copyWith(color: _darkBrown);
 
     final double textRadius = size.width * 0.355;
 
@@ -849,11 +820,7 @@ class _WheelButtonState extends State<_WheelButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: GoogleFonts.kaiseiHarunoUmi(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white),
             ),
           ),
         ),

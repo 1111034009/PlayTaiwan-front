@@ -1,12 +1,11 @@
 import '../core/app_colors.dart';
+import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
 
@@ -18,7 +17,7 @@ const Color _skipStart = Color(0x66CBB57C);
 const Color _skipEnd = Color(0x55AA9038);
 const Color _skipBorder = Color(0xB8E3D1A4);
 
-const Color _storyRed = Color(0xFF8D1F12);
+const Color _storyRed = AppColors.primaryAccent;
 
 class StoryPage extends StatefulWidget {
   final String title;
@@ -470,19 +469,13 @@ class _SkipStoryButton extends StatelessWidget {
                 child: Text(
                   '跳過劇情  >>',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.kaiseiHarunoUmi(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _topColor,
-                    height: 1,
-                    shadows: const [
+                  style: AppTextStyles.bodySmallBold.copyWith(color: _topColor).copyWith(height: 1, shadows: const [
                       Shadow(
                         color: Color(0x55000000),
                         blurRadius: 2,
                         offset: Offset(0, 1),
                       ),
-                    ],
-                  ),
+                    ]),
                 ),
               ),
             ),
@@ -568,12 +561,7 @@ class _StoryDialog extends StatelessWidget {
                 child: Text(
                   story.name,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.kaiseiHarunoUmi(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: _topColor,
-                    height: 1,
-                  ),
+                  style: AppTextStyles.titleMediumBold.copyWith(color: _topColor).copyWith(height: 1),
                 ),
               ),
             ),
@@ -586,12 +574,7 @@ class _StoryDialog extends StatelessWidget {
                 story.text,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.kaiseiHarunoUmi(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w700,
-                  color: _darkText,
-                  height: 1.45,
-                ),
+                style: AppTextStyles.bodyCompactBold.copyWith(color: _darkText).copyWith(height: 1.45),
               ),
             ),
 
@@ -600,11 +583,7 @@ class _StoryDialog extends StatelessWidget {
               bottom: 7,
               child: Text(
                 '點擊繼續',
-                style: GoogleFonts.kaiseiHarunoUmi(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF806C54),
-                ),
+                style: AppTextStyles.microBold.copyWith(color: const Color(0xFF806C54)),
               ),
             ),
           ],
