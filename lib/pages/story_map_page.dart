@@ -34,6 +34,7 @@ class _StoryMapPageState extends State<StoryMapPage> {
   static const double designWidth = 360.0;
   static const double designHeight = 640.0;
   static const double maxScale = 1.15;
+  static const double topSpacePercent = 0.05;
 
   int currentIndex = 1;
 
@@ -212,6 +213,8 @@ class _StoryMapPageState extends State<StoryMapPage> {
 
             final double scale = _getScale(screenWidth, screenHeight);
 
+            final double topOffset = screenHeight * topSpacePercent;
+
             final double actualTopBarWidth = topBarDesignWidth * scale;
 
             final double actualTopBarHeight = topBarDesignHeight * scale;
@@ -226,13 +229,20 @@ class _StoryMapPageState extends State<StoryMapPage> {
                   left: 0,
                   right: 0,
                   top: 0,
-                  height: actualTopBarHeight,
+                  height: topOffset,
                   child: const ColoredBox(color: _topColor),
                 ),
 
                 Positioned(
                   left: 0,
-                  top: 0,
+                  right: 0,
+                  top: topOffset,
+                  height: actualTopBarHeight,
+                  child: const ColoredBox(color: _topColor),
+                ),
+                Positioned(
+                  left: 0,
+                  top: topOffset,
                   width: screenWidth,
                   height: actualTopBarHeight,
                   child: Center(
@@ -258,7 +268,7 @@ class _StoryMapPageState extends State<StoryMapPage> {
                 ),
 
                 Positioned(
-                  top: actualTopBarHeight + (6 * scale),
+                  top: topOffset + actualTopBarHeight + (6 * scale),
                   right: math.max(
                     5 * scale,
                     (screenWidth - actualTopBarWidth) / 2 + (1 * scale),
@@ -282,9 +292,9 @@ class _StoryMapPageState extends State<StoryMapPage> {
                   designWidth: designWidth,
                   designHeight: designHeight,
                   scale: scale,
+                  topOffset: topOffset,
                   child: _MapContent(onConfuciusTempleTap: openConfuciusTemple),
                 ),
-
                 if (showLocationPopup)
                   Positioned.fill(
                     child: _LocationPopupLayer(
@@ -357,18 +367,24 @@ class _MapViewport extends StatelessWidget {
   final double designWidth;
   final double designHeight;
   final double scale;
+  final double topOffset;
   final Widget child;
 
   const _MapViewport({
     required this.designWidth,
     required this.designHeight,
     required this.scale,
+    required this.topOffset,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: topOffset,
+      bottom: 0,
       child: Center(
         child: SizedBox(
           width: designWidth * scale,
