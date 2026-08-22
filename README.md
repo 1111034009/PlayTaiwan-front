@@ -1,4 +1,6 @@
 # PlayTaiwan-front
+一場帶你用app解謎遊玩並輸出專屬紀錄短影音app
+
 ##  確認無錯誤
 ```bash
 flutter doctor
