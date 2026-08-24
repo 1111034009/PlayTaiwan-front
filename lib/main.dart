@@ -10,8 +10,10 @@ import 'pages/user_type_page.dart';
 import 'pages/merchant_home_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const PlayTaiwanApp());
 }
 

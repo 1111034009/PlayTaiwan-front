@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_session.dart';
+import '../models/history_record.dart';
 import 'past_detail_page.dart';
 
 const Color _pageColor = AppColors.pastBackground;
@@ -19,10 +23,11 @@ class PastPage extends StatefulWidget {
 
 class _PastPageState extends State<PastPage> {
   static const double designWidth = 360;
-  static const double designHeight = 640;
   static const double contentScale = 1.04;
 
   int currentIndex = 3;
+  List<HistoryRecord> historyRecords = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -37,15 +42,89 @@ class _PastPageState extends State<PastPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    _fetchHistory();
   }
-  void openPastRecord() {
+
+  Future<void> _fetchHistory() async {
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+
+      setState(() {
+        historyRecords = [];
+        isLoading = false;
+      });
+
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5501/api/History'),
+        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['isSuccess'] == true) {
+          final dynamic result = data['Result'];
+
+          if (result is List) {
+            final List<HistoryRecord> records = result
+                .whereType<Map<String, dynamic>>()
+                .map(HistoryRecord.fromJson)
+                .toList();
+
+            if (!mounted) return;
+
+            setState(() {
+              historyRecords = records;
+              isLoading = false;
+            });
+
+            return;
+          }
+        }
+      }
+      if (!mounted) return;
+
+      setState(() {
+        historyRecords = [];
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        historyRecords = [];
+        isLoading = false;
+      });
+    }
+  }
+
+  void openPastRecord(HistoryRecord record) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const PastDetailPage(title: '府城儒生失落卷', completedDate: '2026.0809'),
+        builder: (_) => PastDetailPage(
+          title: record.title,
+          storyId: record.storyId,
+          completedDate: _formatCompletedDate(record.completedDate),
+        ),
       ),
     );
+  }
+
+  String _formatCompletedDate(DateTime? date) {
+    if (date == null) {
+      return '';
+    }
+    return '${date.year}.'
+        '${date.month.toString().padLeft(2, '0')}.'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -99,7 +178,9 @@ class _PastPageState extends State<PastPage> {
                               Text(
                                 '查看你過往紀錄',
                                 textAlign: TextAlign.center,
-                                style: AppTextStyles.bodySmallBold.copyWith(color: _subtitleText).copyWith(height: 1.1),
+                                style: AppTextStyles.bodySmallBold
+                                    .copyWith(color: _subtitleText)
+                                    .copyWith(height: 1.1),
                               ),
                             ],
                           ),
@@ -111,24 +192,7 @@ class _PastPageState extends State<PastPage> {
                           bottom: 0,
                           child: ScrollConfiguration(
                             behavior: const _NoScrollbarScrollBehavior(),
-                            child: ListView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(
-                                15,
-                                7,
-                                15,
-                                180,
-                              ),
-                              itemCount: 5,
-                              itemBuilder: (_, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 9),
-                                  child: _PastTicket(
-                                    onTap: openPastRecord,
-                                  ),
-                                );
-                              },
-                            ),
+                            child: _buildHistoryList(),
                           ),
                         ),
                       ],
@@ -143,13 +207,53 @@ class _PastPageState extends State<PastPage> {
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
+
+  Widget _buildHistoryList() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.secondaryRed,
+        ),
+      );
+    }
+
+    if (historyRecords.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Text(
+            '目前還沒有完成的探險紀錄',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold.copyWith(color: _subtitleText),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(15, 7, 15, 180),
+      itemCount: historyRecords.length,
+      itemBuilder: (_, index) {
+        final HistoryRecord record = historyRecords[index];
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 9),
+          child: _PastTicket(
+            record: record,
+            onTap: () => openPastRecord(record),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _PastTicket extends StatelessWidget {
+  final HistoryRecord record;
   final VoidCallback onTap;
-
-  const _PastTicket({ required this.onTap});
-
+  const _PastTicket({required this.record, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return _PressScale(
@@ -197,26 +301,26 @@ class _PastTicket extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '府城儒生失落卷',
+                    record.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.subtitle.copyWith(color: _seeMoreColor),
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: _seeMoreColor,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '尋著百年軌跡，找回失落記憶...',
+                    record.synopsis,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.microLabelWide.copyWith(color: _ticketText).copyWith(height: 1.35),
+                    style: AppTextStyles.microLabelWide
+                        .copyWith(color: _ticketText)
+                        .copyWith(height: 1.35),
                   ),
                 ],
               ),
             ),
-            Positioned(
-              right: 40,
-              bottom: 12,
-              child: _ViewButton(onTap: onTap),
-            ),
+            Positioned(right: 40, bottom: 12, child: _ViewButton(onTap: onTap)),
           ],
         ),
       ),
@@ -227,7 +331,7 @@ class _PastTicket extends StatelessWidget {
 class _ViewButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _ViewButton({ required this.onTap});
+  const _ViewButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -279,7 +383,9 @@ class _PressScaleState extends State<_PressScale> {
 
   void setPressing(bool value) {
     if (mounted) {
-      setState(() => pressing = value);
+      setState(() {
+        pressing = value;
+      });
     }
   }
 
@@ -303,11 +409,13 @@ class _PressScaleState extends State<_PressScale> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = AppTextStyles.displayMedium.copyWith(color: _ticketText)
+    final TextStyle outlineStyle = AppTextStyles.displayMedium
+        .copyWith(color: _ticketText)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
