@@ -22,8 +22,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
 
-  String accountName = 'EP001';
+  String accountName = AppSession.epName ?? '';
   String accountPassword = '';
+  int completedStoryCount = 0;
+  int postcardCount = 0;
+  int badgeCount = 0;
+  int vlogCount = 0;
   Future<void> _fetchProfile() async {
     final token = AppSession.token;
     if (token == null || token.isEmpty) {
@@ -34,7 +38,7 @@ class _HomePageState extends State<HomePage> {
         Uri.parse('http://localhost:5501/api/Auth/Profile'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode >= 200 && response.statusCode <= 300) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['isSuccess'] == true) {
           final result = data['Result'];
@@ -51,7 +55,119 @@ class _HomePageState extends State<HomePage> {
         }
       }
     } catch (e) {
-      print('Profile Error: $e');
+      // print('Profile Error: $e');
+    }
+  }
+
+  Future<void> _fetchOverview() async {
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5501/api/Home/Overview'),
+        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['isSuccess'] == true) {
+          final result = data['Result'];
+
+          if (result is Map<String, dynamic>) {
+            if (!mounted) return;
+
+            setState(() {
+              completedStoryCount =
+                  int.tryParse(
+                    result['completed_story_count']?.toString() ?? '0',
+                  ) ??
+                  0;
+
+              postcardCount =
+                  int.tryParse(result['postcard_count']?.toString() ?? '0') ??
+                  0;
+
+              badgeCount =
+                  int.tryParse(result['badge_count']?.toString() ?? '0') ?? 0;
+
+              vlogCount =
+                  int.tryParse(result['vlog_count']?.toString() ?? '0') ?? 0;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // print('Overview Error: $e');
+    }
+  }
+
+  Future<bool> _updateProfile(String epName) async {
+    final String newName = epName.trim();
+
+    if (newName.isEmpty) {
+      if (!mounted) return false;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請探員輸入更改名稱')));
+
+      return false;
+    }
+
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return false;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('登入資訊已失效，請重新登入')));
+
+      return false;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5501/api/Auth/Profile'),
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'ep_name': newName}),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (!mounted) return false;
+
+        setState(() {
+          accountName = newName;
+        });
+
+        return true;
+      }
+
+      if (!mounted) return false;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('更新探員名稱失敗：HTTP ${response.statusCode}')),
+      );
+
+      return false;
+    } catch (e) {
+      // print('Profile Update Error: $e');
+
+      if (!mounted) return false;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('無法連線到伺服器')));
+
+      return false;
     }
   }
 
@@ -74,6 +190,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     _fetchProfile();
+    _fetchOverview();
   }
 
   @override
@@ -299,21 +416,22 @@ class _HomePageState extends State<HomePage> {
           child: _EditAccountDialog(
             accountController: accountController,
             passwordController: passwordController,
-            onSave: () {
+            onSave: () async {
               final String newAccount = accountController.text.trim();
-
               final String newPassword = passwordController.text;
-
-              setState(() {
-                if (newAccount.isNotEmpty) {
-                  accountName = newAccount;
-                }
-
-                accountPassword = newPassword;
-              });
-
+              if (newAccount.isEmpty) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('帳號名稱不可為空')));
+                return;
+              }
+              final bool success = await _updateProfile(newAccount);
+              if (!success) {
+                return;
+              }
+              accountPassword = newPassword;
+              if (!mounted) return;
               Navigator.of(context).pop();
-
               Future.delayed(const Duration(milliseconds: 100), () {
                 if (!mounted) return;
                 _showAgentInfoDialog();
@@ -422,7 +540,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      '1',
+                      completedStoryCount.toString(),
                       textAlign: TextAlign.center,
                       style: AppTextStyles.heroTitle.copyWith(
                         color: const Color(0xFF8C1D13),
@@ -438,7 +556,7 @@ class _HomePageState extends State<HomePage> {
               width: 60,
               child: _OverviewNumber(
                 title: '明信片',
-                number: '10',
+                number: postcardCount.toString(),
                 titleColor: postcardLine,
               ),
             ),
@@ -448,7 +566,7 @@ class _HomePageState extends State<HomePage> {
               width: 60,
               child: _OverviewNumber(
                 title: '徽章',
-                number: '1',
+                number: badgeCount.toString(),
                 titleColor: postcardLine,
               ),
             ),
@@ -458,7 +576,7 @@ class _HomePageState extends State<HomePage> {
               width: 60,
               child: _OverviewNumber(
                 title: 'VLOG',
-                number: '1',
+                number: vlogCount.toString(),
                 titleColor: postcardLine,
               ),
             ),

@@ -142,7 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
         showMessage('註冊失敗：HTTP ${response.statusCode}');
       }
     } catch (e) {
-      print('Register Error: $e');
+      // print('Register Error: $e');
 
       if (!mounted) return;
 
