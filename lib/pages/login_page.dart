@@ -82,54 +82,61 @@ class _LoginPageState extends State<LoginPage> {
         headers: {'accept': '*/*', 'Content-Type': 'application/json'},
         body: jsonEncode({'ep_name': account, 'ep_pswd': password}),
       );
-      print('${response.statusCode}');
-      print('Body: ${response.body}');
+      Map<String, dynamic>? data;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {
+        data = null;
+      }
+      final bool isSuccess = data?['isSuccess'] == true;
+      final String message = data?['message']?.toString() ?? '登入失敗';
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final bool isSuccess = data['isSuccess'] == true;
-        final String message = data['message']?.toString() ?? '登入失敗';
-        if (isSuccess) {
-          final Map<String, dynamic>? result =
-              data['Result'] as Map<String, dynamic>?;
+      if (isSuccess) {
+        final Map<String, dynamic>? result =
+            data?['Result'] as Map<String, dynamic>?;
 
-          final String? token = result?['token']?.toString();
-          final String? epId = result?['ep_id']?.toString();
-          final String? epName = result?['ep_name']?.toString();
+        final String? token = result?['token']?.toString();
+        final String? epId = result?['ep_id']?.toString();
+        final String? epName = result?['ep_name']?.toString();
 
-          if (token == null || token.isEmpty) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('權限失敗')));
-            return;
-          }
-          AppSession.token = token;
-          AppSession.epId = epId;
-          AppSession.epName = epName;
+        if (token == null || token.isEmpty) {
           if (!mounted) return;
 
-          Navigator.pushReplacementNamed(context, '/user-type');
-        } else {
-          if (!mounted) return;
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text(message)));
+          ).showSnackBar(const SnackBar(content: Text('權限失敗')));
+
+          return;
         }
+
+        AppSession.token = token;
+        AppSession.epId = epId;
+        AppSession.epName = epName;
+
+        if (!mounted) return;
+
+        Navigator.pushReplacementNamed(context, '/user-type');
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('伺服器錯誤 (${response.statusCode})')),
-        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
       print('Login Error: $e');
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('請探員確認連線~')));
     } finally {
       if (!mounted) return;
+
       setState(() {
         isLoading = false;
       });
@@ -245,7 +252,7 @@ class _LoginPageState extends State<LoginPage> {
                   left: 13,
                   right: 13,
                   top: 184,
-                  height: 402,
+                  height: 420,
 
                   child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
                 ),
@@ -386,6 +393,18 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
+                Positioned(
+                  top: 560,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: _RegisterLink(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/register');
+                      },
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -516,6 +535,62 @@ class _LoginButtonState extends State<_LoginButton> {
                         color: Colors.white,
                       ),
                     ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RegisterLink extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _RegisterLink({required this.onTap});
+
+  @override
+  State<_RegisterLink> createState() => _RegisterLinkState();
+}
+
+class _RegisterLinkState extends State<_RegisterLink> {
+  bool hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          hovering = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hovering = false;
+        });
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: hovering ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '還沒帳號？',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                TextSpan(
+                  text: '前往註冊',
+                  style: AppTextStyles.bodySmallBold.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
