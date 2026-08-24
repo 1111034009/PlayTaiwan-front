@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../block/navigationbar.dart';
 import 'past_page.dart';
@@ -22,6 +23,12 @@ class PastMediaPage extends StatefulWidget {
 }
 
 class _PastMediaPageState extends State<PastMediaPage> {
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
+
   static const double designWidth = 360;
   static const double designHeight = 640;
   static const double contentScale = 1;
@@ -61,6 +68,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
       ),
     );
   }
+
   void backToPast() {
     Navigator.pushReplacement(
       context,
@@ -129,16 +137,12 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             Positioned(
                               left: 22,
                               top: 49,
-                              child: _BackButton(
-                                onTap: backToPast,
-),
+                              child: _BackButton(onTap: backToPast),
                             ),
                             Positioned(
                               left: 25,
                               top: 88,
-                              child: _OutlinedTitle(
-                                text: '回憶vlog',
-),
+                              child: _OutlinedTitle(text: '回憶vlog'),
                             ),
                             Positioned(
                               left: 15,
@@ -150,9 +154,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             Positioned(
                               left: 25,
                               top: 500,
-                              child: _OutlinedTitle(
-                                text: '明信片集結',
-),
+                              child: _OutlinedTitle(text: '明信片集結'),
                             ),
                             Positioned(
                               left: 0,
@@ -211,7 +213,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-const _BackButton({required this.onTap});
+  const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -245,12 +247,13 @@ class _BackButtonState extends State<_BackButton> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle =
-        AppTextStyles.heading.copyWith(color: Colors.white).copyWith(
+    final TextStyle outlineStyle = AppTextStyles.heading
+        .copyWith(color: Colors.white)
+        .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3
@@ -261,10 +264,7 @@ const _OutlinedTitle({required this.text});
       alignment: Alignment.center,
       children: [
         Text(text, style: outlineStyle),
-        Text(
-          text,
-          style: AppTextStyles.heading.copyWith(color: Colors.white),
-        ),
+        Text(text, style: AppTextStyles.heading.copyWith(color: Colors.white)),
       ],
     );
   }

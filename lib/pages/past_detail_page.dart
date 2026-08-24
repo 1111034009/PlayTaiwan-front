@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:http/http.dart' as http;
 import '../block/navigationbar.dart';
@@ -43,6 +44,11 @@ class _PastDetailPageState extends State<PastDetailPage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
   static const double contentScale = 1.06;
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
 
   int currentIndex = 3;
 
@@ -90,7 +96,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5501/api/History/${Uri.encodeComponent(widget.storyId)}',
+          '$_apiBaseUrl/api/History/${Uri.encodeComponent(widget.storyId)}',
         ),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );

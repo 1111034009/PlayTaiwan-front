@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -24,6 +25,11 @@ class PastPage extends StatefulWidget {
 class _PastPageState extends State<PastPage> {
   static const double designWidth = 360;
   static const double contentScale = 1.04;
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
 
   int currentIndex = 3;
   List<HistoryRecord> historyRecords = [];
@@ -62,7 +68,7 @@ class _PastPageState extends State<PastPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5501/api/History'),
+        Uri.parse('$_apiBaseUrl/api/History'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
 

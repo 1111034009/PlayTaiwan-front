@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -21,6 +22,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
 
   String accountName = AppSession.epName ?? '';
   String accountPassword = '';
@@ -35,7 +41,7 @@ class _HomePageState extends State<HomePage> {
     }
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5501/api/Auth/Profile'),
+        Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -68,7 +74,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5501/api/Home/Overview'),
+        Uri.parse('$_apiBaseUrl/api/Home/Overview'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
 
@@ -133,7 +139,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5501/api/Auth/Profile'),
+        Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
         headers: {
           'accept': '*/*',
           'Content-Type': 'application/json',
@@ -456,7 +462,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5501/api/Auth/Logout'),
+        Uri.parse('$_apiBaseUrl/api/Auth/Logout'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
 
