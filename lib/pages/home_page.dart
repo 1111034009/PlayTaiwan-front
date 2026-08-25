@@ -29,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   String accountName = AppSession.epName ?? '';
-  String accountPassword = '';
   int completedStoryCount = 0;
   int postcardCount = 0;
   int badgeCount = 0;
@@ -112,15 +111,55 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _showTopSnackBar(String message) {
+    if (!mounted) return;
+
+    final OverlayState overlay = Overlay.of(context, rootOverlay: true);
+
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          left: 16,
+          right: 16,
+          bottom: 20,
+          child: IgnorePointer(
+            ignoring: false,
+            child: Material(
+              color: Colors.transparent,
+              child: SafeArea(
+                child: _TopSnackBar(
+                  message: message,
+                  onClose: () {
+                    if (overlayEntry.mounted) {
+                      overlayEntry.remove();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
+  }
+
   Future<bool> _updateProfile(String epName) async {
     final String newName = epName.trim();
 
     if (newName.isEmpty) {
       if (!mounted) return false;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('請探員輸入更改名稱')));
+      _showTopSnackBar('請探員輸入更改名稱');
 
       return false;
     }
@@ -130,9 +169,7 @@ class _HomePageState extends State<HomePage> {
     if (token == null || token.isEmpty) {
       if (!mounted) return false;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('登入資訊已失效，請重新登入')));
+      _showTopSnackBar('登入資訊已失效，請重新登入');
 
       return false;
     }
@@ -147,6 +184,7 @@ class _HomePageState extends State<HomePage> {
         },
         body: jsonEncode({'ep_name': newName}),
       );
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (!mounted) return false;
 
@@ -159,19 +197,56 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return false;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新探員名稱失敗：HTTP ${response.statusCode}')),
-      );
+      _showTopSnackBar('更新探員名稱失敗：HTTP ${response.statusCode}');
 
       return false;
     } catch (e) {
-      // print('Profile Update Error: $e');
+      if (!mounted) return false;
+
+      _showTopSnackBar('無法連線到伺服器');
+
+      return false;
+    }
+  }
+
+  Future<bool> _changePassword(String oldPassword, String newPassword) async {
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return false;
+
+      _showTopSnackBar('登入資訊已失效，請重新登入');
+
+      return false;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/api/Auth/ChangePassword'),
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'OldPassword': oldPassword,
+          'NewPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      }
 
       if (!mounted) return false;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('無法連線到伺服器')));
+      _showTopSnackBar('修改密碼失敗：HTTP ${response.statusCode}');
+
+      return false;
+    } catch (e) {
+      if (!mounted) return false;
+
+      _showTopSnackBar('無法連線到伺服器');
 
       return false;
     }
@@ -362,7 +437,6 @@ class _HomePageState extends State<HomePage> {
         return Center(
           child: _AgentInfoDialog(
             accountName: accountName,
-            accountPassword: accountPassword,
             onEdit: () {
               Navigator.of(context).pop();
 
@@ -390,9 +464,9 @@ class _HomePageState extends State<HomePage> {
       text: accountName,
     );
 
-    final TextEditingController passwordController = TextEditingController(
-      text: accountPassword,
-    );
+    final TextEditingController oldPasswordController = TextEditingController();
+
+    final TextEditingController newPasswordController = TextEditingController();
 
     showGeneralDialog(
       context: context,
@@ -421,21 +495,46 @@ class _HomePageState extends State<HomePage> {
         return Center(
           child: _EditAccountDialog(
             accountController: accountController,
-            passwordController: passwordController,
+            oldPasswordController: oldPasswordController,
+            newPasswordController: newPasswordController,
             onSave: () async {
               final String newAccount = accountController.text.trim();
-              final String newPassword = passwordController.text;
+              final String oldPassword = oldPasswordController.text;
+              final String newPassword = newPasswordController.text;
+
               if (newAccount.isEmpty) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('帳號名稱不可為空')));
+                _showTopSnackBar('帳號名稱不可為空');
                 return;
               }
-              final bool success = await _updateProfile(newAccount);
-              if (!success) {
+              final bool nameChanged = newAccount != accountName;
+              final bool oldPasswordEntered = oldPassword.isNotEmpty;
+              final bool newPasswordEntered = newPassword.isNotEmpty;
+              if (oldPasswordEntered != newPasswordEntered) {
+                _showTopSnackBar('原密碼與新密碼都必須填寫才可修改');
                 return;
               }
-              accountPassword = newPassword;
+              if (!nameChanged && !oldPasswordEntered && !newPasswordEntered) {
+                Navigator.of(context).pop();
+                return;
+              }
+              if (nameChanged) {
+                final bool profileSuccess = await _updateProfile(newAccount);
+
+                if (!profileSuccess) {
+                  return;
+                }
+              }
+
+              if (oldPasswordEntered && newPasswordEntered) {
+                final bool passwordSuccess = await _changePassword(
+                  oldPassword,
+                  newPassword,
+                );
+
+                if (!passwordSuccess) {
+                  return;
+                }
+              }
               if (!mounted) return;
               Navigator.of(context).pop();
               Future.delayed(const Duration(milliseconds: 100), () {
@@ -476,17 +575,11 @@ class _HomePageState extends State<HomePage> {
         ).pushNamedAndRemoveUntil('/login', (route) => false);
       } else {
         if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登出失敗：HTTP ${response.statusCode}')),
-        );
+        _showTopSnackBar('登出失敗：HTTP ${response.statusCode}');
       }
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('無法連線到伺服器')));
+      _showTopSnackBar('無法連線到伺服器');
     }
   }
 
@@ -814,13 +907,11 @@ class _SimpleCard extends StatelessWidget {
 
 class _AgentInfoDialog extends StatelessWidget {
   final String accountName;
-  final String accountPassword;
   final VoidCallback onEdit;
   final VoidCallback onLogout;
 
   const _AgentInfoDialog({
     required this.accountName,
-    required this.accountPassword,
     required this.onEdit,
     required this.onLogout,
   });
@@ -896,12 +987,14 @@ class _AgentInfoDialog extends StatelessWidget {
 
 class _EditAccountDialog extends StatelessWidget {
   final TextEditingController accountController;
-  final TextEditingController passwordController;
+  final TextEditingController oldPasswordController;
+  final TextEditingController newPasswordController;
   final VoidCallback onSave;
 
   const _EditAccountDialog({
     required this.accountController,
-    required this.passwordController,
+    required this.oldPasswordController,
+    required this.newPasswordController,
     required this.onSave,
   });
 
@@ -915,7 +1008,7 @@ class _EditAccountDialog extends StatelessWidget {
       color: Colors.transparent,
       child: SizedBox(
         width: width,
-        height: 300,
+        height: 340,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -941,11 +1034,17 @@ class _EditAccountDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _EditField(
-                    controller: passwordController,
-                    label: '通行密碼',
+                    controller: oldPasswordController,
+                    label: '原通行密碼',
                     obscureText: true,
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 12),
+                  _EditField(
+                    controller: newPasswordController,
+                    label: '新通行密碼',
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     height: 42,
@@ -1198,6 +1297,44 @@ class _PushPin extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0x66FFFFFF),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TopSnackBar extends StatelessWidget {
+  final String message;
+  final VoidCallback onClose;
+
+  const _TopSnackBar({required this.message, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF40342D),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
