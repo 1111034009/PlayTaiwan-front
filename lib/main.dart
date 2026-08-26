@@ -8,6 +8,7 @@ import 'pages/past_page.dart';
 import 'pages/register_page.dart';
 import 'pages/user_type_page.dart';
 import 'pages/merchant_home_page.dart';
+import 'pages/change_password_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -54,6 +55,22 @@ class PlayTaiwanApp extends StatelessWidget {
         '/user-type': (context) => const UserTypePage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
+        '/change-password': (context) {
+          final arguments = ModalRoute.of(context)?.settings.arguments;
+
+          if (arguments is! Map<String, dynamic>) {
+            return const LoginPage();
+          }
+
+          final String? temporaryPassword = arguments['temporaryPassword']
+              ?.toString();
+
+          if (temporaryPassword == null || temporaryPassword.isEmpty) {
+            return const LoginPage();
+          }
+
+          return ChangePasswordPage(temporaryPassword: temporaryPassword);
+        },
       },
     );
   }

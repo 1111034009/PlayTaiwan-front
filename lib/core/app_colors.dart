@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 //色彩大集合
 abstract final class AppColors {
-  static const Color background = Color(0xFFB9ACA2);
+  static const Color background = Color(0xFF857870);
   static const Color storyBackground = Color(0xFF473737);
   static const Color questionBackground = Color(0xFFD7C7B7);
   static const Color darkBrown = Color(0xFF3D2D2B);

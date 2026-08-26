@@ -197,7 +197,7 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return false;
 
-      _showTopSnackBar('更新探員名稱失敗：HTTP ${response.statusCode}');
+      _showTopSnackBar('更新探員名稱失敗');
 
       return false;
     } catch (e) {
@@ -240,7 +240,7 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return false;
 
-      _showTopSnackBar('修改密碼失敗：HTTP ${response.statusCode}');
+      _showTopSnackBar('修改密碼失敗');
 
       return false;
     } catch (e) {
@@ -575,7 +575,7 @@ class _HomePageState extends State<HomePage> {
         ).pushNamedAndRemoveUntil('/login', (route) => false);
       } else {
         if (!mounted) return;
-        _showTopSnackBar('登出失敗：HTTP ${response.statusCode}');
+        _showTopSnackBar('登出失敗');
       }
     } catch (e) {
       if (!mounted) return;

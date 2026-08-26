@@ -17,6 +17,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
+  bool isForgotPasswordLogin = false;
+  String? temporaryPassword;
 
   final TextEditingController accountController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -29,6 +31,12 @@ class _LoginPageState extends State<LoginPage> {
 
   static const double designWidth = 360;
   static const double designHeight = 640;
+
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
 
   @override
   void initState() {
@@ -72,15 +80,11 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
-
-      if (baseUrl.isEmpty) {
+      if (_apiBaseUrl.isEmpty) {
         throw Exception('API_BASE_URL 未設定');
       }
 
-      final String normalizedBaseUrl = baseUrl.replaceFirst(RegExp(r'/$'), '');
-
-      final Uri uri = Uri.parse('$normalizedBaseUrl/api/Auth/Login');
+      final Uri uri = Uri.parse('$_apiBaseUrl/api/Auth/Login');
 
       final response = await http.post(
         uri,
@@ -134,9 +138,24 @@ class _LoginPageState extends State<LoginPage> {
         AppSession.epId = epId;
         AppSession.epName = epName;
 
-        if (!mounted) return;
+        final bool shouldChangePassword = isForgotPasswordLogin;
 
-        Navigator.pushReplacementNamed(context, '/user-type');
+        if (shouldChangePassword) {
+          temporaryPassword = password;
+          isForgotPasswordLogin = false;
+
+          if (!mounted) return;
+
+          Navigator.pushReplacementNamed(
+            context,
+            '/change-password',
+            arguments: {'temporaryPassword': temporaryPassword},
+          );
+        } else {
+          if (!mounted) return;
+
+          Navigator.pushReplacementNamed(context, '/user-type');
+        }
       } else {
         if (!mounted) return;
 
@@ -157,6 +176,48 @@ class _LoginPageState extends State<LoginPage> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final bool? result = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '關閉忘記密碼',
+      barrierColor: AppColors.dialogBarrier,
+      transitionDuration: const Duration(milliseconds: 280),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(
+              begin: 0.88,
+              end: 1.0,
+            ).animate(curvedAnimation),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const Center(child: _ForgotPasswordDialog());
+      },
+    );
+
+    if (!mounted || result != true) {
+      return;
+    }
+
+    setState(() {
+      isForgotPasswordLogin = true;
+    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('臨時密碼已寄至您的 Email')));
   }
 
   InputDecoration inputDecoration({required String hintText}) {
@@ -213,7 +274,6 @@ class _LoginPageState extends State<LoginPage> {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(child: Container(color: pageColor)),
-
                 Positioned(
                   left: 0,
                   right: 0,
@@ -230,15 +290,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 Positioned(
                   left: 13,
                   right: 13,
                   top: 184,
-                  height: 420,
+                  height: 430,
                   child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
                 ),
-
                 Positioned(
                   top: 198,
                   left: 30,
@@ -251,7 +309,6 @@ class _LoginPageState extends State<LoginPage> {
                     fit: BoxFit.contain,
                   ),
                 ),
-
                 Positioned(
                   top: 263,
                   left: 20,
@@ -266,7 +323,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 Positioned(
                   top: 292,
                   left: 20,
@@ -281,9 +337,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 sectionTitle(icon: 'img/user.png', title: '探險代號', top: 325),
-
                 Positioned(
                   left: 46,
                   right: 46,
@@ -299,9 +353,7 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: inputDecoration(hintText: '請輸入帳號'),
                   ),
                 ),
-
                 sectionTitle(icon: 'img/password.png', title: '通行密碼', top: 412),
-
                 Positioned(
                   left: 46,
                   right: 46,
@@ -319,9 +371,24 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: inputDecoration(hintText: '請輸入密碼'),
                   ),
                 ),
-
                 Positioned(
-                  top: 506,
+                  top: 484,
+                  right: 45,
+                  child: Center(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _showForgotPasswordDialog,
+                      child: Text(
+                        '忘記密碼',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 515,
                   left: 0,
                   right: 0,
                   height: 49,
@@ -336,9 +403,8 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 Positioned(
-                  top: 560,
+                  top: 565,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -352,6 +418,300 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog();
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  final TextEditingController emailController = TextEditingController();
+
+  bool isSubmitting = false;
+
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> submitForgotPassword() async {
+    if (isSubmitting) {
+      return;
+    }
+
+    final String email = emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請輸入註冊時使用的 Email')));
+      return;
+    }
+
+    if (_apiBaseUrl.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('API_BASE_URL 未設定')));
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+    });
+
+    try {
+      final Uri uri = Uri.parse('$_apiBaseUrl/api/Auth/ForgotPassword');
+
+      final response = await http.post(
+        uri,
+        headers: {'accept': '*/*', 'Content-Type': 'application/json'},
+        body: jsonEncode({'Email': email}),
+      );
+
+      Map<String, dynamic>? data;
+
+      try {
+        final dynamic decoded = jsonDecode(response.body);
+
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {
+        data = null;
+      }
+
+      final bool isSuccess = data?['isSuccess'] == true;
+
+      final String message = data?['message']?.toString() ?? '';
+
+      if (!isSuccess) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message.isEmpty ? '忘記密碼失敗' : message)),
+        );
+
+        return;
+      }
+
+      if (!mounted) return;
+
+      Navigator.pop(context, true);
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請探員確認連線~')));
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        isSubmitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width < 360
+        ? MediaQuery.of(context).size.width - 30
+        : 320;
+
+    return Material(
+      color: Colors.transparent,
+      child: SizedBox(
+        width: width,
+        height: 250,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Image.asset('img/set_papper.png', fit: BoxFit.fill),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(25, 30, 25, 25),
+              child: Column(
+                children: [
+                  Text(
+                    '忘記密碼',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.heading.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _ForgotPasswordField(
+                    controller: emailController,
+                    enabled: !isSubmitting,
+                    onSubmitted: (_) {
+                      if (!isSubmitting) {
+                        submitForgotPassword();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: _ForgotPopupButton(
+                      text: '確認',
+                      onPressed: isSubmitting ? null : submitForgotPassword,
+                      loading: isSubmitting,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: isSubmitting
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        '輕觸空白處回到登入',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.caption.copyWith(
+                          color: const Color(0xFF6F6258),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ForgotPasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final ValueChanged<String>? onSubmitted;
+
+  const _ForgotPasswordField({
+    required this.controller,
+    required this.enabled,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.emailAddress,
+      textInputAction: TextInputAction.done,
+      autofillHints: const [AutofillHints.email],
+      onSubmitted: onSubmitted,
+      textAlign: TextAlign.center,
+      style: AppTextStyles.bodyEmphasisBold.copyWith(
+        color: AppColors.textPrimary,
+      ),
+      cursorColor: AppColors.primaryAccent,
+      decoration: InputDecoration(
+        labelText: 'Email',
+        hintText: '請輸入註冊時使用的 Email',
+        labelStyle: AppTextStyles.captionBold.copyWith(
+          color: const Color(0xFF6F6258),
+        ),
+        hintStyle: AppTextStyles.caption.copyWith(
+          color: const Color(0x99706258),
+        ),
+        filled: true,
+        fillColor: const Color(0x55FFFFFF),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: AppColors.postcardLine, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(
+            color: AppColors.primaryAccent,
+            width: 1.3,
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: AppColors.postcardLine, width: 1),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForgotPopupButton extends StatelessWidget {
+  final String text;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  const _ForgotPopupButton({
+    required this.text,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(25),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            color: AppColors.primaryAccent,
+            border: Border.all(color: const Color(0xFF551308), width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x55000000),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: loading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.button.copyWith(color: Colors.white),
+                ),
         ),
       ),
     );
@@ -406,8 +766,8 @@ class _LoginButtonState extends State<_LoginButton> {
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
         child: Container(
-          width: 90,
-          height: 49,
+          width: 110,
+          height: 45,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
