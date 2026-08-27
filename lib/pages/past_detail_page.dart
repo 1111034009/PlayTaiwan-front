@@ -200,9 +200,9 @@ class _PastDetailPageState extends State<PastDetailPage> {
                       ),
                       Positioned(
                         left: 16,
-                        top: 45,
+                        top: 55,
                         width: 328,
-                        height: 565,
+                        height: 500,
                         child: Image.asset(
                           'img/long_papper.png',
                           fit: BoxFit.fill,
@@ -320,7 +320,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
           ),
           Positioned(
             left: 22,
-            top: screenSize.height * 0.01 + 49 * contentScale,
+            top: screenSize.height * 0.01 + 10 * contentScale,
             child: Transform.scale(
               scale: contentScale,
               alignment: Alignment.topLeft,

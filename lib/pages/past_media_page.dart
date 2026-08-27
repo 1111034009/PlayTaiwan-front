@@ -142,8 +142,29 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             Positioned(
                               left: 25,
                               top: 88,
-                              child: _OutlinedTitle(text: '回憶vlog'),
+                              right: 25,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  _OutlinedTitle(text: '回憶vlog'),
+                                  const Spacer(),
+                                  _ActionIcon(
+                                    icon: Icons.download_rounded,
+                                    onTap: () {
+                                      // 下載功能
+                                    },
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _ActionIcon(
+                                    icon: Icons.share_rounded,
+                                    onTap: () {
+                                      // 分享功能
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
+
                             Positioned(
                               left: 15,
                               right: 15,
@@ -213,6 +234,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
+
   const _BackButton({required this.onTap});
 
   @override
@@ -247,6 +269,7 @@ class _BackButtonState extends State<_BackButton> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
+
   const _OutlinedTitle({required this.text});
 
   @override
@@ -266,6 +289,48 @@ class _OutlinedTitle extends StatelessWidget {
         Text(text, style: outlineStyle),
         Text(text, style: AppTextStyles.heading.copyWith(color: Colors.white)),
       ],
+    );
+  }
+}
+
+class _ActionIcon extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActionIcon({required this.icon, required this.onTap});
+
+  @override
+  State<_ActionIcon> createState() => _ActionIconState();
+}
+
+class _ActionIconState extends State<_ActionIcon> {
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? 0.88 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.18),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.75),
+              width: 1.2,
+            ),
+          ),
+          child: Icon(widget.icon, color: Colors.white, size: 17),
+        ),
+      ),
     );
   }
 }
@@ -483,7 +548,7 @@ class _PostcardCardState extends State<_PostcardCard>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 1000),
     );
 
     if (widget.isSpecial) {
@@ -607,6 +672,7 @@ class _NightCardPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
+    // 夜空紫色 tint
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
@@ -621,24 +687,7 @@ class _NightCardPainter extends CustomPainter {
 
     canvas.drawRect(rect, tint);
 
-    final double shimmerX = -size.width + size.width * 2.4 * progress;
-
-    final Paint shimmer = Paint()
-      ..shader =
-          const LinearGradient(
-            colors: [
-              Colors.transparent,
-              Color(0x557D6CFF),
-              Color(0xBBFFFFFF),
-              Color(0x557D6CFF),
-              Colors.transparent,
-            ],
-          ).createShader(
-            Rect.fromLTWH(shimmerX, 0, size.width * 0.65, size.height),
-          );
-
-    canvas.drawRect(rect, shimmer);
-
+    // ⭐ 星星閃爍
     final Paint starPaint = Paint();
 
     for (final star in stars) {
@@ -673,6 +722,7 @@ class _NightCardPainter extends CustomPainter {
       }
     }
 
+    // ☄️ 流星
     final double meteor = (progress * 1.65) % 1.0;
 
     if (meteor > 0.70) {
@@ -710,6 +760,7 @@ class _NightCardPainter extends CustomPainter {
       );
     }
 
+    // 🌫️ 霧氣
     final Paint mist = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.bottomLeft,
@@ -719,6 +770,7 @@ class _NightCardPainter extends CustomPainter {
 
     canvas.drawRect(rect, mist);
 
+    // 🟣 動態邊框
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
@@ -775,7 +827,7 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
 
     effectController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 2200),
     );
 
     if (widget.isSpecial) {
@@ -829,15 +881,54 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
                   return Center(
                     child: Transform.scale(
                       scale: scale,
-                      child: AnimatedBuilder(
-                        animation: effectController,
-                        builder: (context, child) {
-                          return _ZoomablePostcard(
-                            assetPath: widget.assetPath,
-                            isSpecial: widget.isSpecial,
-                            progress: effectController.value,
-                          );
-                        },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 明信片
+                          AnimatedBuilder(
+                            animation: effectController,
+                            builder: (context, child) {
+                              return _ZoomablePostcard(
+                                assetPath: widget.assetPath,
+                                isSpecial: widget.isSpecial,
+                                progress: effectController.value,
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // 下載／列印／分享
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _ActionIcon(
+                                icon: Icons.download_rounded,
+                                onTap: () {
+                                  // TODO: 下載明信片
+                                },
+                              ),
+
+                              const SizedBox(width: 14),
+
+                              _ActionIcon(
+                                icon: Icons.print_rounded,
+                                onTap: () {
+                                  // TODO: 列印明信片
+                                },
+                              ),
+
+                              const SizedBox(width: 14),
+
+                              _ActionIcon(
+                                icon: Icons.share_rounded,
+                                onTap: () {
+                                  // TODO: 分享明信片
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -845,6 +936,7 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
               ),
             ),
           ),
+
           Positioned(
             top: MediaQuery.paddingOf(context).top + 14,
             right: 18,
@@ -1002,6 +1094,7 @@ class _ExpandedNightPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
+    // 夜空紫色 tint
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
@@ -1016,24 +1109,7 @@ class _ExpandedNightPainter extends CustomPainter {
 
     canvas.drawRect(rect, tint);
 
-    final double shimmerX = -size.width + size.width * 2.4 * progress;
-
-    final Paint shimmer = Paint()
-      ..shader =
-          const LinearGradient(
-            colors: [
-              Colors.transparent,
-              Color(0x447D6CFF),
-              Color(0xDDFFFFFF),
-              Color(0x447D6CFF),
-              Colors.transparent,
-            ],
-          ).createShader(
-            Rect.fromLTWH(shimmerX, 0, size.width * 0.65, size.height),
-          );
-
-    canvas.drawRect(rect, shimmer);
-
+    // 🌫️ 霧氣
     final Paint mist = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.bottomLeft,
@@ -1043,6 +1119,7 @@ class _ExpandedNightPainter extends CustomPainter {
 
     canvas.drawRect(rect, mist);
 
+    // ⭐ 星星閃爍
     for (final star in stars) {
       final double wave = (progress + star.phase) % 1.0;
 
@@ -1076,6 +1153,7 @@ class _ExpandedNightPainter extends CustomPainter {
       }
     }
 
+    // ☄️ 流星
     final double meteor = (progress * 1.7) % 1.0;
 
     if (meteor > 0.68) {
@@ -1113,6 +1191,7 @@ class _ExpandedNightPainter extends CustomPainter {
       );
     }
 
+    // 🟣 動態邊框
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
