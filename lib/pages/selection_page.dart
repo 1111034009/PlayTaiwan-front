@@ -6,6 +6,7 @@ import '../core/app_text_styles.dart';
 import '../block/navigationbar.dart';
 import 'home_page.dart';
 import 'play_idea_page.dart';
+import 'travel_info_page.dart';
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -47,11 +48,13 @@ class _SelectionPageState extends State<SelectionPage> {
 
   // ==================================================================
   // 地區輸入框
-  //
-  // 預設保持空白
   // ==================================================================
-
   final TextEditingController locationController = TextEditingController();
+
+  // ==================================================================
+  // 一句話輸入框
+  // ==================================================================
+  final TextEditingController ideaController = TextEditingController();
 
   // ==================================================================
   // System UI
@@ -79,6 +82,7 @@ class _SelectionPageState extends State<SelectionPage> {
   @override
   void dispose() {
     locationController.dispose();
+    ideaController.dispose();
     super.dispose();
   }
 
@@ -123,17 +127,25 @@ class _SelectionPageState extends State<SelectionPage> {
   void startAdventure() {
     fakeLocation = locationController.text.trim();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          fakeLocation.isEmpty ? '請先輸入地區' : '準備前往 $fakeLocation 探險！',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
+    if (fakeLocation.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '請先輸入地區',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
+          ),
+          backgroundColor: red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: red,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TravelInfoPage()),
     );
   }
 
@@ -145,6 +157,33 @@ class _SelectionPageState extends State<SelectionPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PlayIdeaPage()),
+    );
+  }
+  // ==================================================================
+  // 遊你說了算
+  // ==================================================================
+
+  void customAdventure() {
+    final idea = ideaController.text.trim();
+
+    if (idea.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '先說點什麼吧！',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
+          ),
+          backgroundColor: red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TravelInfoPage()),
     );
   }
 
@@ -168,9 +207,6 @@ class _SelectionPageState extends State<SelectionPage> {
     return Scaffold(
       backgroundColor: pageColor,
 
-      // ================================================================
-      // 允許 NavigationBar 疊到 Body 上方
-      // ================================================================
       extendBody: true,
 
       // ================================================================
@@ -197,13 +233,13 @@ class _SelectionPageState extends State<SelectionPage> {
                 // 現在揪出發
                 // ======================================================
                 Positioned(
-                  top: 80,
+                  top: 10,
                   left: 0,
                   right: 0,
                   child: Center(
                     child: SizedBox(
                       width: 324,
-                      height: 218,
+                      height: 210,
                       child: _AdventurePaper(
                         child: _StartAdventureContent(
                           locationController: locationController,
@@ -224,16 +260,38 @@ class _SelectionPageState extends State<SelectionPage> {
                 // 來點遊意思
                 // ======================================================
                 Positioned(
-                  top: 322,
+                  top: 230,
                   left: 0,
                   right: 0,
                   child: Center(
                     child: SizedBox(
                       width: 324,
-                      height: 205,
+                      height: 180,
                       child: _AdventurePaper(
                         child: _RandomAdventureContent(
                           onPressed: randomAdventure,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // ======================================================
+                // 第三張紙
+                //
+                // 遊你說了算
+                // ======================================================
+                Positioned(
+                  top: 420,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 324,
+                      height: 180,
+                      child: _AdventurePaper(
+                        child: _CustomAdventureContent(
+                          ideaController: ideaController,
+                          onPressed: customAdventure,
                         ),
                       ),
                     ),
@@ -343,7 +401,9 @@ class _StartAdventureContent extends StatelessWidget {
               Text(
                 '現在揪出發',
                 textAlign: TextAlign.left,
-                style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
+                style: AppTextStyles.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -354,12 +414,14 @@ class _StartAdventureContent extends StatelessWidget {
           // 地區標題
           // ============================================================
           Text(
-            '請輸入地區',
+            '輸入指定的地區，現在揪出發',
             textAlign: TextAlign.left,
-            style: AppTextStyles.bodySmallBold.copyWith(color: AppColors.mutedText),
+            style: AppTextStyles.bodySmallBold.copyWith(
+              color: AppColors.mutedText,
+            ),
           ),
 
-          const SizedBox(height: 1),
+          const SizedBox(height: 15),
 
           // ============================================================
           // 地區輸入框
@@ -379,7 +441,9 @@ class _StartAdventureContent extends StatelessWidget {
 
               cursorColor: AppColors.primaryAccent,
 
-              style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.textPrimary),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(
+                color: AppColors.textPrimary,
+              ),
 
               decoration: InputDecoration(
                 isDense: true,
@@ -394,7 +458,9 @@ class _StartAdventureContent extends StatelessWidget {
 
                 hintText: '例如：臺中市 西屯區',
 
-                hintStyle: AppTextStyles.bodyCompact.copyWith(color: AppColors.mutedText),
+                hintStyle: AppTextStyles.bodyCompact.copyWith(
+                  color: AppColors.mutedText,
+                ),
               ),
             ),
           ),
@@ -439,7 +505,7 @@ class _StartAdventureContent extends StatelessWidget {
 
 class _LocationButton extends StatefulWidget {
   final VoidCallback onTap;
-const _LocationButton({required this.onTap});
+  const _LocationButton({required this.onTap});
 
   @override
   State<_LocationButton> createState() => _LocationButtonState();
@@ -463,7 +529,6 @@ class _LocationButtonState extends State<_LocationButton> {
     }
 
     return MouseRegion(
-
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -508,7 +573,9 @@ class _LocationButtonState extends State<_LocationButton> {
               Text(
                 '使用當前定位',
                 textAlign: TextAlign.left,
-                style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.primaryAccent),
+                style: AppTextStyles.bodyEmphasisBold.copyWith(
+                  color: AppColors.primaryAccent,
+                ),
               ),
 
               const SizedBox(width: 3),
@@ -534,9 +601,7 @@ class _LocationButtonState extends State<_LocationButton> {
 class _RandomAdventureContent extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const _RandomAdventureContent({
-    required this.onPressed,
-  });
+  const _RandomAdventureContent({required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -563,7 +628,9 @@ class _RandomAdventureContent extends StatelessWidget {
               Text(
                 '來點遊意思',
                 textAlign: TextAlign.left,
-                style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
+                style: AppTextStyles.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -576,7 +643,127 @@ class _RandomAdventureContent extends StatelessWidget {
           Text(
             '轉動命運的轉盤，來點遊意思',
             textAlign: TextAlign.left,
-            style: AppTextStyles.bodySmallBold.copyWith(color: AppColors.mutedText),
+            style: AppTextStyles.bodySmallBold.copyWith(
+              color: AppColors.mutedText,
+            ),
+          ),
+
+          const Spacer(),
+
+          // ============================================================
+          // 開始
+          // ============================================================
+          Align(
+            alignment: Alignment.centerRight,
+            child: _RedStartButton(text: '開始', onPressed: onPressed),
+          ),
+        ],
+      ),
+    );
+  }
+}
+// ======================================================================
+// 遊你說了算
+// ======================================================================
+
+class _CustomAdventureContent extends StatelessWidget {
+  final TextEditingController ideaController;
+
+  final VoidCallback onPressed;
+
+  const _CustomAdventureContent({
+    required this.ideaController,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(26, 18, 26, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ============================================================
+          // 標題
+          // ============================================================
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Image.asset(
+                'img/talk_play.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.contain,
+              ),
+
+              const SizedBox(width: 7),
+
+              Text(
+                '遊你說了算',
+                textAlign: TextAlign.left,
+                style: AppTextStyles.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 7),
+
+          // ============================================================
+          // 副標題
+          // ============================================================
+          Text(
+            '你說出口的旅行，遊你說了算',
+            textAlign: TextAlign.left,
+            style: AppTextStyles.bodySmallBold.copyWith(
+              color: AppColors.mutedText,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ============================================================
+          // 輸入框
+          // ============================================================
+          SizedBox(
+            height: 24,
+            child: TextField(
+              controller: ideaController,
+
+              textInputAction: TextInputAction.done,
+
+              maxLines: 1,
+
+              cursorColor: AppColors.primaryAccent,
+
+              style: AppTextStyles.bodyEmphasisBold.copyWith(
+                color: AppColors.textPrimary,
+              ),
+
+              decoration: InputDecoration(
+                isDense: true,
+
+                contentPadding: EdgeInsets.zero,
+
+                border: InputBorder.none,
+
+                enabledBorder: InputBorder.none,
+
+                focusedBorder: InputBorder.none,
+
+                hintText: '例如：想來一趟美食之旅',
+
+                hintStyle: AppTextStyles.bodyCompact.copyWith(
+                  color: AppColors.mutedText,
+                ),
+              ),
+            ),
+          ),
+          Container(
+            height: 1,
+            width: double.infinity,
+            color: const Color(0xFF514A44),
           ),
 
           const Spacer(),
@@ -627,7 +814,6 @@ class _HoverScaleButtonState extends State<_HoverScaleButton> {
     }
 
     return MouseRegion(
-
       onEnter: (_) {
         setState(() {
           hovering = true;
@@ -711,7 +897,6 @@ class _RedStartButtonState extends State<_RedStartButton> {
     }
 
     return MouseRegion(
-
       onEnter: (_) {
         setState(() {
           hovering = true;
