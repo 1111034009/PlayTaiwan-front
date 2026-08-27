@@ -20,8 +20,8 @@ abstract final class AppColors {
   static const Color card = Color(0xFFF8F4EC);
   static const Color darkBorder = Color(0xFF551308);
   static const Color dialogBarrier = Color(0xCC000000);
-  static const Color navigationBackground = Color(0xFFF4F2F1);
-  static const Color navigationButton = Colors.white;
+  static const Color navigationBackground = Color(0xccF4F2F1);
+  static const Color navigationButton = Color(0xddF4F2F1);
   static const Color progressTrack = Color(0xFFC5B27C);
   static const Color progressValue = Color(0xFF93412E);
   static const Color deepRed = Color(0xFF7F1A08);

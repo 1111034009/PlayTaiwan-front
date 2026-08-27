@@ -550,33 +550,20 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _logout() async {
     final token = AppSession.token;
+    AppSession.clear();
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
 
     if (token == null || token.isEmpty) {
-      if (!mounted) return;
-
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-
       return;
     }
 
     try {
-      final response = await http.post(
+      await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Logout'),
         headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
       );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        AppSession.clear();
-
-        if (!mounted) return;
-
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
-      } else {
-        if (!mounted) return;
-        _showTopSnackBar('登出失敗');
-      }
     } catch (e) {
       if (!mounted) return;
       _showTopSnackBar('無法連線到伺服器');

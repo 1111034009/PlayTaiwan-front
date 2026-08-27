@@ -2,9 +2,25 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+
+InputDecoration registerInputDecoration({required String hintText}) {
+  const border = UnderlineInputBorder(
+    borderSide: BorderSide(color: AppColors.inputLine, width: 1),
+  );
+
+  return InputDecoration(
+    hintText: hintText,
+    hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
+    contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
+    border: border,
+    enabledBorder: border,
+    focusedBorder: border,
+  );
+}
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -16,6 +32,11 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
+  static final RegExp emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
 
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -26,6 +47,8 @@ class _RegisterPageState extends State<RegisterPage> {
   bool password = true;
   bool confirmPassword = true;
   bool isLoading = false;
+  int accountType = 1;
+
   @override
   void initState() {
     super.initState();
@@ -50,21 +73,6 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  InputDecoration inputDecoration({required String hintText}) {
-    const border = UnderlineInputBorder(
-      borderSide: BorderSide(color: AppColors.inputLine, width: 1),
-    );
-
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
-      contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border,
-    );
-  }
-
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -75,10 +83,12 @@ class _RegisterPageState extends State<RegisterPage> {
     if (isLoading) {
       return;
     }
+
     final String username = usernameController.text.trim();
     final String email = emailController.text.trim();
     final String password = passwordController.text;
     final String confirmPassword = confirmPasswordController.text;
+
     if (username.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
@@ -86,18 +96,27 @@ class _RegisterPageState extends State<RegisterPage> {
       showMessage('請完整填寫註冊資料');
       return;
     }
-    if (password.length < 8) {
-      showMessage('密碼至少需要8個字元');
-      return;
-    }
+
     if (username.length > 40) {
       showMessage('名稱至多少於40個字元');
       return;
     }
+
+    if (!emailRegex.hasMatch(email)) {
+      showMessage('請輸入有效的 Email');
+      return;
+    }
+
+    if (password.length < 8) {
+      showMessage('密碼至少需要8個字元');
+      return;
+    }
+
     if (password.length > 40) {
       showMessage('密碼至多少於40個字元');
       return;
     }
+
     if (!RegExp(r'[A-Za-z]').hasMatch(password)) {
       showMessage('密碼必須包含至少一個英文');
       return;
@@ -112,41 +131,47 @@ class _RegisterPageState extends State<RegisterPage> {
       showMessage('密碼不可包含中文或空白');
       return;
     }
+
     if (password != confirmPassword) {
       showMessage('兩次密碼輸入不一致');
       return;
     }
+
+    if (accountType != 1 && accountType != 2) {
+      showMessage('帳號類型無效');
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5501/api/Auth/Register'),
+        Uri.parse('$_apiBaseUrl/api/Auth/Register'),
         headers: {'accept': '*/*', 'Content-Type': 'application/json'},
         body: jsonEncode({
           'Username': username,
           'Email': email,
           'Password': password,
+          'AccountType': accountType,
         }),
       );
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         showMessage('註冊成功！驗證信已發送至您的信箱，請先完成驗證再登入');
 
         Future.delayed(const Duration(milliseconds: 800), () {
           if (!mounted) return;
-
           Navigator.pop(context);
         });
       } else {
-        showMessage('註冊失敗：HTTP ${response.statusCode}');
+        showMessage('註冊失敗');
       }
     } catch (e) {
-      // print('Register Error: $e');
-
       if (!mounted) return;
 
-      showMessage('無法連線到伺服器');
+      showMessage('註冊時發生錯誤');
     } finally {
       if (!mounted) return;
 
@@ -156,169 +181,178 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  void goBack() {
-    Navigator.pop(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: designWidth,
-                  height: designHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: ColoredBox(color: AppColors.background),
-                      ),
-                      Positioned(
-                        left: 13,
-                        right: 13,
-                        top: 145,
-                        height: 460,
-                        child: Image.asset(
-                          'img/notepaper.png',
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      Positioned(
-                        left: 23,
-                        top: 28,
-                        child: GestureDetector(
-                          onTap: goBack,
-                          child: Text(
-                            '<< 返回',
-                            style: AppTextStyles.bodySmallBold.copyWith(
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        top: 165,
-                        child: Text(
-                          '建立探險帳號',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.titleLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        top: 195,
-                        child: Text(
-                          '建立你的專屬探險身份',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.bodySmallBold.copyWith(
-                            color: const Color(0xFF66615C),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 42,
-                        right: 42,
-                        top: 235,
-                        child: _RegisterField(
-                          label: '探險名稱',
-                          child: TextField(
-                            controller: usernameController,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                            cursorColor: AppColors.primary,
-                            decoration: inputDecoration(hintText: '請輸入探險名稱'),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 42,
-                        right: 42,
-                        top: 305,
-                        child: _RegisterField(
-                          label: '電子信箱',
-                          child: TextField(
-                            controller: emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                            cursorColor: AppColors.primary,
-                            decoration: inputDecoration(hintText: '請輸入 Email'),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 42,
-                        right: 42,
-                        top: 375,
-                        child: _RegisterField(
-                          label: '通行密碼',
-                          child: _PasswordField(
-                            controller: passwordController,
-                            obscureText: password,
-                            hintText: '請輸入密碼',
-                            onToggle: () {
-                              setState(() {
-                                password = !password;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 42,
-                        right: 42,
-                        top: 445,
-                        child: _RegisterField(
-                          label: '確認密碼',
-                          child: _PasswordField(
-                            controller: confirmPasswordController,
-                            obscureText: confirmPassword,
-                            hintText: '再次輸入密碼',
-                            onToggle: () {
-                              setState(() {
-                                confirmPassword = !confirmPassword;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: 525,
-                        child: Center(
-                          child: SizedBox(
-                            width: 120,
-                            height: 49,
-                            child: _RegisterButton(
-                              onPressed: register,
-                              isLoading: isLoading,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: designWidth,
+              height: designHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: ColoredBox(color: AppColors.background),
                   ),
-                ),
+                  Positioned(
+                    left: 13,
+                    right: 13,
+                    top: 75,
+                    height: 530,
+                    child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
+                  ),
+                  Positioned(
+                    left: 23,
+                    top: 10,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text(
+                        '<< 返回',
+                        style: AppTextStyles.bodySmallBold.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    top: 100,
+                    child: Text(
+                      '建立探險帳號',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    top: 130,
+                    child: Text(
+                      '建立你的專屬探險身份',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: const Color(0xFF66615C),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 165,
+                    child: _RegisterField(
+                      label: '探險名稱',
+                      child: TextField(
+                        controller: usernameController,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        cursorColor: AppColors.primary,
+                        decoration: registerInputDecoration(
+                          hintText: '請輸入探險名稱',
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 235,
+                    child: _RegisterField(
+                      label: '電子信箱',
+                      child: TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        cursorColor: AppColors.primary,
+                        decoration: registerInputDecoration(
+                          hintText: '請輸入 Email',
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 305,
+                    child: _RegisterField(
+                      label: '通行密碼',
+                      child: _PasswordField(
+                        controller: passwordController,
+                        obscureText: password,
+                        hintText: '請輸入密碼',
+                        onToggle: () {
+                          setState(() {
+                            password = !password;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 375,
+                    child: _RegisterField(
+                      label: '確認密碼',
+                      child: _PasswordField(
+                        controller: confirmPasswordController,
+                        obscureText: confirmPassword,
+                        hintText: '再次輸入密碼',
+                        onToggle: () {
+                          setState(() {
+                            confirmPassword = !confirmPassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 445,
+                    child: _RegisterField(
+                      label: '帳號類型',
+                      child: _AccountTypeSelector(
+                        value: accountType,
+                        onChanged: (value) {
+                          setState(() {
+                            accountType = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 525,
+                    child: Center(
+                      child: SizedBox(
+                        width: 240,
+                        height: 45,
+                        child: _RegisterButton(
+                          onPressed: register,
+                          isLoading: isLoading,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -349,6 +383,72 @@ class _RegisterField extends StatelessWidget {
   }
 }
 
+class _AccountTypeSelector extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _AccountTypeSelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _AccountTypeButton(
+            text: '遊客',
+            selected: value == 1,
+            onTap: () => onChanged(1),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _AccountTypeButton(
+            text: '商家',
+            selected: value == 2,
+            onTap: () => onChanged(2),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccountTypeButton extends StatelessWidget {
+  final String text;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _AccountTypeButton({
+    required this.text,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: selected ? AppColors.darkBrown : Colors.transparent,
+          border: Border.all(color: AppColors.darkBrown, width: 1.5),
+        ),
+        child: Text(
+          text,
+          style: AppTextStyles.bodySmallBold.copyWith(
+            color: selected ? Colors.white : AppColors.darkBrown,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PasswordField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscureText;
@@ -375,7 +475,7 @@ class _PasswordField extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
             cursorColor: AppColors.primary,
-            decoration: inputDecorationWithoutIcon(hintText: hintText),
+            decoration: registerInputDecoration(hintText: hintText),
           ),
         ),
         Positioned(
@@ -402,21 +502,6 @@ class _PasswordField extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  InputDecoration inputDecorationWithoutIcon({required String hintText}) {
-    const border = UnderlineInputBorder(
-      borderSide: BorderSide(color: AppColors.inputLine, width: 1),
-    );
-
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
-      contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border,
     );
   }
 }
@@ -478,7 +563,7 @@ class _RegisterButtonState extends State<_RegisterButton> {
           curve: Curves.easeOutBack,
           child: Container(
             width: 120,
-            height: 49,
+            height: 45,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
