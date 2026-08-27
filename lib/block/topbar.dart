@@ -44,7 +44,7 @@ class TopBar extends StatelessWidget {
           children: [
             Positioned(
               left: -15.0 * scale,
-              bottom: -18.0 * scale,
+              bottom: -5.0 * scale,
               child: IgnorePointer(
                 child: Image.asset(
                   'img/Decoration.png',
@@ -120,9 +120,9 @@ class _ProgressItem extends StatelessWidget {
     final double progressWidth = 104.0 * scale;
     final double progressHeight = 8.0 * scale;
 
-    final double titleFontSize = (14.0 * scale).clamp(10.0, 14.0).toDouble();
+    // final double titleFontSize = (14.0 * scale).clamp(10.0, 14.0).toDouble();
 
-    final double numberFontSize = (13.0 * scale).clamp(9.0, 13.0).toDouble();
+    // final double numberFontSize = (13.0 * scale).clamp(9.0, 13.0).toDouble();
 
     final double titleSpacing = (4.0 * scale).clamp(2.0, 4.0).toDouble();
 
@@ -155,7 +155,9 @@ class _ProgressItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
-                  style: AppTextStyles.topBarTitle(scale).copyWith(color: _darkText),
+                  style: AppTextStyles.topBarTitle(
+                    scale,
+                  ).copyWith(color: _darkText),
                 ),
               ),
             ],
@@ -165,7 +167,9 @@ class _ProgressItem extends StatelessWidget {
             padding: EdgeInsets.only(left: 27.0 * scale, top: 2.0 * scale),
             child: Text(
               '$current/$total',
-              style: AppTextStyles.topBarNumber(scale).copyWith(color: _darkText),
+              style: AppTextStyles.topBarNumber(
+                scale,
+              ).copyWith(color: _darkText),
             ),
           ),
 
