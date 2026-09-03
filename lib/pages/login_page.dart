@@ -123,6 +123,9 @@ class _LoginPageState extends State<LoginPage> {
         final String? token = rawResult['token']?.toString();
         final String? epId = rawResult['ep_id']?.toString();
         final String? epName = rawResult['ep_name']?.toString();
+        final int? accountType = rawResult['account_type'] is int
+            ? rawResult['account_type'] as int
+            : int.tryParse(rawResult['account_type']?.toString() ?? '');
 
         if (token == null || token.isEmpty) {
           if (!mounted) return;
@@ -154,7 +157,15 @@ class _LoginPageState extends State<LoginPage> {
         } else {
           if (!mounted) return;
 
-          Navigator.pushReplacementNamed(context, '/user-type');
+          if (accountType == 1) {
+            Navigator.pushReplacementNamed(context, '/home');
+          } else if (accountType == 2) {
+            Navigator.pushReplacementNamed(context, '/merchant-home');
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('無效的帳號類型')));
+          }
         }
       } else {
         if (!mounted) return;

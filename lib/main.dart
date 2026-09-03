@@ -6,7 +6,6 @@ import 'pages/story_map_page.dart';
 import 'pages/collection_page.dart';
 import 'pages/past_page.dart';
 import 'pages/register_page.dart';
-import 'pages/user_type_page.dart';
 import 'pages/merchant_home_page.dart';
 import 'pages/change_password_page.dart';
 import 'core/app_colors.dart';
@@ -52,7 +51,6 @@ class PlayTaiwanApp extends StatelessWidget {
         '/story-map': (context) => const StoryMapPage(),
         '/collection': (context) => const CollectionPage(),
         '/past': (context) => const PastPage(),
-        '/user-type': (context) => const UserTypePage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
         '/change-password': (context) {

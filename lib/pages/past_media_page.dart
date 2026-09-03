@@ -168,7 +168,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             Positioned(
                               left: 15,
                               right: 15,
-                              top: 130,
+                              top: 140,
                               height: 350,
                               child: _VideoSection(onTap: openVideo),
                             ),
@@ -211,25 +211,25 @@ class _PastMediaPageState extends State<PastMediaPage> {
     );
   }
 
-  double _designScale(Size size) {
-    return AppResponsive.scale(
-      availableWidth: size.width,
-      availableHeight: size.height,
-      designWidth: designWidth,
-      designHeight: designHeight,
-    );
-  }
+  // double _designScale(Size size) {
+  //   return AppResponsive.scale(
+  //     availableWidth: size.width,
+  //     availableHeight: size.height,
+  //     designWidth: designWidth,
+  //     designHeight: designHeight,
+  //   );
+  // }
 
-  double _postcardTop(Size size) {
-    final double scale = _designScale(size);
-    final double contentTop = size.height * 0.05;
+  // double _postcardTop(Size size) {
+  //   final double scale = _designScale(size);
+  //   final double contentTop = size.height * 0.05;
 
-    return contentTop + 510 * scale;
-  }
+  //   return contentTop + 510 * scale;
+  // }
 
-  double _postcardCarouselHeight(Size size) {
-    return 163 * _designScale(size);
-  }
+  // double _postcardCarouselHeight(Size size) {
+  //   return 163 * _designScale(size);
+  // }
 }
 
 class _BackButton extends StatefulWidget {

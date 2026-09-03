@@ -13,7 +13,18 @@ const Color _ticketSubText = AppColors.softBrown;
 const Color _seeMoreColor = AppColors.secondaryRed;
 
 class ChooseScriptPage extends StatefulWidget {
-  const ChooseScriptPage({super.key});
+  final Map<String, dynamic>? generatedScript;
+  final String cityName;
+  final String townName;
+  final List<String> transportation;
+
+  const ChooseScriptPage({
+    super.key,
+    this.generatedScript,
+    this.cityName = '',
+    this.townName = '',
+    this.transportation = const [],
+  });
 
   @override
   State<ChooseScriptPage> createState() => _ChooseScriptPageState();
@@ -26,34 +37,11 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
   static const double maxScale = 1.25;
 
   int currentIndex = 1;
-
-  final List<_ScriptData> scripts = const [
-    _ScriptData(
-      title: '府城儒生失落卷',
-      description: '清朝年間，一位準備赴考的考生在府城遺失了他的重要的記憶。尋著百年軌跡，找回失落記憶……',
-      reward: '徽章(文化系列) / 明信片(5)',
-      location: '台南市',
-      transport: '公車、步行',
-    ),
-    _ScriptData(
-      title: '府城古城謎影',
-      description: '沿著古城留下的線索前進，在老街、古蹟與巷弄之間尋找被時間藏起來的秘密。',
-      reward: '徽章(古蹟系列) / 明信片(5)',
-      location: '台南市',
-      transport: '步行、捷運',
-    ),
-    _ScriptData(
-      title: '港都消失的航線',
-      description: '一張神秘的舊船票，帶你踏上港都尋寶之旅。你能找到消失多年的航線嗎？',
-      reward: '徽章(探索系列) / 明信片(5)',
-      location: '高雄市',
-      transport: '捷運、步行',
-    ),
-  ];
-
+  late List<_ScriptData> scripts;
   @override
   void initState() {
     super.initState();
+    scripts = _buildScripts();
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -65,7 +53,91 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
       ),
     );
   }
+
+  List<_ScriptData> _buildScripts() {
+    final Map<String, dynamic>? apiData = widget.generatedScript?['data'];
+
+    if (apiData == null) {
+      return [
+        const _ScriptData(
+          title: '府城儒生失落卷',
+          description: '清朝年間，一位準備赴考的考生在府城遺失了他的重要的記憶。尋著百年軌跡，找回失落記憶……',
+          reward: '徽章(文化系列) / 明信片(5)',
+          location: '台南市',
+          transport: '公車、步行',
+        ),
+        const _ScriptData(
+          title: '府城古城謎影',
+          description: '沿著古城留下的線索前進，在老街、古蹟與巷弄之間尋找被時間藏起來的秘密。',
+          reward: '徽章(古蹟系列) / 明信片(5)',
+          location: '台南市',
+          transport: '步行、捷運',
+        ),
+        const _ScriptData(
+          title: '港都消失的航線',
+          description: '一張神秘的舊船票，帶你踏上港都尋寶之旅。你能找到消失多年的航線嗎？',
+          reward: '徽章(探索系列) / 明信片(5)',
+          location: '高雄市',
+          transport: '捷運、步行',
+        ),
+      ];
+    }
+
+    final String title = apiData['title']?.toString() ?? '未命名劇本';
+
+    final String description = apiData['synopsis']?.toString() ?? '';
+
+    final String location = [
+      widget.cityName,
+      widget.townName,
+    ].where((value) => value.trim().isNotEmpty).join(' ');
+
+    final String transport = widget.transportation.join('、');
+
+    return [
+      _ScriptData(
+        title: title,
+        description: description,
+        reward: '徽章(文化系列) / 明信片(5)',
+        location: location.isEmpty ? '未指定地區' : location,
+        transport: transport.isEmpty ? '未指定交通' : transport,
+      ),
+
+      const _ScriptData(
+        title: '府城古城謎影',
+        description: '沿著古城留下的線索前進，在老街、古蹟與巷弄之間尋找被時間藏起來的秘密。',
+        reward: '徽章(古蹟系列) / 明信片(5)',
+        location: '台南市',
+        transport: '步行、捷運',
+      ),
+
+      const _ScriptData(
+        title: '港都消失的航線',
+        description: '一張神秘的舊船票，帶你踏上港都尋寶之旅。你能找到消失多年的航線嗎？',
+        reward: '徽章(探索系列) / 明信片(5)',
+        location: '高雄市',
+        transport: '捷運、步行',
+      ),
+    ];
+  }
+
   void openScriptDetail(_ScriptData script) {
+    final int index = scripts.indexOf(script);
+
+    if (index == 0 && widget.generatedScript != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScriptDetailPage(
+            title: script.title,
+            generatedScript: widget.generatedScript,
+          ),
+        ),
+      );
+
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ScriptDetailPage(title: script.title)),
@@ -135,9 +207,7 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                           fit: BoxFit.contain,
                                         ),
                                         const SizedBox(width: 7),
-                                        _OutlinedTitle(
-                                          text: '劇本檔案館',
-),
+                                        _OutlinedTitle(text: '劇本檔案館'),
                                       ],
                                     ),
                                   ),
@@ -163,7 +233,8 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                                       child: Text(
                                         '選擇您感興趣的劇本，點選車票獲得地圖',
                                         textAlign: TextAlign.center,
-                                        style: AppTextStyles.bodySmallBold.copyWith(color: _darkBrown),
+                                        style: AppTextStyles.bodySmallBold
+                                            .copyWith(color: _darkBrown),
                                       ),
                                     ),
                                   ),
@@ -297,14 +368,17 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                         widget.script.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.sectionTitle.copyWith(color: _ticketText),
+                        style: AppTextStyles.sectionTitle.copyWith(
+                          color: _ticketText,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         widget.script.description,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.labelWide.copyWith(color: _ticketText)
+                        style: AppTextStyles.labelWide
+                            .copyWith(color: _ticketText)
                             .copyWith(height: 1.24),
                       ),
                       const SizedBox(height: 3),
@@ -312,7 +386,9 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                         '預計獲得：${widget.script.reward}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.microLabelWide.copyWith(color: _ticketSubText),
+                        style: AppTextStyles.microLabelWide.copyWith(
+                          color: _ticketSubText,
+                        ),
                       ),
                     ],
                   ),
@@ -326,17 +402,11 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _TicketChip(
-                        text: widget.script.location,
-),
+                      _TicketChip(text: widget.script.location),
                       const SizedBox(width: 5),
-                      _TicketChip(
-                        text: widget.script.transport,
-),
+                      _TicketChip(text: widget.script.transport),
                       const Spacer(),
-                      _SeeMoreButton(
-                        onTap: widget.onSeeMore,
-                      ),
+                      _SeeMoreButton(onTap: widget.onSeeMore),
                     ],
                   ),
                 ),
@@ -351,7 +421,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
 
 class _TicketChip extends StatelessWidget {
   final String text;
-const _TicketChip({required this.text});
+  const _TicketChip({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +457,7 @@ const _TicketChip({required this.text});
 class _SeeMoreButton extends StatefulWidget {
   final VoidCallback onTap;
 
-  const _SeeMoreButton({ required this.onTap});
+  const _SeeMoreButton({required this.onTap});
 
   @override
   State<_SeeMoreButton> createState() => _SeeMoreButtonState();
@@ -465,11 +535,12 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = AppTextStyles.displayMedium.copyWith(color: _darkBrown)
+    final TextStyle outlineStyle = AppTextStyles.displayMedium
+        .copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke

@@ -363,7 +363,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
         constraints: const BoxConstraints(maxWidth: 330, maxHeight: 405),
         child: SizedBox(
           width: 330,
-          height: 405,
+          height: 230,
           child: _InfoCard(
             accountName: accountName,
             shopName: shopName,
@@ -823,7 +823,7 @@ class _InfoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionTitle(icon: 'img/user_icon.png', title: '帳號資訊'),
+              _SectionTitle(icon: 'img/shop_icon.png', title: '帳號資訊'),
 
               const SizedBox(height: 14),
 
@@ -833,29 +833,7 @@ class _InfoCard extends StatelessWidget {
                 onEdit: onEditAccount,
               ),
 
-              const SizedBox(height: 20),
-
-              _SectionTitle(icon: 'img/shop_icon.png', title: '預設資訊'),
-
-              const SizedBox(height: 14),
-
-              _InfoRow(text: '店家名稱：', showEdit: false, onEdit: onEditShop),
-
-              const SizedBox(height: 3),
-
-              _InfoRow(text: shopName, showEdit: true, onEdit: onEditShop),
-
-              const SizedBox(height: 12),
-
-              Text(
-                '輸出格式：9:16',
-                style: AppTextStyles.sectionTitle
-                    .copyWith(color: _bodyText)
-                    .copyWith(height: 1.15),
-              ),
-
-              const Spacer(),
-
+              const SizedBox(height: 40),
               Center(
                 child: _LogoutButton(text: '登出', onTap: onLogout),
               ),

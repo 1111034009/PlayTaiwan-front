@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
-
+import '../api/story_api.dart';
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
 
@@ -16,7 +16,14 @@ const Color _redrawCenter = AppColors.primaryLight;
 const Color _redrawOuter = AppColors.primary;
 
 class TravelInfoPage extends StatefulWidget {
-  const TravelInfoPage({super.key});
+  final String cityName;
+  final String townName;
+
+  const TravelInfoPage({
+    super.key,
+    required this.cityName,
+    required this.townName,
+  });
 
   @override
   State<TravelInfoPage> createState() => _TravelInfoPageState();
@@ -36,7 +43,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   bool isGenerating = false;
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
-
+  Map<String, dynamic>? generatedScript;
   @override
   void initState() {
     super.initState();
@@ -57,6 +64,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     peopleController.dispose();
     super.dispose();
   }
+
   void togglePreference(String value) {
     setState(() {
       if (selectedPreferences.contains(value)) {
@@ -112,42 +120,49 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       generatingText = '正在整理旅程線索';
     });
 
-    await Future.delayed(const Duration(milliseconds: 900));
+    try {
+      setState(() {
+        generatingStep = 1;
+        generatingText = '正在分析隊伍偏好';
+      });
 
-    if (!mounted) return;
+      final Map<String, dynamic> result =
+          await StoryApi.generateScriptBlueprint(
+            cityName: widget.cityName,
+            townName: widget.townName,
+            travelerCount: peopleCount,
+            preferences: selectedPreferences.toList(),
+            transportation: selectedTransports.toList(),
+            nodeCount: 6,
+            isNight: false,
+          );
 
-    setState(() {
-      generatingStep = 1;
-      generatingText = '正在分析隊伍偏好';
-    });
+      if (!mounted) {
+        return;
+      }
 
-    await Future.delayed(const Duration(milliseconds: 900));
+      setState(() {
+        generatedScript = result;
+        generatingStep = 3;
+        generatingText = '劇本即將完成';
+      });
 
-    if (!mounted) return;
+      setState(() {
+        isGenerating = false;
+      });
 
-    setState(() {
-      generatingStep = 2;
-      generatingText = '正在編排解謎劇本';
-    });
+      _showScriptCompleteDialog();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
 
-    await Future.delayed(const Duration(milliseconds: 1000));
+      setState(() {
+        isGenerating = false;
+      });
 
-    if (!mounted) return;
-
-    setState(() {
-      generatingStep = 3;
-      generatingText = '劇本即將完成';
-    });
-
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    if (!mounted) return;
-
-    setState(() {
-      isGenerating = false;
-    });
-
-    _showScriptCompleteDialog();
+      _showMessage('劇本生成失敗，請稍後再試');
+    }
   }
 
   void _showScriptCompleteDialog() {
@@ -210,7 +225,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ChooseScriptPage(),
+                          builder: (context) => ChooseScriptPage(
+                            generatedScript: generatedScript,
+                            cityName: widget.cityName,
+                            townName: widget.townName,
+                            transportation: selectedTransports.toList(),
+                          ),
                         ),
                       );
                     },
@@ -224,7 +244,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                     ),
                     child: Text(
                       '前往選擇劇本',
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white),
+                      style: AppTextStyles.bodyEmphasisBold.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -324,7 +346,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                 child: Text(
                                   '輸入資訊，讓這場解謎旅程正式展開',
                                   textAlign: TextAlign.center,
-                                  style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkBrown),
+                                  style: AppTextStyles.bodyEmphasisBold
+                                      .copyWith(color: _darkBrown),
                                 ),
                               ),
                             ),
@@ -370,7 +393,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             child: _ScriptGeneratingOverlay(
               message: generatingText,
               step: generatingStep,
-),
+            ),
           ),
       ],
     );
@@ -379,11 +402,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = AppTextStyles.displayLarge.copyWith(color: _darkBrown)
+    final TextStyle outlineStyle = AppTextStyles.displayLarge
+        .copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -427,11 +451,7 @@ class _FormContent extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: _ChoiceButton(
-        text: text,
-        selected: selected,
-        onTap: onTap,
-      ),
+      child: _ChoiceButton(text: text, selected: selected, onTap: onTap),
     );
   }
 
@@ -442,11 +462,7 @@ class _FormContent extends StatelessWidget {
   }) {
     return SizedBox(
       width: 88.666,
-      child: _ChoiceButton(
-        text: text,
-        selected: selected,
-        onTap: onTap,
-      ),
+      child: _ChoiceButton(text: text, selected: selected, onTap: onTap),
     );
   }
 
@@ -470,7 +486,9 @@ class _FormContent extends StatelessWidget {
             cursorColor: _optionColor,
             decoration: InputDecoration(
               hintText: '請輸入數字',
-              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedText),
+              hintStyle: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.mutedText,
+              ),
               contentPadding: const EdgeInsets.only(
                 left: 5,
                 right: 5,
@@ -666,7 +684,9 @@ class _ChoiceButtonState extends State<_ChoiceButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmallBold.copyWith(color: widget.selected ? Colors.white : _optionColor),
+              style: AppTextStyles.bodySmallBold.copyWith(
+                color: widget.selected ? Colors.white : _optionColor,
+              ),
             ),
           ),
         ),
@@ -753,7 +773,9 @@ class _GenerateButtonState extends State<_GenerateButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyCompactBold.copyWith(color: Colors.white),
+              style: AppTextStyles.bodyCompactBold.copyWith(
+                color: Colors.white,
+              ),
             ),
           ),
         ),
@@ -765,10 +787,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
 class _ScriptGeneratingOverlay extends StatefulWidget {
   final String message;
   final int step;
-  const _ScriptGeneratingOverlay({
-    required this.message,
-    required this.step,
-});
+  const _ScriptGeneratingOverlay({required this.message, required this.step});
 
   @override
   State<_ScriptGeneratingOverlay> createState() =>
@@ -864,7 +883,9 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                     widget.message,
                     key: ValueKey(widget.message),
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmallBold.copyWith(color: _darkBrown),
+                    style: AppTextStyles.bodySmallBold.copyWith(
+                      color: _darkBrown,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -897,7 +918,9 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                 Text(
                   '請稍候，線索正在重新排列……',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.microSmall.copyWith(color: const Color(0xFF77685F)),
+                  style: AppTextStyles.microSmall.copyWith(
+                    color: const Color(0xFF77685F),
+                  ),
                 ),
               ],
             ),

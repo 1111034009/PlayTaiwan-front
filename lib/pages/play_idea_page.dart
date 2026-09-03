@@ -279,7 +279,9 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                 child: Text(
                   '轉動命運的轉盤，來點遊意思',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkBrown),
+                  style: AppTextStyles.bodyEmphasisBold.copyWith(
+                    color: _darkBrown,
+                  ),
                 ),
               ),
             ),
@@ -385,7 +387,11 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.visible,
-                style: (selectedIndex == null ? AppTextStyles.title : AppTextStyles.displayLarge).copyWith(color: _resultText),
+                style:
+                    (selectedIndex == null
+                            ? AppTextStyles.title
+                            : AppTextStyles.displayLarge)
+                        .copyWith(color: _resultText),
               ),
             ),
           ),
@@ -423,10 +429,17 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
               outerColor: _startOuter,
               enabled: !isSpinning && selectedIndex != null,
               onPressed: () {
+                if (selectedIndex == null) {
+                  return;
+                }
+
+                final String cityName = locations[selectedIndex!].fullName;
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const TravelInfoPage(),
+                    builder: (context) =>
+                        TravelInfoPage(cityName: cityName, townName: ''),
                   ),
                 );
               },
@@ -455,11 +468,12 @@ class _Location {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle outlineStyle = AppTextStyles.displayLarge.copyWith(color: _darkBrown)
+    final TextStyle outlineStyle = AppTextStyles.displayLarge
+        .copyWith(color: _darkBrown)
         .copyWith(
           foreground: Paint()
             ..style = PaintingStyle.stroke
@@ -563,7 +577,9 @@ class _WheelPainter extends CustomPainter {
     // 轉盤文字
     // ------------------------------------------------------------
 
-    final TextStyle labelStyle = AppTextStyles.microTightBold.copyWith(color: _darkBrown);
+    final TextStyle labelStyle = AppTextStyles.microTightBold.copyWith(
+      color: _darkBrown,
+    );
 
     final double textRadius = size.width * 0.355;
 
@@ -820,7 +836,9 @@ class _WheelButtonState extends State<_WheelButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(
+                color: Colors.white,
+              ),
             ),
           ),
         ),

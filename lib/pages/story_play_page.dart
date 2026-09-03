@@ -6,6 +6,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+import '../api/story_api.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
 
@@ -20,9 +23,9 @@ const Color _skipBorder = Color(0xB8E3D1A4);
 const Color _storyRed = AppColors.primaryAccent;
 
 class StoryPage extends StatefulWidget {
-  final String title;
+  final Map<String, dynamic>? generatedScript;
 
-  const StoryPage({super.key, this.title = '府城儒生失落卷'});
+  const StoryPage({super.key, this.generatedScript});
 
   @override
   State<StoryPage> createState() => _StoryPageState();
@@ -34,6 +37,15 @@ class _StoryPageState extends State<StoryPage> {
 
   static const double maxScale = 1.15;
   static const double topSpacePercent = 0.05;
+
+  final AudioPlayer _npcAudioPlayer = AudioPlayer();
+
+  bool _isSpeaking = false;
+  bool _isPreparing = true;
+  bool _isDisposed = false;
+
+  String _loadingText = '正在準備劇情語音…';
+
   int currentIndex = 1;
 
   int locationCurrent = 1;
@@ -51,47 +63,418 @@ class _StoryPageState extends State<StoryPage> {
 
   late String backgroundUrl;
 
+  List<StoryLine> _storyLines = [];
+
   static const List<String> backgroundImages = [
     'https://images.pexels.com/photos/156934/pexels-photo-156934.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
     'https://images.pexels.com/photos/417173/pexels-photo-417173.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
     'https://images.pexels.com/photos/2212890/pexels-photo-2212890.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
   ];
 
-  static const List<StoryLine> storyLines = [
-    StoryLine(name: '薯光', text: '歡迎來到這裡，你的記憶應該只停留在那邊對吧。'),
-    StoryLine(name: '薯光', text: '從零開始，沿著留下的線索，我會陪伴你一步一步把它找回來。'),
-    StoryLine(name: '薯光', text: '這趟旅程的第一站，就讓我們從歷史探索開始吧。'),
-  ];
+  Map<String, dynamic>? get _scriptData {
+    final dynamic data = widget.generatedScript?['data'];
 
-  @override
-  void initState() {
-    super.initState();
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
 
-    backgroundUrl = backgroundImages[_random.nextInt(backgroundImages.length)];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
 
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: _topColor,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-    );
+    return null;
   }
 
-  void nextStory() {
-    if (storyIndex < storyLines.length - 1) {
-      setState(() {
-        storyIndex++;
+  List<Map<String, dynamic>> get _nodes {
+    final dynamic nodes = _scriptData?['nodes'];
+
+    if (nodes is! List) {
+      return [];
+    }
+
+    return nodes
+        .whereType<Map>()
+        .map((node) => Map<String, dynamic>.from(node))
+        .toList()
+      ..sort((a, b) {
+        final int orderA = int.tryParse(a['node_order']?.toString() ?? '') ?? 0;
+
+        final int orderB = int.tryParse(b['node_order']?.toString() ?? '') ?? 0;
+
+        return orderA.compareTo(orderB);
       });
+  }
+
+  String get _npcName {
+    final dynamic npc = _scriptData?['npc'];
+
+    if (npc is Map) {
+      final String name = npc['name']?.toString().trim() ?? '';
+
+      if (name.isNotEmpty) {
+        return name;
+      }
+    }
+
+    return 'NPC';
+  }
+
+  Map<String, String> _parseDialogue(String dialogue) {
+    final String value = dialogue.trim();
+
+    if (value.isEmpty) {
+      return {'speaker': _npcName, 'text': ''};
+    }
+
+    int separatorIndex = value.indexOf('：');
+
+    if (separatorIndex < 0) {
+      separatorIndex = value.indexOf(':');
+    }
+
+    if (separatorIndex < 0) {
+      return {'speaker': _npcName, 'text': value};
+    }
+
+    final String speaker = value.substring(0, separatorIndex).trim();
+
+    final String text = value.substring(separatorIndex + 1).trim();
+
+    return {'speaker': speaker.isEmpty ? _npcName : speaker, 'text': text};
+  }
+
+  List<String> _splitSentences(String text) {
+    final String value = text.trim();
+
+    if (value.isEmpty) {
+      return [];
+    }
+
+    final List<String> result = [];
+
+    final StringBuffer current = StringBuffer();
+
+    for (int i = 0; i < value.length; i++) {
+      final String char = value[i];
+
+      current.write(char);
+
+      if (char == '。' ||
+          char == '！' ||
+          char == '？' ||
+          char == '!' ||
+          char == '?') {
+        final String sentence = current.toString().trim();
+
+        if (sentence.isNotEmpty) {
+          result.add(sentence);
+        }
+
+        current.clear();
+      }
+    }
+
+    final String remaining = current.toString().trim();
+
+    if (remaining.isNotEmpty) {
+      result.add(remaining);
+    }
+
+    return result;
+  }
+
+  void _addTextAsSentences({
+    required List<StoryLine> target,
+    required String speaker,
+    required String text,
+    required int nodeIndex,
+  }) {
+    final List<String> sentences = _splitSentences(text);
+
+    for (final String sentence in sentences) {
+      target.add(
+        StoryLine(nodeIndex: nodeIndex, name: speaker, text: sentence),
+      );
+    }
+  }
+
+  void _collectDialogueValue({
+    required List<StoryLine> target,
+    required dynamic value,
+    required int nodeIndex,
+    String? fallbackSpeaker,
+  }) {
+    if (value == null) {
       return;
     }
 
-    finishStory();
+    if (value is String) {
+      final String text = value.trim();
+
+      if (text.isEmpty) {
+        return;
+      }
+
+      final Map<String, String> parsed = _parseDialogue(text);
+
+      final bool hasSpeaker = text.contains('：') || text.contains(':');
+
+      _addTextAsSentences(
+        target: target,
+        speaker: hasSpeaker
+            ? parsed['speaker'] ?? _npcName
+            : fallbackSpeaker ?? _npcName,
+        text: hasSpeaker ? parsed['text'] ?? '' : text,
+        nodeIndex: nodeIndex,
+      );
+
+      return;
+    }
+
+    if (value is List) {
+      for (final dynamic item in value) {
+        _collectDialogueValue(
+          target: target,
+          value: item,
+          nodeIndex: nodeIndex,
+          fallbackSpeaker: fallbackSpeaker,
+        );
+      }
+
+      return;
+    }
+
+    if (value is Map) {
+      final Map<String, dynamic> map = Map<String, dynamic>.from(value);
+
+      final dynamic speakerValue =
+          map['speaker'] ??
+          map['name'] ??
+          map['character'] ??
+          fallbackSpeaker ??
+          _npcName;
+
+      final String speaker = speakerValue.toString().trim();
+
+      final dynamic textValue =
+          map['text'] ?? map['content'] ?? map['dialogue'] ?? map['line'];
+
+      if (textValue != null) {
+        _addTextAsSentences(
+          target: target,
+          speaker: speaker.isEmpty ? _npcName : speaker,
+          text: textValue.toString(),
+          nodeIndex: nodeIndex,
+        );
+
+        return;
+      }
+
+      for (final MapEntry<String, dynamic> entry in map.entries) {
+        if (entry.key == 'speaker' ||
+            entry.key == 'name' ||
+            entry.key == 'character' ||
+            entry.key == 'text' ||
+            entry.key == 'content' ||
+            entry.key == 'dialogue' ||
+            entry.key == 'line') {
+          continue;
+        }
+
+        _collectDialogueValue(
+          target: target,
+          value: entry.value,
+          nodeIndex: nodeIndex,
+          fallbackSpeaker: entry.key,
+        );
+      }
+    }
   }
 
-  void skipStory() {
+  List<StoryLine> _buildStoryLines() {
+    final List<StoryLine> lines = [];
+
+    final String preface = _scriptData?['preface']?.toString().trim() ?? '';
+
+    if (preface.isNotEmpty) {
+      _addTextAsSentences(
+        target: lines,
+        speaker: '旁白',
+        text: preface,
+        nodeIndex: -1,
+      );
+    }
+
+    final List<Map<String, dynamic>> nodes = _nodes;
+
+    for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+      final Map<String, dynamic> node = nodes[nodeIndex];
+
+      final dynamic dialogues = node['dialogues'];
+
+      if (dialogues is Map) {
+        final Map<String, dynamic> dialogueMap = Map<String, dynamic>.from(
+          dialogues,
+        );
+
+        for (final MapEntry<String, dynamic> entry in dialogueMap.entries) {
+          _collectDialogueValue(
+            target: lines,
+            value: entry.value,
+            nodeIndex: nodeIndex,
+            fallbackSpeaker: entry.key == 'opening' ? _npcName : null,
+          );
+        }
+      } else {
+        _collectDialogueValue(
+          target: lines,
+          value: dialogues,
+          nodeIndex: nodeIndex,
+          fallbackSpeaker: _npcName,
+        );
+      }
+    }
+
+    return lines;
+  }
+
+  Future<void> _prepareAllVoices() async {
+    try {
+      final List<StoryLine> lines = _buildStoryLines();
+
+      if (lines.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _storyLines = [
+              const StoryLine(nodeIndex: -1, name: '旁白', text: '目前尚未取得劇本內容。'),
+            ];
+
+            _isPreparing = false;
+          });
+        }
+
+        return;
+      }
+
+      final List<StoryLine> preparedLines = [];
+
+      for (int i = 0; i < lines.length; i++) {
+        if (_isDisposed) {
+          return;
+        }
+
+        final StoryLine line = lines[i];
+
+        if (mounted) {
+          setState(() {
+            _loadingText = '正在準備中 ${i + 1} / ${lines.length}…';
+          });
+        }
+
+        final String localPath = await StoryApi.prepareNpcVoice(
+          text: line.text,
+        );
+
+        preparedLines.add(line.copyWith(audioPath: localPath));
+      }
+
+      if (!mounted || _isDisposed) {
+        return;
+      }
+
+      setState(() {
+        _storyLines = preparedLines;
+        storyIndex = 0;
+        _isPreparing = false;
+      });
+
+      await _playCurrentVoice();
+    } catch (e) {
+      if (!mounted || _isDisposed) {
+        return;
+      }
+
+      setState(() {
+        _isPreparing = false;
+        _loadingText = '劇情語音準備失敗';
+      });
+    }
+  }
+
+  Future<void> _playCurrentVoice() async {
+    if (_isDisposed ||
+        _storyLines.isEmpty ||
+        storyIndex < 0 ||
+        storyIndex >= _storyLines.length) {
+      return;
+    }
+
+    final StoryLine line = _storyLines[storyIndex];
+
+    final String audioPath = line.audioPath?.trim() ?? '';
+
+    if (audioPath.isEmpty) {
+      return;
+    }
+
+    try {
+      await _npcAudioPlayer.stop();
+
+      if (mounted) {
+        setState(() {
+          _isSpeaking = true;
+        });
+      }
+
+      await _npcAudioPlayer.play(DeviceFileSource(audioPath));
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _stopNpcVoice() async {
+    try {
+      await _npcAudioPlayer.stop();
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _isSpeaking = false;
+      });
+    } else {
+      _isSpeaking = false;
+    }
+  }
+
+  Future<void> nextStory() async {
+    if (_isPreparing || _storyLines.isEmpty) {
+      return;
+    }
+
+    await _stopNpcVoice();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (storyIndex + 1 >= _storyLines.length) {
+      finishStory();
+      return;
+    }
+
+    setState(() {
+      storyIndex++;
+    });
+
+    await _playCurrentVoice();
+  }
+
+  Future<void> skipStory() async {
+    await _stopNpcVoice();
     finishStory();
   }
 
@@ -109,6 +492,8 @@ class _StoryPageState extends State<StoryPage> {
     });
 
     if (index == 0) {
+      _stopNpcVoice();
+
       Navigator.pushReplacementNamed(context, '/home');
     }
   }
@@ -124,7 +509,54 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    backgroundUrl = backgroundImages[_random.nextInt(backgroundImages.length)];
+
+    _npcAudioPlayer.onPlayerComplete.listen((_) {
+      if (!mounted || _isDisposed) {
+        return;
+      }
+
+      setState(() {
+        _isSpeaking = false;
+      });
+    });
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: _topColor,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+
+    _prepareAllVoices();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+
+    _npcAudioPlayer.stop();
+    _npcAudioPlayer.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isPreparing) {
+      return _StoryLoadingPage(text: _loadingText);
+    }
+
+    final StoryLine story = _storyLines.isNotEmpty
+        ? _storyLines[storyIndex.clamp(0, _storyLines.length - 1)]
+        : const StoryLine(nodeIndex: -1, name: '旁白', text: '目前尚未取得劇本內容。');
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -137,7 +569,7 @@ class _StoryPageState extends State<StoryPage> {
         backgroundColor: _pageColor,
         extendBody: true,
         body: LayoutBuilder(
-          builder: (context, constraints) {
+          builder: (BuildContext context, BoxConstraints constraints) {
             final double screenWidth = constraints.maxWidth;
 
             final double screenHeight = constraints.maxHeight;
@@ -149,6 +581,7 @@ class _StoryPageState extends State<StoryPage> {
             final double actualTopBarWidth = topBarDesignWidth * scale;
 
             final double actualTopBarHeight = topBarDesignHeight * scale;
+
             return Stack(
               clipBehavior: Clip.none,
               fit: StackFit.expand,
@@ -156,13 +589,11 @@ class _StoryPageState extends State<StoryPage> {
                 Positioned.fill(
                   child: _BackgroundImage(imageUrl: backgroundUrl),
                 ),
-
                 const Positioned.fill(
                   child: IgnorePointer(
                     child: ColoredBox(color: Color(0x55000000)),
                   ),
                 ),
-
                 Positioned(
                   left: 0,
                   right: 0,
@@ -170,7 +601,6 @@ class _StoryPageState extends State<StoryPage> {
                   height: topOffset + actualTopBarHeight,
                   child: const ColoredBox(color: _topColor),
                 ),
-
                 Positioned(
                   left: 0,
                   top: topOffset,
@@ -197,7 +627,6 @@ class _StoryPageState extends State<StoryPage> {
                     ),
                   ),
                 ),
-
                 Positioned(
                   top: topOffset + actualTopBarHeight + (6 * scale),
                   right: math.max(
@@ -234,15 +663,16 @@ class _StoryPageState extends State<StoryPage> {
                     ),
                   ),
                 ),
-
                 _GameViewport(
                   designWidth: designWidth,
                   designHeight: designHeight,
                   scale: scale,
                   topOffset: topOffset,
                   child: _StoryGameContent(
-                    story: storyLines[storyIndex],
+                    story: story,
                     onNextStory: nextStory,
+                    isSpeaking: _isSpeaking,
+                    isLast: storyIndex >= _storyLines.length - 1,
                   ),
                 ),
               ],
@@ -250,6 +680,40 @@ class _StoryPageState extends State<StoryPage> {
           },
         ),
         bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
+      ),
+    );
+  }
+}
+
+class _StoryLoadingPage extends StatelessWidget {
+  final String text;
+
+  const _StoryLoadingPage({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _pageColor,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: _storyRed,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyCompactBold.copyWith(color: _darkText),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -273,6 +737,7 @@ class _GameViewport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double viewportWidth = designWidth * scale;
+
     final double viewportHeight = designHeight * scale;
 
     return Positioned(
@@ -302,12 +767,20 @@ class _GameViewport extends StatelessWidget {
 class _StoryGameContent extends StatelessWidget {
   final StoryLine story;
   final VoidCallback onNextStory;
+  final bool isSpeaking;
+  final bool isLast;
 
-  const _StoryGameContent({required this.story, required this.onNextStory});
+  const _StoryGameContent({
+    required this.story,
+    required this.onNextStory,
+    required this.isSpeaking,
+    required this.isLast,
+  });
 
   @override
   Widget build(BuildContext context) {
     const double storyBottom = 78.0;
+
     const double navigationReserve = 76.0;
 
     return SizedBox(
@@ -333,12 +806,16 @@ class _StoryGameContent extends StatelessWidget {
               ),
             ),
           ),
-
           Positioned(
             left: 9,
             right: 9,
             bottom: storyBottom,
-            child: _StoryDialog(story: story, onTap: onNextStory),
+            child: _StoryDialog(
+              story: story,
+              onTap: onNextStory,
+              isSpeaking: isSpeaking,
+              isLast: isLast,
+            ),
           ),
         ],
       ),
@@ -399,9 +876,13 @@ class _SkipStoryButton extends StatelessWidget {
   final bool pressing;
 
   final VoidCallback onHoverEnter;
+
   final VoidCallback onHoverExit;
+
   final VoidCallback onPress;
+
   final VoidCallback onRelease;
+
   final VoidCallback onTap;
 
   const _SkipStoryButton({
@@ -469,13 +950,17 @@ class _SkipStoryButton extends StatelessWidget {
                 child: Text(
                   '跳過劇情  >>',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodySmallBold.copyWith(color: _topColor).copyWith(height: 1, shadows: const [
+                  style: AppTextStyles.bodySmallBold.copyWith(
+                    color: _topColor,
+                    height: 1,
+                    shadows: const [
                       Shadow(
                         color: Color(0x55000000),
                         blurRadius: 2,
                         offset: Offset(0, 1),
                       ),
-                    ]),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -489,104 +974,135 @@ class _SkipStoryButton extends StatelessWidget {
 class _StoryDialog extends StatelessWidget {
   final StoryLine story;
   final VoidCallback onTap;
+  final bool isSpeaking;
+  final bool isLast;
 
-  const _StoryDialog({required this.story, required this.onTap});
+  const _StoryDialog({
+    required this.story,
+    required this.onTap,
+    required this.isSpeaking,
+    required this.isLast,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        height: 128,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Image.asset(
-                'img/story_box.png',
-                width: double.infinity,
-                height: 100,
-                fit: BoxFit.fill,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: double.infinity,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8DFC9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF806C54)),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            Positioned(
-              left: 10,
-              top: 0,
-              child: SizedBox(
-                width: 104,
-                height: 42,
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 128),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
                 child: Image.asset(
-                  'img/story_name.png',
-                  width: 104,
-                  height: 42,
+                  'img/story_box.png',
+                  width: double.infinity,
                   fit: BoxFit.fill,
                   filterQuality: FilterQuality.high,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      width: 104,
-                      height: 42,
                       decoration: BoxDecoration(
-                        color: _storyRed,
-                        borderRadius: BorderRadius.circular(20),
+                        color: const Color(0xFFE8DFC9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF806C54)),
                       ),
                     );
                   },
                 ),
               ),
-            ),
-
-            Positioned(
-              left: 10,
-              top: 0,
-              width: 104,
-              height: 42,
-              child: Center(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 51, 15, 31),
                 child: Text(
-                  story.name,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.titleMediumBold.copyWith(color: _topColor).copyWith(height: 1),
+                  story.text,
+                  softWrap: true,
+                  style: AppTextStyles.bodyCompactBold.copyWith(
+                    color: _darkText,
+                    height: 1.45,
+                  ),
                 ),
               ),
-            ),
-
-            Positioned(
-              left: 15,
-              right: 15,
-              top: 46,
-              child: Text(
-                story.text,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodyCompactBold.copyWith(color: _darkText).copyWith(height: 1.45),
+              Positioned(
+                left: 10,
+                top: 0,
+                child: SizedBox(
+                  width: 104,
+                  height: 42,
+                  child: Image.asset(
+                    'img/story_name.png',
+                    width: 104,
+                    height: 42,
+                    fit: BoxFit.fill,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 104,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: _storyRed,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-
-            Positioned(
-              right: 13,
-              bottom: 7,
-              child: Text(
-                '點擊繼續',
-                style: AppTextStyles.microBold.copyWith(color: const Color(0xFF806C54)),
+              Positioned(
+                left: 10,
+                top: 0,
+                width: 104,
+                height: 42,
+                child: Center(
+                  child: Text(
+                    story.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.titleMediumBold.copyWith(
+                      color: _topColor,
+                      height: 1,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+              Positioned(
+                right: 13,
+                bottom: 7,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSpeaking)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 5),
+                        child: SizedBox(
+                          width: 9,
+                          height: 9,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: Color(0xFF806C54),
+                          ),
+                        ),
+                      ),
+                    Text(
+                      isSpeaking
+                          ? '播放中'
+                          : isLast
+                          ? '點擊結束'
+                          : '點擊繼續',
+                      style: AppTextStyles.microBold.copyWith(
+                        color: const Color(0xFF806C54),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -594,8 +1110,29 @@ class _StoryDialog extends StatelessWidget {
 }
 
 class StoryLine {
+  final int nodeIndex;
   final String name;
   final String text;
+  final String? audioPath;
 
-  const StoryLine({required this.name, required this.text});
+  const StoryLine({
+    required this.nodeIndex,
+    required this.name,
+    required this.text,
+    this.audioPath,
+  });
+
+  StoryLine copyWith({
+    int? nodeIndex,
+    String? name,
+    String? text,
+    String? audioPath,
+  }) {
+    return StoryLine(
+      nodeIndex: nodeIndex ?? this.nodeIndex,
+      name: name ?? this.name,
+      text: text ?? this.text,
+      audioPath: audioPath ?? this.audioPath,
+    );
+  }
 }

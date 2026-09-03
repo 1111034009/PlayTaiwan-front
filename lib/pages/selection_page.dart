@@ -49,11 +49,13 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
   // 地區輸入框
   // ==================================================================
+
   final TextEditingController locationController = TextEditingController();
 
   // ==================================================================
   // 一句話輸入框
   // ==================================================================
+
   final TextEditingController ideaController = TextEditingController();
 
   // ==================================================================
@@ -87,20 +89,15 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   // ==================================================================
-  // Font
-  // ==================================================================
-  // ==================================================================
   // 使用當前定位
   // ==================================================================
 
   void useCurrentLocation() {
     setState(() {
-      fakeLocation = '臺中市 西屯區';
+      fakeLocation = '臺中市';
 
-      // 同步更新輸入框
       locationController.text = fakeLocation;
 
-      // 游標移到文字最後面
       locationController.selection = TextSelection.fromPosition(
         TextPosition(offset: locationController.text.length),
       );
@@ -118,6 +115,29 @@ class _SelectionPageState extends State<SelectionPage> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  // ==================================================================
+  // 解析地區
+  // ==================================================================
+
+  Map<String, String> _parseLocation(String input) {
+    final String text = input.trim();
+
+    if (text.isEmpty) {
+      return {'cityName': '', 'townName': ''};
+    }
+
+    final List<String> parts = text
+        .split(RegExp(r'\s+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+
+    if (parts.length >= 2) {
+      return {'cityName': parts[0], 'townName': parts[1]};
+    }
+
+    return {'cityName': text, 'townName': ''};
   }
 
   // ==================================================================
@@ -140,12 +160,22 @@ class _SelectionPageState extends State<SelectionPage> {
           duration: const Duration(seconds: 2),
         ),
       );
+
       return;
     }
 
+    final Map<String, String> location = _parseLocation(fakeLocation);
+
+    final String cityName = location['cityName'] ?? '';
+
+    final String townName = location['townName'] ?? '';
+
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TravelInfoPage()),
+      MaterialPageRoute(
+        builder: (context) =>
+            TravelInfoPage(cityName: cityName, townName: townName),
+      ),
     );
   }
 
@@ -159,12 +189,13 @@ class _SelectionPageState extends State<SelectionPage> {
       MaterialPageRoute(builder: (context) => const PlayIdeaPage()),
     );
   }
+
   // ==================================================================
   // 遊你說了算
   // ==================================================================
 
   void customAdventure() {
-    final idea = ideaController.text.trim();
+    final String idea = ideaController.text.trim();
 
     if (idea.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,11 +210,15 @@ class _SelectionPageState extends State<SelectionPage> {
           duration: const Duration(seconds: 2),
         ),
       );
+
       return;
     }
+
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TravelInfoPage()),
+      MaterialPageRoute(
+        builder: (context) => TravelInfoPage(cityName: '', townName: ''),
+      ),
     );
   }
 
@@ -206,7 +241,6 @@ class _SelectionPageState extends State<SelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: pageColor,
-
       extendBody: true,
 
       // ================================================================
@@ -225,6 +259,7 @@ class _SelectionPageState extends State<SelectionPage> {
                 // ======================================================
                 // 背景
                 // ======================================================
+
                 Positioned.fill(child: Container(color: pageColor)),
 
                 // ======================================================
@@ -275,6 +310,7 @@ class _SelectionPageState extends State<SelectionPage> {
                     ),
                   ),
                 ),
+
                 // ======================================================
                 // 第三張紙
                 //
@@ -340,6 +376,7 @@ class _AdventurePaper extends StatelessWidget {
             // ==========================================================
             // 紙張
             // ==========================================================
+
             Positioned.fill(
               child: Image.asset('img/set_papper.png', fit: BoxFit.fill),
             ),
@@ -379,13 +416,13 @@ class _StartAdventureContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(26, 20, 26, 20),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ============================================================
           // 標題
           // ============================================================
+
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -425,39 +462,25 @@ class _StartAdventureContent extends StatelessWidget {
 
           // ============================================================
           // 地區輸入框
-          //
-          // 預設沒有文字
           // ============================================================
           SizedBox(
             height: 22,
             child: TextField(
               controller: locationController,
-
               onChanged: onLocationChanged,
-
               textInputAction: TextInputAction.done,
-
               maxLines: 1,
-
               cursorColor: AppColors.primaryAccent,
-
               style: AppTextStyles.bodyEmphasisBold.copyWith(
                 color: AppColors.textPrimary,
               ),
-
               decoration: InputDecoration(
                 isDense: true,
-
                 contentPadding: EdgeInsets.zero,
-
                 border: InputBorder.none,
-
                 enabledBorder: InputBorder.none,
-
                 focusedBorder: InputBorder.none,
-
                 hintText: '例如：臺中市 西屯區',
-
                 hintStyle: AppTextStyles.bodyCompact.copyWith(
                   color: AppColors.mutedText,
                 ),
@@ -505,6 +528,7 @@ class _StartAdventureContent extends StatelessWidget {
 
 class _LocationButton extends StatefulWidget {
   final VoidCallback onTap;
+
   const _LocationButton({required this.onTap});
 
   @override
@@ -534,39 +558,32 @@ class _LocationButtonState extends State<_LocationButton> {
           hovering = true;
         });
       },
-
       onExit: (_) {
         setState(() {
           hovering = false;
         });
       },
-
       child: GestureDetector(
         onTap: widget.onTap,
-
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
-
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
-
         onTapCancel: () {
           setState(() {
             pressing = false;
           });
         },
-
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutBack,
-
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -577,9 +594,7 @@ class _LocationButtonState extends State<_LocationButton> {
                   color: AppColors.primaryAccent,
                 ),
               ),
-
               const SizedBox(width: 3),
-
               Image.asset(
                 'img/gps.png',
                 width: 35,
@@ -613,6 +628,7 @@ class _RandomAdventureContent extends StatelessWidget {
           // ============================================================
           // 標題
           // ============================================================
+
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -662,6 +678,7 @@ class _RandomAdventureContent extends StatelessWidget {
     );
   }
 }
+
 // ======================================================================
 // 遊你說了算
 // ======================================================================
@@ -686,6 +703,7 @@ class _CustomAdventureContent extends StatelessWidget {
           // ============================================================
           // 標題
           // ============================================================
+
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -730,36 +748,26 @@ class _CustomAdventureContent extends StatelessWidget {
             height: 24,
             child: TextField(
               controller: ideaController,
-
               textInputAction: TextInputAction.done,
-
               maxLines: 1,
-
               cursorColor: AppColors.primaryAccent,
-
               style: AppTextStyles.bodyEmphasisBold.copyWith(
                 color: AppColors.textPrimary,
               ),
-
               decoration: InputDecoration(
                 isDense: true,
-
                 contentPadding: EdgeInsets.zero,
-
                 border: InputBorder.none,
-
                 enabledBorder: InputBorder.none,
-
                 focusedBorder: InputBorder.none,
-
                 hintText: '例如：想來一趟美食之旅',
-
                 hintStyle: AppTextStyles.bodyCompact.copyWith(
                   color: AppColors.mutedText,
                 ),
               ),
             ),
           ),
+
           Container(
             height: 1,
             width: double.infinity,
@@ -819,34 +827,28 @@ class _HoverScaleButtonState extends State<_HoverScaleButton> {
           hovering = true;
         });
       },
-
       onExit: (_) {
         setState(() {
           hovering = false;
         });
       },
-
       child: GestureDetector(
         onTap: widget.onTap,
-
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
-
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
-
         onTapCancel: () {
           setState(() {
             pressing = false;
           });
         },
-
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 180),
@@ -902,56 +904,44 @@ class _RedStartButtonState extends State<_RedStartButton> {
           hovering = true;
         });
       },
-
       onExit: (_) {
         setState(() {
           hovering = false;
         });
       },
-
       child: GestureDetector(
         onTap: widget.onPressed,
-
         onTapDown: (_) {
           setState(() {
             pressing = true;
           });
         },
-
         onTapUp: (_) {
           setState(() {
             pressing = false;
           });
         },
-
         onTapCancel: () {
           setState(() {
             pressing = false;
           });
         },
-
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutBack,
-
           child: Container(
             width: widget.width ?? 70,
             height: 43,
-
             alignment: Alignment.center,
-
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
-
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [AppColors.primaryLight, AppColors.primary],
               ),
-
               border: Border.all(color: AppColors.primaryDark, width: 2),
-
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x70000000),
@@ -960,7 +950,6 @@ class _RedStartButtonState extends State<_RedStartButton> {
                 ),
               ],
             ),
-
             child: Text(
               widget.text,
               textAlign: TextAlign.center,

@@ -23,8 +23,13 @@ const Color _sectionRed = AppColors.primaryAccent;
 
 class ScriptDetailPage extends StatefulWidget {
   final String title;
+  final Map<String, dynamic>? generatedScript;
 
-  const ScriptDetailPage({super.key, this.title = '府城儒生失落卷'});
+  const ScriptDetailPage({
+    super.key,
+    this.title = '府城儒生失落卷',
+    this.generatedScript,
+  });
 
   @override
   State<ScriptDetailPage> createState() => _ScriptDetailPageState();
@@ -47,6 +52,56 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     'img/home_gogo.png',
   ];
 
+  // ============================================================
+  // API 劇本資料
+  // ============================================================
+
+  Map<String, dynamic>? get _scriptData {
+    final dynamic data = widget.generatedScript?['data'];
+
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+
+    return null;
+  }
+
+  String get _preface {
+    return _scriptData?['preface']?.toString() ?? '';
+  }
+
+  List<Map<String, dynamic>> get _nodes {
+    final dynamic nodes = _scriptData?['nodes'];
+
+    if (nodes is! List) {
+      return [];
+    }
+
+    return nodes
+        .whereType<Map>()
+        .map((node) => Map<String, dynamic>.from(node))
+        .toList()
+      ..sort((a, b) {
+        final int orderA = int.tryParse(a['node_order']?.toString() ?? '') ?? 0;
+
+        final int orderB = int.tryParse(b['node_order']?.toString() ?? '') ?? 0;
+
+        return orderA.compareTo(orderB);
+      });
+  }
+
+  String _nodeDisplayName(Map<String, dynamic> node, int index) {
+    if (index == 0) {
+      return node['place_name']?.toString() ?? '';
+    }
+
+    return node['location_codename']?.toString() ?? '';
+  }
+
+  // ============================================================
+  // 初始化
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
@@ -61,19 +116,33 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       ),
     );
   }
+
+  // ============================================================
+  // 導航
+  // ============================================================
+
   void backToChooseScript() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const ChooseScriptPage()),
+      MaterialPageRoute(
+        builder: (_) =>
+            ChooseScriptPage(generatedScript: widget.generatedScript),
+      ),
     );
   }
 
   void confirmScript() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => StoryPage()),
+      MaterialPageRoute(
+        builder: (_) => StoryPage(generatedScript: widget.generatedScript),
+      ),
     );
   }
+
+  // ============================================================
+  // Build
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +168,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
+                      // ====================================================
+                      // 背景
+                      // ====================================================
+
                       Positioned.fill(child: Container(color: _pageColor)),
 
                       Positioned(
@@ -112,6 +185,9 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         ),
                       ),
 
+                      // ====================================================
+                      // 劇本標題
+                      // ====================================================
                       Positioned(
                         left: 34,
                         right: 82,
@@ -120,16 +196,24 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                           widget.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.titleLarge.copyWith(color: _darkText),
+                          style: AppTextStyles.titleLarge.copyWith(
+                            color: _darkText,
+                          ),
                         ),
                       ),
 
+                      // ====================================================
+                      // 關閉按鈕
+                      // ====================================================
                       Positioned(
                         right: 28,
                         top: 57,
                         child: _CloseButton(onTap: backToChooseScript),
                       ),
 
+                      // ====================================================
+                      // 圖片輪播
+                      // ====================================================
                       Positioned(
                         left: 30,
                         top: 107,
@@ -149,12 +233,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                             enlargeStrategy: CenterPageEnlargeStrategy.scale,
                           ),
                           items: photoAssets.map((asset) {
-                            return _PolaroidPhoto(
-                              assetPath: asset,
-);
+                            return _PolaroidPhoto(assetPath: asset);
                           }).toList(),
                         ),
                       ),
+
+                      // ====================================================
+                      // 輪播提示
+                      // ====================================================
                       Positioned(
                         left: 0,
                         right: 0,
@@ -162,9 +248,15 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         child: Text(
                           '←  左右滑動探索  →',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.microLabel.copyWith(color: _darkBrown),
+                          style: AppTextStyles.microLabel.copyWith(
+                            color: _darkBrown,
+                          ),
                         ),
                       ),
+
+                      // ====================================================
+                      // 內容區
+                      // ====================================================
                       Positioned(
                         left: 34,
                         right: 34,
@@ -181,72 +273,84 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // ==================================================
+                                // 前傳
+                                // ==================================================
+
                                 Text(
                                   '前傳',
-                                  style: AppTextStyles.sectionTitle.copyWith(color: _sectionRed),
+                                  style: AppTextStyles.sectionTitle.copyWith(
+                                    color: _sectionRed,
+                                  ),
                                 ),
 
                                 const SizedBox(height: 5),
 
                                 Text(
-                                  '清朝年間，一位準備赴考的考生，在考試前夕離奇失去了所有記憶。醒來後，他只記得自己必須尋回某樣重要的東西，卻忘了那究竟是什麼。循著府城百年街巷的足跡，尋回逝去的一段段記憶，逐漸拼回真相。',
-                                  style: AppTextStyles.captionWide.copyWith(color: _darkText).copyWith(height: 1.42),
+                                  _preface.isNotEmpty
+                                      ? _preface
+                                      : '目前尚未取得劇本前傳。',
+                                  style: AppTextStyles.captionWide.copyWith(
+                                    color: _darkText,
+                                    height: 1.42,
+                                  ),
                                 ),
 
                                 const SizedBox(height: 14),
 
+                                // ==================================================
+                                // 探索總覽標題
+                                // ==================================================
                                 Row(
                                   children: [
                                     Text(
                                       '探索總覽',
-                                      style: AppTextStyles.sectionTitle.copyWith(color: _sectionRed),
+                                      style: AppTextStyles.sectionTitle
+                                          .copyWith(color: _sectionRed),
                                     ),
                                     const Spacer(),
                                     Text(
                                       '往上滑動看更多',
                                       textAlign: TextAlign.center,
-                                      style: AppTextStyles.microBold.copyWith(color: _darkBrown.withValues(
+                                      style: AppTextStyles.microBold.copyWith(
+                                        color: _darkBrown.withValues(
                                           alpha: 0.55,
-                                        )),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
 
                                 const SizedBox(height: 6),
-                                _ChapterItem(
-                                  number: '第一站',
-                                  title: '臺南孔廟',
-),
 
-                                _ChapterItem(
-                                  number: '第二站',
-                                  title: '尋找文字的故鄉',
-),
+                                // ==================================================
+                                // 動態探索站
+                                //
+                                // 第一站：
+                                //     place_name
+                                //
+                                // 第二站開始：
+                                //     location_codename
+                                //
+                                // 有幾個 nodes 就顯示幾站
+                                // ==================================================
+                                if (_nodes.isEmpty)
+                                  Text(
+                                    '目前尚未取得探索站點。',
+                                    style: AppTextStyles.captionWide.copyWith(
+                                      color: _darkText,
+                                    ),
+                                  )
+                                else
+                                  ...List.generate(_nodes.length, (index) {
+                                    final Map<String, dynamic> node =
+                                        _nodes[index];
 
-                                _ChapterItem(
-                                  number: '第三站',
-                                  title: '追尋百年前的繁華',
-),
-
-                                _ChapterItem(
-                                  number: '第四站',
-                                  title: '破解古城石碑',
-),
-
-                                _ChapterItem(
-                                  number: '第五站',
-                                  title: '尋找失落記憶',
-),
-
-                                _ChapterItem(
-                                  number: '第六站',
-                                  title: '解開最後謎題',
-),
-
-                                _ChapterItem(
-                                  number: '第七站',
-                                  title: '回到故事最初的地方',
-),
+                                    return _ChapterItem(
+                                      number: '第${index + 1}站',
+                                      title: _nodeDisplayName(node, index),
+                                    );
+                                  }),
 
                                 const SizedBox(height: 10),
                               ],
@@ -255,6 +359,9 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         ),
                       ),
 
+                      // ====================================================
+                      // 確認此卷
+                      // ====================================================
                       Positioned(
                         left: 0,
                         right: 0,
@@ -270,11 +377,13 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                                 buttonHovering = true;
                               });
                             },
+
                             onHoverExit: () {
                               setState(() {
                                 buttonHovering = false;
                               });
                             },
+
                             onPress: () {
                               setState(() {
                                 buttonPressing = true;
@@ -286,8 +395,9 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                                 buttonPressing = false;
                               });
                             },
+
                             onTap: confirmScript,
-),
+                          ),
                         ),
                       ),
                     ],
@@ -304,9 +414,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   }
 }
 
+// ============================================================================
+// Polaroid Photo
+// ============================================================================
+
 class _PolaroidPhoto extends StatelessWidget {
   final String assetPath;
-const _PolaroidPhoto({required this.assetPath});
+
+  const _PolaroidPhoto({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
@@ -346,13 +461,15 @@ const _PolaroidPhoto({required this.assetPath});
   }
 }
 
+// ============================================================================
+// Chapter Item
+// ============================================================================
+
 class _ChapterItem extends StatelessWidget {
   final String number;
   final String title;
-  const _ChapterItem({
-    required this.number,
-    required this.title,
-});
+
+  const _ChapterItem({required this.number, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -382,6 +499,10 @@ class _ChapterItem extends StatelessWidget {
     );
   }
 }
+
+// ============================================================================
+// Close Button
+// ============================================================================
 
 class _CloseButton extends StatefulWidget {
   final VoidCallback onTap;
@@ -460,6 +581,10 @@ class _CloseButtonState extends State<_CloseButton> {
   }
 }
 
+// ============================================================================
+// Confirm Button
+// ============================================================================
+
 class _ConfirmButton extends StatelessWidget {
   final String text;
 
@@ -473,6 +598,7 @@ class _ConfirmButton extends StatelessWidget {
   final VoidCallback onRelease;
 
   final VoidCallback onTap;
+
   const _ConfirmButton({
     required this.text,
     required this.hovering,
@@ -482,7 +608,7 @@ class _ConfirmButton extends StatelessWidget {
     required this.onPress,
     required this.onRelease,
     required this.onTap,
-});
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -526,13 +652,16 @@ class _ConfirmButton extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
+
               border: Border.all(color: _buttonBorder, width: 2),
+
               gradient: const RadialGradient(
                 center: Alignment(-0.2, -0.2),
                 radius: 1.15,
                 colors: [_buttonCenter, _buttonCenter, _buttonOuter],
                 stops: [0.0, 0.45, 1.0],
               ),
+
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x66000000),
@@ -541,10 +670,13 @@ class _ConfirmButton extends StatelessWidget {
                 ),
               ],
             ),
+
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(color: AppColors.paper),
+              style: AppTextStyles.bodyEmphasisBold.copyWith(
+                color: AppColors.paper,
+              ),
             ),
           ),
         ),
@@ -552,6 +684,10 @@ class _ConfirmButton extends StatelessWidget {
     );
   }
 }
+
+// ============================================================================
+// No Scrollbar
+// ============================================================================
 
 class _NoScrollbarScrollBehavior extends ScrollBehavior {
   const _NoScrollbarScrollBehavior();
