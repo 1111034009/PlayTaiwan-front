@@ -302,8 +302,9 @@ class _PastDetailPageState extends State<PastDetailPage> {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) =>
-                                                const PastMediaPage(),
+                                            builder: (_) => PastMediaPage(
+                                              storyId: widget.storyId,
+                                            ),
                                           ),
                                         );
                                       },

@@ -1,22 +1,29 @@
+import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+import 'package:http/http.dart' as http;
+import 'package:gal/gal.dart';
+
 import '../block/navigationbar.dart';
 import 'past_page.dart';
+import 'postcard_gif_dowload.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
-import '../core/app_responsive.dart';
+import '../core/app_session.dart';
 
 const Color _pageColor = AppColors.pastBackground;
-const Color _darkBrown = AppColors.darkBrown;
 const Color _videoPoster = AppColors.paper;
 
 class PastMediaPage extends StatefulWidget {
-  const PastMediaPage({super.key});
+  final String storyId;
+
+  const PastMediaPage({super.key, required this.storyId});
 
   @override
   State<PastMediaPage> createState() => _PastMediaPageState();
@@ -25,34 +32,23 @@ class PastMediaPage extends StatefulWidget {
 class _PastMediaPageState extends State<PastMediaPage> {
   String get _apiBaseUrl {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
-
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
   static const double designWidth = 360;
-  static const double designHeight = 640;
   static const double contentScale = 1;
 
   static const double postcardWidth = 180;
   static const double postcardHeight = 133;
   static const double postcardGap = 16;
 
-  static const int specialPostcardIndex = 2;
-
-  static const List<String> postcardAssets = [
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-    'img/example_postcard.png',
-  ];
-
   int currentIndex = 3;
   int? selectedPostcardIndex;
   bool showVideo = false;
+  bool isLoading = true;
+  String? loadError;
+
+  List<Map<String, dynamic>> postcards = [];
 
   @override
   void initState() {
@@ -67,6 +63,185 @@ class _PastMediaPageState extends State<PastMediaPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    _fetchPostcards();
+  }
+
+  Future<void> _fetchPostcards() async {
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        loadError = '尚未登入，無法取得明信片資料';
+      });
+
+      return;
+    }
+
+    if (_apiBaseUrl.isEmpty) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        loadError = '尚未設定 API_BASE_URL';
+      });
+
+      return;
+    }
+
+    try {
+      final Uri url = Uri.parse(
+        '$_apiBaseUrl/api/PostcardCatalog/by-story/'
+        '${Uri.encodeComponent(widget.storyId)}',
+      );
+
+      final http.Response response = await http.get(
+        url,
+        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('API 回傳格式錯誤');
+      }
+
+      if (decoded['isSuccess'] != true) {
+        throw Exception(decoded['message']?.toString() ?? '明信片資料取得失敗');
+      }
+
+      final dynamic result = decoded['Result'];
+
+      if (result is! List) {
+        throw Exception('API Result 不是陣列');
+      }
+
+      final List<Map<String, dynamic>> loadedPostcards = result
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where((item) => item['IsActive'] != false)
+          .toList();
+
+      loadedPostcards.sort((a, b) {
+        final int sortA = int.tryParse(a['SortOrder']?.toString() ?? '') ?? 0;
+
+        final int sortB = int.tryParse(b['SortOrder']?.toString() ?? '') ?? 0;
+
+        return sortA.compareTo(sortB);
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        postcards = loadedPostcards;
+        isLoading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      debugPrint('取得明信片目錄失敗：$e');
+
+      if (!mounted) return;
+
+      setState(() {
+        postcards = [];
+        isLoading = false;
+        loadError = '明信片資料取得失敗';
+      });
+    }
+  }
+
+  String _imageUrl(String? imagePath) {
+    final String path = imagePath?.trim() ?? '';
+
+    if (path.isEmpty) {
+      return '';
+    }
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+
+    if (path.startsWith('/')) {
+      return '$_apiBaseUrl$path';
+    }
+
+    return '$_apiBaseUrl/$path';
+  }
+
+  Future<void> _downloadPostcard(Map<String, dynamic> postcard) async {
+    final String imageUrl = _imageUrl(postcard['ImageUrl']?.toString());
+    final int index = postcards.indexOf(postcard);
+    final bool isSpecial = _isNightPostcard(postcard, index);
+
+    try {
+      if (isSpecial) {
+        _showMessage('正在製作動畫明信片...');
+        final String? error = await PostcardGifDownload.downloadPostcard(
+          imageUrl: imageUrl,
+          isSpecial: true,
+        );
+
+        if (!mounted) return;
+
+        if (error != null) {
+          _showMessage(error);
+          return;
+        }
+
+        _showMessage('動畫明信片已成功儲存到相簿');
+        return;
+      }
+
+      final http.Response response = await http.get(Uri.parse(imageUrl));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final Uint8List bytes = response.bodyBytes;
+
+      if (bytes.isEmpty) {
+        throw Exception('圖片內容為空');
+      }
+
+      bool hasAccess = await Gal.hasAccess();
+
+      if (!hasAccess) {
+        hasAccess = await Gal.requestAccess();
+      }
+
+      if (!hasAccess) {
+        _showMessage('沒有相簿權限，無法儲存圖片');
+        return;
+      }
+
+      await Gal.putImageBytes(
+        bytes,
+        album: '回憶明信片',
+        name: 'postcard_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+
+      _showMessage('明信片已成功儲存到相簿');
+    } on GalException catch (e) {
+      _showMessage('儲存到相簿失敗：${e.type.message}');
+    } catch (e) {
+      _showMessage('圖片下載失敗：$e');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void backToPast() {
@@ -77,6 +252,8 @@ class _PastMediaPageState extends State<PastMediaPage> {
   }
 
   void openPostcard(int index) {
+    if (index < 0 || index >= postcards.length) return;
+
     setState(() {
       selectedPostcardIndex = index;
     });
@@ -98,6 +275,20 @@ class _PastMediaPageState extends State<PastMediaPage> {
     setState(() {
       showVideo = false;
     });
+  }
+
+  bool _isNightPostcard(Map<String, dynamic> postcard, int index) {
+    //暫時測試第一張特效
+    if (index == 0) {
+      return true;
+    }
+    final dynamic isNight = postcard['IsNightEditionDefault'];
+
+    if (isNight == true) {
+      return true;
+    }
+
+    return false;
   }
 
   @override
@@ -134,11 +325,13 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             const Positioned.fill(
                               child: ColoredBox(color: _pageColor),
                             ),
+
                             Positioned(
                               left: 22,
                               top: 49,
                               child: _BackButton(onTap: backToPast),
                             ),
+
                             Positioned(
                               left: 25,
                               top: 88,
@@ -148,18 +341,17 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                 children: [
                                   _OutlinedTitle(text: '回憶vlog'),
                                   const Spacer(),
+
                                   _ActionIcon(
                                     icon: Icons.download_rounded,
-                                    onTap: () {
-                                      // 下載功能
-                                    },
+                                    onTap: () {},
                                   ),
+
                                   const SizedBox(width: 12),
+
                                   _ActionIcon(
                                     icon: Icons.share_rounded,
-                                    onTap: () {
-                                      // 分享功能
-                                    },
+                                    onTap: () {},
                                   ),
                                 ],
                               ),
@@ -172,19 +364,19 @@ class _PastMediaPageState extends State<PastMediaPage> {
                               height: 350,
                               child: _VideoSection(onTap: openVideo),
                             ),
+
                             Positioned(
                               left: 25,
                               top: 500,
                               child: _OutlinedTitle(text: '明信片集結'),
                             ),
+
                             Positioned(
                               left: 0,
                               right: 0,
                               top: 535,
                               height: 163,
-                              child: _PostcardCarousel(
-                                onPostcardTap: openPostcard,
-                              ),
+                              child: _buildPostcardArea(),
                             ),
                           ],
                         ),
@@ -195,14 +387,33 @@ class _PastMediaPageState extends State<PastMediaPage> {
               ),
             ),
           ),
-          if (selectedPostcardIndex != null)
+
+          if (selectedPostcardIndex != null &&
+              selectedPostcardIndex! >= 0 &&
+              selectedPostcardIndex! < postcards.length)
             Positioned.fill(
               child: _PostcardOverlay(
-                assetPath: postcardAssets[selectedPostcardIndex!],
-                isSpecial: selectedPostcardIndex == specialPostcardIndex,
+                imageUrl: _imageUrl(
+                  postcards[selectedPostcardIndex!]['ImageUrl']?.toString(),
+                ),
+                postcardName:
+                    postcards[selectedPostcardIndex!]['PostcardName']
+                        ?.toString() ??
+                    '',
+                summary:
+                    postcards[selectedPostcardIndex!]['Summary']?.toString() ??
+                    '',
+                isSpecial: _isNightPostcard(
+                  postcards[selectedPostcardIndex!],
+                  selectedPostcardIndex!,
+                ),
                 onClose: closePostcard,
+                onDownload: () {
+                  _downloadPostcard(postcards[selectedPostcardIndex!]);
+                },
               ),
             ),
+
           if (showVideo)
             Positioned.fill(child: _VideoOverlay(onClose: closeVideo)),
         ],
@@ -211,25 +422,43 @@ class _PastMediaPageState extends State<PastMediaPage> {
     );
   }
 
-  // double _designScale(Size size) {
-  //   return AppResponsive.scale(
-  //     availableWidth: size.width,
-  //     availableHeight: size.height,
-  //     designWidth: designWidth,
-  //     designHeight: designHeight,
-  //   );
-  // }
+  Widget _buildPostcardArea() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.secondaryRed,
+        ),
+      );
+    }
 
-  // double _postcardTop(Size size) {
-  //   final double scale = _designScale(size);
-  //   final double contentTop = size.height * 0.05;
+    if (loadError != null) {
+      return Center(
+        child: Text(
+          loadError!,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+        ),
+      );
+    }
 
-  //   return contentTop + 510 * scale;
-  // }
+    if (postcards.isEmpty) {
+      return Center(
+        child: Text(
+          '目前沒有明信片資料',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+        ),
+      );
+    }
 
-  // double _postcardCarouselHeight(Size size) {
-  //   return 163 * _designScale(size);
-  // }
+    return _PostcardCarousel(
+      postcards: postcards,
+      imageUrlBuilder: _imageUrl,
+      isNightBuilder: _isNightPostcard,
+      onPostcardTap: openPostcard,
+    );
+  }
 }
 
 class _BackButton extends StatefulWidget {
@@ -251,9 +480,15 @@ class _BackButtonState extends State<_BackButton> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
+      onTapDown: (_) {
+        setState(() => pressing = true);
+      },
+      onTapUp: (_) {
+        setState(() => pressing = false);
+      },
+      onTapCancel: () {
+        setState(() => pressing = false);
+      },
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 150),
@@ -311,9 +546,15 @@ class _ActionIconState extends State<_ActionIcon> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
+      onTapDown: (_) {
+        setState(() => pressing = true);
+      },
+      onTapUp: (_) {
+        setState(() => pressing = false);
+      },
+      onTapCancel: () {
+        setState(() => pressing = false);
+      },
       child: AnimatedScale(
         scale: pressing ? 0.88 : 1.0,
         duration: const Duration(milliseconds: 120),
@@ -398,11 +639,12 @@ class _VideoOverlayState extends State<_VideoOverlay>
             child: GestureDetector(
               onTap: widget.onClose,
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                 child: Container(color: Colors.black.withValues(alpha: 0.82)),
               ),
             ),
           ),
+
           Positioned.fill(
             child: SafeArea(
               child: Center(
@@ -425,6 +667,7 @@ class _VideoOverlayState extends State<_VideoOverlay>
               ),
             ),
           ),
+
           Positioned(
             top: MediaQuery.paddingOf(context).top + 14,
             right: 18,
@@ -481,9 +724,17 @@ class _VideoPlayerCard extends StatelessWidget {
 }
 
 class _PostcardCarousel extends StatelessWidget {
+  final List<Map<String, dynamic>> postcards;
+  final String Function(String?) imageUrlBuilder;
+  final bool Function(Map<String, dynamic>, int) isNightBuilder;
   final ValueChanged<int> onPostcardTap;
 
-  const _PostcardCarousel({required this.onPostcardTap});
+  const _PostcardCarousel({
+    required this.postcards,
+    required this.imageUrlBuilder,
+    required this.isNightBuilder,
+    required this.onPostcardTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -492,25 +743,27 @@ class _PostcardCarousel extends StatelessWidget {
         options: FlutterCarouselOptions(
           height: 163,
           viewportFraction: 0.55,
-          initialPage: 1,
-          enableInfiniteScroll: true,
+          initialPage: postcards.length > 1 ? 1 : 0,
+          enableInfiniteScroll: postcards.length > 1,
           autoPlay: false,
           enlargeCenterPage: false,
           showIndicator: false,
           pageSnapping: true,
           scrollDirection: Axis.horizontal,
         ),
-        items: List.generate(_PastMediaPageState.postcardAssets.length, (
-          index,
-        ) {
+        items: List.generate(postcards.length, (index) {
+          final Map<String, dynamic> postcard = postcards[index];
+
           return Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: _PastMediaPageState.postcardGap / 2,
               ),
               child: _PostcardCard(
-                assetPath: _PastMediaPageState.postcardAssets[index],
-                isSpecial: index == _PastMediaPageState.specialPostcardIndex,
+                imageUrl: imageUrlBuilder(postcard['ImageUrl']?.toString()),
+                postcardName: postcard['PostcardName']?.toString() ?? '',
+                summary: postcard['Summary']?.toString() ?? '',
+                isSpecial: isNightBuilder(postcard, index),
                 onTap: () => onPostcardTap(index),
               ),
             ),
@@ -522,12 +775,16 @@ class _PostcardCarousel extends StatelessWidget {
 }
 
 class _PostcardCard extends StatefulWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String postcardName;
+  final String summary;
   final bool isSpecial;
   final VoidCallback onTap;
 
   const _PostcardCard({
-    required this.assetPath,
+    required this.imageUrl,
+    required this.postcardName,
+    required this.summary,
     required this.isSpecial,
     required this.onTap,
   });
@@ -568,9 +825,15 @@ class _PostcardCardState extends State<_PostcardCard>
 
     return GestureDetector(
       onTap: widget.onTap,
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
+      onTapDown: (_) {
+        setState(() => pressing = true);
+      },
+      onTapUp: (_) {
+        setState(() => pressing = false);
+      },
+      onTapCancel: () {
+        setState(() => pressing = false);
+      },
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 180),
@@ -579,7 +842,8 @@ class _PostcardCardState extends State<_PostcardCard>
           animation: controller,
           builder: (context, child) {
             return _PostcardVisual(
-              assetPath: widget.assetPath,
+              imageUrl: widget.imageUrl,
+              postcardName: widget.postcardName,
               isSpecial: widget.isSpecial,
               progress: controller.value,
             );
@@ -591,12 +855,14 @@ class _PostcardCardState extends State<_PostcardCard>
 }
 
 class _PostcardVisual extends StatelessWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String postcardName;
   final bool isSpecial;
   final double progress;
 
   const _PostcardVisual({
-    required this.assetPath,
+    required this.imageUrl,
+    required this.postcardName,
     required this.isSpecial,
     required this.progress,
   });
@@ -630,11 +896,36 @@ class _PostcardVisual extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              assetPath,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-            ),
+            if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.paper,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '圖片載入失敗',
+                      style: AppTextStyles.microLabel.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  );
+                },
+              )
+            else
+              Container(
+                color: AppColors.paper,
+                alignment: Alignment.center,
+                child: Text(
+                  '尚無圖片',
+                  style: AppTextStyles.microLabel.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+
             if (isSpecial)
               CustomPaint(painter: _NightCardPainter(progress: progress)),
           ],
@@ -672,7 +963,6 @@ class _NightCardPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
-    // 夜空紫色 tint
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
@@ -687,7 +977,15 @@ class _NightCardPainter extends CustomPainter {
 
     canvas.drawRect(rect, tint);
 
-    // ⭐ 星星閃爍
+    final Paint mist = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [Color(0x005D5AEF), Color(0x225D5AEF), Color(0x005D5AEF)],
+      ).createShader(rect);
+
+    canvas.drawRect(rect, mist);
+
     final Paint starPaint = Paint();
 
     for (final star in stars) {
@@ -722,7 +1020,6 @@ class _NightCardPainter extends CustomPainter {
       }
     }
 
-    // ☄️ 流星
     final double meteor = (progress * 1.65) % 1.0;
 
     if (meteor > 0.70) {
@@ -760,17 +1057,6 @@ class _NightCardPainter extends CustomPainter {
       );
     }
 
-    // 🌫️ 霧氣
-    final Paint mist = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [Color(0x005D5AEF), Color(0x225D5AEF), Color(0x005D5AEF)],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, mist);
-
-    // 🟣 動態邊框
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
@@ -797,14 +1083,20 @@ class _NightCardPainter extends CustomPainter {
 }
 
 class _PostcardOverlay extends StatefulWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String postcardName;
+  final String summary;
   final bool isSpecial;
   final VoidCallback onClose;
+  final VoidCallback onDownload;
 
   const _PostcardOverlay({
-    required this.assetPath,
+    required this.imageUrl,
+    required this.postcardName,
+    required this.summary,
     required this.isSpecial,
     required this.onClose,
+    required this.onDownload,
   });
 
   @override
@@ -857,7 +1149,7 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
                 return GestureDetector(
                   onTap: widget.onClose,
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
+                    filter: ui.ImageFilter.blur(
                       sigmaX: 9 * value,
                       sigmaY: 9 * value,
                     ),
@@ -869,6 +1161,7 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
               },
             ),
           ),
+
           Positioned.fill(
             child: SafeArea(
               child: AnimatedBuilder(
@@ -884,12 +1177,13 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // 明信片
                           AnimatedBuilder(
                             animation: effectController,
                             builder: (context, child) {
                               return _ZoomablePostcard(
-                                assetPath: widget.assetPath,
+                                imageUrl: widget.imageUrl,
+                                postcardName: widget.postcardName,
+                                summary: widget.summary,
                                 isSpecial: widget.isSpecial,
                                 progress: effectController.value,
                               );
@@ -898,33 +1192,26 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
 
                           const SizedBox(height: 20),
 
-                          // 下載／列印／分享
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _ActionIcon(
                                 icon: Icons.download_rounded,
-                                onTap: () {
-                                  // TODO: 下載明信片
-                                },
+                                onTap: widget.onDownload,
                               ),
 
                               const SizedBox(width: 14),
 
                               _ActionIcon(
                                 icon: Icons.print_rounded,
-                                onTap: () {
-                                  // TODO: 列印明信片
-                                },
+                                onTap: () {},
                               ),
 
                               const SizedBox(width: 14),
 
                               _ActionIcon(
                                 icon: Icons.share_rounded,
-                                onTap: () {
-                                  // TODO: 分享明信片
-                                },
+                                onTap: () {},
                               ),
                             ],
                           ),
@@ -967,12 +1254,16 @@ class _PostcardOverlayState extends State<_PostcardOverlay>
 }
 
 class _ZoomablePostcard extends StatefulWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String postcardName;
+  final String summary;
   final bool isSpecial;
   final double progress;
 
   const _ZoomablePostcard({
-    required this.assetPath,
+    required this.imageUrl,
+    required this.postcardName,
+    required this.summary,
     required this.isSpecial,
     required this.progress,
   });
@@ -1005,7 +1296,9 @@ class _ZoomablePostcardState extends State<_ZoomablePostcard> {
         child: Transform.scale(
           scale: scale,
           child: _ExpandedPostcard(
-            assetPath: widget.assetPath,
+            imageUrl: widget.imageUrl,
+            postcardName: widget.postcardName,
+            summary: widget.summary,
             isSpecial: widget.isSpecial,
             progress: widget.progress,
           ),
@@ -1016,12 +1309,16 @@ class _ZoomablePostcardState extends State<_ZoomablePostcard> {
 }
 
 class _ExpandedPostcard extends StatelessWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String postcardName;
+  final String summary;
   final bool isSpecial;
   final double progress;
 
   const _ExpandedPostcard({
-    required this.assetPath,
+    required this.imageUrl,
+    required this.postcardName,
+    required this.summary,
     required this.isSpecial,
     required this.progress,
   });
@@ -1061,13 +1358,62 @@ class _ExpandedPostcard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              assetPath,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-            ),
+            if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.paper,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '圖片載入失敗',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  );
+                },
+              )
+            else
+              Container(
+                color: AppColors.paper,
+                alignment: Alignment.center,
+                child: Text(
+                  '尚無圖片',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+
             if (isSpecial)
               CustomPaint(painter: _ExpandedNightPainter(progress: progress)),
+
+            if (postcardName.isNotEmpty)
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.58),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    postcardName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.body.copyWith(color: Colors.white),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1094,7 +1440,6 @@ class _ExpandedNightPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
-    // 夜空紫色 tint
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
@@ -1109,7 +1454,6 @@ class _ExpandedNightPainter extends CustomPainter {
 
     canvas.drawRect(rect, tint);
 
-    // 🌫️ 霧氣
     final Paint mist = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.bottomLeft,
@@ -1119,7 +1463,6 @@ class _ExpandedNightPainter extends CustomPainter {
 
     canvas.drawRect(rect, mist);
 
-    // ⭐ 星星閃爍
     for (final star in stars) {
       final double wave = (progress + star.phase) % 1.0;
 
@@ -1153,7 +1496,6 @@ class _ExpandedNightPainter extends CustomPainter {
       }
     }
 
-    // ☄️ 流星
     final double meteor = (progress * 1.7) % 1.0;
 
     if (meteor > 0.68) {
@@ -1191,7 +1533,6 @@ class _ExpandedNightPainter extends CustomPainter {
       );
     }
 
-    // 🟣 動態邊框
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2

@@ -86,7 +86,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
   // ============================================================
 
   Future<void> _startGeneratePostcard() async {
-    const String imagePath = r'C:\Users\owner\Downloads\image-asset.webp';
+    const String imagePath = 'img/test/test.webp';
 
     const String spotName = '臺南孔廟';
 
@@ -561,10 +561,15 @@ class _PostcardDisplay extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              '請稍後再試',
+              // '請稍後再試',
+              // textAlign: TextAlign.center,
+              // style: AppTextStyles.bodySmall.copyWith(
+              //   color: const Color(0xFF724E4E),
+              errorMessage ?? '未知錯誤',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
                 color: const Color(0xFF724E4E),
+                height: 1.3,
               ),
             ),
           ],

@@ -32,7 +32,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
   static const double designWidth = 360;
 
-  static const double designHeight = 640;
+  static const double designHeight = 600;
 
   // ==================================================================
   // Navigation Index
@@ -265,10 +265,33 @@ class _SelectionPageState extends State<SelectionPage> {
                 // ======================================================
                 // 第一張紙
                 //
-                // 現在揪出發
+                // 遊你說了算
                 // ======================================================
                 Positioned(
                   top: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 324,
+                      height: 180,
+                      child: _AdventurePaper(
+                        child: _CustomAdventureContent(
+                          ideaController: ideaController,
+                          onPressed: customAdventure,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ======================================================
+                // 第二張紙
+                //
+                // 現在揪出發
+                // ======================================================
+                Positioned(
+                  top: 200,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -290,31 +313,9 @@ class _SelectionPageState extends State<SelectionPage> {
                 ),
 
                 // ======================================================
-                // 第二張紙
-                //
-                // 來點遊意思
-                // ======================================================
-                Positioned(
-                  top: 230,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 180,
-                      child: _AdventurePaper(
-                        child: _RandomAdventureContent(
-                          onPressed: randomAdventure,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ======================================================
                 // 第三張紙
                 //
-                // 遊你說了算
+                // 來點遊意思
                 // ======================================================
                 Positioned(
                   top: 420,
@@ -325,9 +326,8 @@ class _SelectionPageState extends State<SelectionPage> {
                       width: 324,
                       height: 180,
                       child: _AdventurePaper(
-                        child: _CustomAdventureContent(
-                          ideaController: ideaController,
-                          onPressed: customAdventure,
+                        child: _RandomAdventureContent(
+                          onPressed: randomAdventure,
                         ),
                       ),
                     ),
@@ -415,7 +415,7 @@ class _StartAdventureContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 20, 26, 20),
+      padding: const EdgeInsets.fromLTRB(26, 14, 26, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

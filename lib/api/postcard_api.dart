@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-//先跑明信片><
+// 先跑明信片 ><
+
 class AiPostcardResult {
   final String taskId;
   final String postcardIntroduction;
@@ -41,11 +44,20 @@ class PostcardApi {
 
     request.fields['spot_name'] = spotName;
     request.fields['user_prompt'] = userPrompt;
+    final ByteData data = await rootBundle.load(imagePath);
 
-    request.files.add(
-      await http.MultipartFile.fromPath('user_image', imagePath),
+    final Uint8List imageBytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
     );
 
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'user_image',
+        imageBytes,
+        filename: 'image-asset.webp',
+      ),
+    );
     final http.StreamedResponse streamedResponse = await request.send();
 
     final http.Response response = await http.Response.fromStream(
