@@ -949,113 +949,101 @@ class _NightCardPainter extends CustomPainter {
 
   const _NightCardPainter({required this.progress});
 
+  // 少量星塵
   static const List<_StarData> stars = [
-    _StarData(0.10, 0.18, 1.2, 0.00),
-    _StarData(0.25, 0.35, 0.9, 0.23),
-    _StarData(0.76, 0.17, 1.4, 0.43),
-    _StarData(0.88, 0.43, 1.0, 0.67),
-    _StarData(0.18, 0.77, 1.1, 0.38),
-    _StarData(0.78, 0.79, 1.5, 0.59),
-    _StarData(0.52, 0.13, 0.8, 0.82),
+    _StarData(0.12, 0.20, 0.8, 0.00),
+    _StarData(0.30, 0.38, 0.6, 0.24),
+    _StarData(0.76, 0.18, 0.9, 0.46),
+    _StarData(0.88, 0.48, 0.6, 0.68),
+    _StarData(0.20, 0.78, 0.7, 0.35),
+    _StarData(0.78, 0.80, 0.9, 0.58),
   ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
+    // 很淡的夜間色調
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0x332B2470),
-          Color(0x11101845),
-          Color(0x442E267A),
-          Color(0x11101845),
+          Color(0x222B2470),
+          Color(0x08101845),
+          Color(0x302E267A),
+          Color(0x08101845),
         ],
       ).createShader(rect);
 
     canvas.drawRect(rect, tint);
 
-    final Paint mist = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [Color(0x005D5AEF), Color(0x225D5AEF), Color(0x005D5AEF)],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, mist);
-
+    // 少量漂浮星塵
     final Paint starPaint = Paint();
 
     for (final star in stars) {
       final double wave = (progress + star.phase) % 1.0;
 
-      final double glow = 1 - ((wave - 0.5).abs() * 2);
+      // 緩慢漂浮
+      final double floatY =
+          math.sin((progress * math.pi * 2) + star.phase * math.pi * 2) * 1.2;
 
-      final double opacity = (0.15 + glow * 0.85).clamp(0.1, 1.0);
+      final Offset center = Offset(
+        size.width * star.x,
+        size.height * star.y + floatY,
+      );
 
-      final Offset center = Offset(size.width * star.x, size.height * star.y);
+      // 微微閃爍
+      final double glow =
+          0.35 + 0.65 * (0.5 + 0.5 * math.sin(wave * math.pi * 2));
+
+      final double opacity = (0.18 + glow * 0.38).clamp(0.12, 0.55);
 
       starPaint.color = Colors.white.withValues(alpha: opacity);
 
       canvas.drawCircle(center, star.radius, starPaint);
-
-      if (star.radius > 1.2) {
-        final Paint ray = Paint()
-          ..color = Colors.white.withValues(alpha: opacity * 0.35)
-          ..strokeWidth = 0.7;
-
-        canvas.drawLine(
-          Offset(center.dx - star.radius * 2.8, center.dy),
-          Offset(center.dx + star.radius * 2.8, center.dy),
-          ray,
-        );
-
-        canvas.drawLine(
-          Offset(center.dx, center.dy - star.radius * 2.8),
-          Offset(center.dx, center.dy + star.radius * 2.8),
-          ray,
-        );
-      }
     }
 
-    final double meteor = (progress * 1.65) % 1.0;
+    // 月光掃過
+    final double sweep = progress;
 
-    if (meteor > 0.70) {
-      final double t = (meteor - 0.70) / 0.30;
+    final double moonX = -size.width * 0.35 + sweep * size.width * 1.7;
 
-      final Offset end = Offset(
-        size.width * (0.20 + t * 0.65),
-        size.height * (0.04 + t * 0.42),
-      );
+    final Rect moonRect = Rect.fromCenter(
+      center: Offset(moonX, size.height * 0.42),
+      width: size.width * 0.42,
+      height: size.height * 1.5,
+    );
 
-      final Offset start = Offset(
-        end.dx - size.width * 0.16,
-        end.dy - size.height * 0.12,
-      );
+    final Paint moonLight = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          Colors.transparent,
+          const Color(0x127D6CFF),
+          const Color(0x35FFFFFF),
+          const Color(0x127D6CFF),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.30, 0.50, 0.70, 1.0],
+      ).createShader(moonRect);
 
-      final double alpha = (1 - t).clamp(0.0, 1.0);
+    canvas.save();
+    canvas.rotate(-0.18);
+    canvas.drawRect(moonRect, moonLight);
+    canvas.restore();
 
-      final Paint meteorPaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.transparent,
-            const Color(0x667D6CFF),
-            Colors.white.withValues(alpha: alpha),
-          ],
-        ).createShader(Rect.fromPoints(start, end))
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round;
+    // SSR 流光邊框
+    final Paint borderGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2
+      ..color = const Color(0x337D6CFF);
 
-      canvas.drawLine(start, end, meteorPaint);
-
-      canvas.drawCircle(
-        end,
-        2,
-        Paint()..color = Colors.white.withValues(alpha: alpha),
-      );
-    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(3)),
+      borderGlow,
+    );
 
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
@@ -1064,7 +1052,8 @@ class _NightCardPainter extends CustomPainter {
         transform: GradientRotation(progress * math.pi * 2),
         colors: const [
           Color(0x227D6CFF),
-          Color(0xDDFFFFFF),
+          Color(0x66FFFFFF),
+          Color(0xFFFFFFFF),
           Color(0x667D6CFF),
           Color(0x227D6CFF),
         ],
@@ -1426,122 +1415,114 @@ class _ExpandedNightPainter extends CustomPainter {
 
   const _ExpandedNightPainter({required this.progress});
 
+  // 少量星塵，避免放大後畫面太滿
   static const List<_StarData> stars = [
-    _StarData(0.10, 0.18, 3.0, 0.00),
-    _StarData(0.27, 0.34, 2.0, 0.22),
-    _StarData(0.75, 0.17, 2.7, 0.42),
-    _StarData(0.87, 0.40, 2.0, 0.64),
-    _StarData(0.18, 0.78, 2.3, 0.34),
-    _StarData(0.79, 0.78, 3.0, 0.58),
-    _StarData(0.52, 0.12, 1.7, 0.82),
+    _StarData(0.12, 0.20, 1.5, 0.00),
+    _StarData(0.30, 0.38, 1.1, 0.24),
+    _StarData(0.76, 0.18, 1.7, 0.46),
+    _StarData(0.88, 0.48, 1.1, 0.68),
+    _StarData(0.20, 0.78, 1.3, 0.35),
+    _StarData(0.78, 0.80, 1.6, 0.58),
   ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
+    // 夜間 SSR 淡淡的紫藍色氛圍
     final Paint tint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0x44342B91),
-          Color(0x10101845),
-          Color(0x553C247D),
-          Color(0x10101845),
+          Color(0x30342B91),
+          Color(0x08101845),
+          Color(0x3A3C247D),
+          Color(0x08101845),
         ],
       ).createShader(rect);
 
     canvas.drawRect(rect, tint);
 
-    final Paint mist = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [Color(0x004C4CE0), Color(0x334C4CE0), Color(0x004C4CE0)],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, mist);
-
+    // 少量漂浮星塵
     for (final star in stars) {
       final double wave = (progress + star.phase) % 1.0;
 
-      final double opacity = (0.15 + 0.85 * (1 - ((wave - 0.5).abs() * 2)))
-          .clamp(0.1, 1.0);
+      final double floatX =
+          math.sin(progress * math.pi * 2 + star.phase * math.pi * 2) * 1.8;
 
-      final Offset center = Offset(size.width * star.x, size.height * star.y);
+      final double floatY =
+          math.cos(progress * math.pi * 2 + star.phase * math.pi * 2) * 1.5;
+
+      final Offset center = Offset(
+        size.width * star.x + floatX,
+        size.height * star.y + floatY,
+      );
+
+      // 微微閃爍
+      final double glow = 0.5 + 0.5 * math.sin(wave * math.pi * 2);
+
+      final double opacity = (0.18 + glow * 0.42).clamp(0.12, 0.6);
 
       canvas.drawCircle(
         center,
         star.radius,
         Paint()..color = Colors.white.withValues(alpha: opacity),
       );
-
-      if (star.radius >= 2.5) {
-        final Paint ray = Paint()
-          ..color = Colors.white.withValues(alpha: opacity * 0.55)
-          ..strokeWidth = 1;
-
-        canvas.drawLine(
-          Offset(center.dx - star.radius * 2.5, center.dy),
-          Offset(center.dx + star.radius * 2.5, center.dy),
-          ray,
-        );
-
-        canvas.drawLine(
-          Offset(center.dx, center.dy - star.radius * 2.5),
-          Offset(center.dx, center.dy + star.radius * 2.5),
-          ray,
-        );
-      }
     }
 
-    final double meteor = (progress * 1.7) % 1.0;
+    // 月光掃過
+    final double sweep = progress;
 
-    if (meteor > 0.68) {
-      final double t = (meteor - 0.68) / 0.32;
+    final double moonX = -size.width * 0.35 + sweep * size.width * 1.7;
 
-      final Offset end = Offset(
-        size.width * (0.22 + t * 0.63),
-        size.height * (0.06 + t * 0.44),
-      );
+    final Rect moonRect = Rect.fromCenter(
+      center: Offset(moonX, size.height * 0.42),
+      width: size.width * 0.36,
+      height: size.height * 1.5,
+    );
 
-      final Offset start = Offset(
-        end.dx - size.width * 0.15,
-        end.dy - size.height * 0.11,
-      );
+    final Paint moonLight = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          Colors.transparent,
+          const Color(0x107D6CFF),
+          const Color(0x35FFFFFF),
+          const Color(0x107D6CFF),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.30, 0.50, 0.70, 1.0],
+      ).createShader(moonRect);
 
-      final double alpha = (1 - t).clamp(0.0, 1.0);
+    canvas.save();
+    canvas.rotate(-0.18);
+    canvas.drawRect(moonRect, moonLight);
+    canvas.restore();
 
-      final Paint meteorPaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.transparent,
-            const Color(0x557D6CFF),
-            Colors.white.withValues(alpha: alpha),
-          ],
-        ).createShader(Rect.fromPoints(start, end))
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round;
+    // SSR 流光外框：淡淡的紫藍光暈
+    final Paint borderGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..color = const Color(0x287D6CFF);
 
-      canvas.drawLine(start, end, meteorPaint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.deflate(2), const Radius.circular(5)),
+      borderGlow,
+    );
 
-      canvas.drawCircle(
-        end,
-        2.8,
-        Paint()..color = Colors.white.withValues(alpha: alpha),
-      );
-    }
-
+    // SSR 流光主邊框
     final Paint border = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = 1.7
       ..shader = SweepGradient(
         transform: GradientRotation(progress * math.pi * 2),
         colors: const [
           Color(0x227D6CFF),
+          Color(0x88FFFFFF),
           Color(0xFFFFFFFF),
-          Color(0xAA7568FF),
+          Color(0x88756BFF),
           Color(0x227D6CFF),
         ],
       ).createShader(rect);

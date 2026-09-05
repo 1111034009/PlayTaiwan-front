@@ -44,6 +44,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
+  DateTime? birthday;
+  String? gender;
+
   bool password = true;
   bool confirmPassword = true;
   bool isLoading = false;
@@ -79,6 +82,64 @@ class _RegisterPageState extends State<RegisterPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> selectBirthday() async {
+    final DateTime now = DateTime.now();
+
+    final DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: birthday ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: '選擇生日',
+      cancelText: '取消',
+      confirmText: '確定',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: AppColors.merchantPaper,
+              onSurface: AppColors.textPrimary,
+            ),
+            textTheme: Theme.of(
+              context,
+            ).textTheme.apply(fontFamily: 'KaiseiHarunoUmi'),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (selectedDate == null) {
+      return;
+    }
+
+    setState(() {
+      birthday = selectedDate;
+    });
+  }
+
+  String formatBirthday(DateTime date) {
+    final String year = date.year.toString().padLeft(4, '0');
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  String getGenderForApi() {
+    switch (gender) {
+      case '男性':
+        return 'Male';
+      case '女性':
+        return 'Female';
+      case '其他':
+        return 'Other';
+      default:
+        return '';
+    }
+  }
+
   Future<void> register() async {
     if (isLoading) {
       return;
@@ -94,6 +155,16 @@ class _RegisterPageState extends State<RegisterPage> {
         password.isEmpty ||
         confirmPassword.isEmpty) {
       showMessage('請完整填寫註冊資料');
+      return;
+    }
+
+    if (birthday == null) {
+      showMessage('請選擇生日');
+      return;
+    }
+
+    if (gender == null) {
+      showMessage('請選擇性別');
       return;
     }
 
@@ -141,6 +212,7 @@ class _RegisterPageState extends State<RegisterPage> {
       showMessage('帳號類型無效');
       return;
     }
+    final String genderForApi = getGenderForApi();
 
     setState(() {
       isLoading = true;
@@ -154,6 +226,8 @@ class _RegisterPageState extends State<RegisterPage> {
           'Username': username,
           'Email': email,
           'Password': password,
+          'Birthday': formatBirthday(birthday!),
+          'Gender': genderForApi,
           'AccountType': accountType,
         }),
       );
@@ -202,13 +276,13 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 13,
                     right: 13,
-                    top: 75,
-                    height: 530,
+                    top: 30,
+                    height: 610,
                     child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
                   ),
                   Positioned(
                     left: 23,
-                    top: 10,
+                    top: 5,
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Text(
@@ -222,7 +296,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 20,
                     right: 20,
-                    top: 100,
+                    top: 60,
                     child: Text(
                       '建立探險帳號',
                       textAlign: TextAlign.center,
@@ -234,7 +308,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 20,
                     right: 20,
-                    top: 130,
+                    top: 90,
                     child: Text(
                       '建立你的專屬探險身份',
                       textAlign: TextAlign.center,
@@ -246,7 +320,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 42,
                     right: 42,
-                    top: 165,
+                    top: 120,
                     child: _RegisterField(
                       label: '探險名稱',
                       child: TextField(
@@ -265,7 +339,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 42,
                     right: 42,
-                    top: 235,
+                    top: 190,
                     child: _RegisterField(
                       label: '電子信箱',
                       child: TextField(
@@ -285,7 +359,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 42,
                     right: 42,
-                    top: 305,
+                    top: 260,
                     child: _RegisterField(
                       label: '通行密碼',
                       child: _PasswordField(
@@ -303,7 +377,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 42,
                     right: 42,
-                    top: 375,
+                    top: 330,
                     child: _RegisterField(
                       label: '確認密碼',
                       child: _PasswordField(
@@ -321,7 +395,62 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 42,
                     right: 42,
-                    top: 445,
+                    top: 400,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _RegisterField(
+                            label: '生日',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: selectBirthday,
+                              child: Container(
+                                height: 40,
+                                alignment: Alignment.center,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: AppColors.inputLine,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  birthday == null
+                                      ? '請選擇生日'
+                                      : formatBirthday(birthday!),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: birthday == null
+                                        ? AppColors.inputHint
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _RegisterField(
+                            label: '性別',
+                            child: _GenderSelector(
+                              value: gender,
+                              onChanged: (value) {
+                                setState(() {
+                                  gender = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 42,
+                    right: 42,
+                    top: 470,
                     child: _RegisterField(
                       label: '帳號類型',
                       child: _AccountTypeSelector(
@@ -337,7 +466,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: 525,
+                    top: 555,
                     child: Center(
                       child: SizedBox(
                         width: 240,
@@ -379,6 +508,87 @@ class _RegisterField extends StatelessWidget {
         const SizedBox(height: 3),
         SizedBox(height: 40, child: child),
       ],
+    );
+  }
+}
+
+class _GenderSelector extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String> onChanged;
+
+  const _GenderSelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        final String? selected = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: AppColors.merchantPaper,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (context) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(
+                      '男性',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(context, '男性'),
+                  ),
+                  ListTile(
+                    title: Text(
+                      '女性',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(context, '女性'),
+                  ),
+                  ListTile(
+                    title: Text(
+                      '其他',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(context, '其他'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        if (selected != null) {
+          onChanged(selected);
+        }
+      },
+      child: Container(
+        height: 40,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.inputLine, width: 1),
+          ),
+        ),
+        child: Text(
+          value ?? '請選擇性別',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: value == null ? AppColors.inputHint : AppColors.textPrimary,
+          ),
+        ),
+      ),
     );
   }
 }

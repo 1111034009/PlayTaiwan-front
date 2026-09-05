@@ -204,62 +204,61 @@ void _drawNormalEffect(img.Image image, double progress) {
 // ============================================================
 // Special / Night animation
 // ============================================================
-
 void _drawNightEffect(img.Image image, double progress) {
   final int width = image.width;
   final int height = image.height;
 
-  // ------------------------------------------------------------
-  // 紫色半透明氣氛
-  // ------------------------------------------------------------
+  // ============================================================
+  // 夜間紫色氛圍
+  // 對應 Flutter _NightCardPainter / _ExpandedNightPainter
+  // ============================================================
 
   _drawTint(image, const _Color(55, 40, 130, 45));
 
-  // ------------------------------------------------------------
+  // ============================================================
   // Stars
-  // ------------------------------------------------------------
+  // ============================================================
 
   const List<_StarData> stars = [
-    _StarData(0.10, 0.18, 3.0, 0.00),
-    _StarData(0.27, 0.34, 2.0, 0.22),
-    _StarData(0.75, 0.17, 2.7, 0.42),
-    _StarData(0.87, 0.40, 2.0, 0.64),
-    _StarData(0.18, 0.78, 2.3, 0.34),
-    _StarData(0.79, 0.78, 3.0, 0.58),
-    _StarData(0.52, 0.12, 1.7, 0.82),
+    _StarData(0.10, 0.18, 1.2, 0.00),
+    _StarData(0.25, 0.35, 0.9, 0.23),
+    _StarData(0.76, 0.17, 1.4, 0.43),
+    _StarData(0.88, 0.43, 1.0, 0.67),
+    _StarData(0.18, 0.77, 1.1, 0.38),
+    _StarData(0.78, 0.79, 1.5, 0.59),
+    _StarData(0.52, 0.13, 0.8, 0.82),
   ];
 
   for (final star in stars) {
     final double wave = (progress + star.phase) % 1.0;
 
-    // 星星由暗 → 亮 → 暗
-    final double triangle = 1.0 - ((wave - 0.5).abs() * 2.0);
+    final double glow = 1.0 - ((wave - 0.5).abs() * 2.0);
 
-    final double opacity = (0.15 + 0.85 * triangle).clamp(0.1, 1.0);
+    final double opacity = (0.15 + glow * 0.85).clamp(0.1, 1.0);
 
     final int x = (width * star.x).round();
-
     final int y = (height * star.y).round();
 
     _drawGlowCircle(image, x, y, star.radius, opacity);
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // Meteor
-  // ------------------------------------------------------------
+  // 對應 Flutter 的 meteor
+  // ============================================================
 
-  final double meteor = (progress * 1.7) % 1.0;
+  final double meteor = (progress * 1.65) % 1.0;
 
-  if (meteor > 0.68) {
-    final double t = (meteor - 0.68) / 0.32;
+  if (meteor > 0.70) {
+    final double t = (meteor - 0.70) / 0.30;
 
-    final int endX = (width * (0.22 + t * 0.63)).round();
+    final int endX = (width * (0.20 + t * 0.65)).round();
 
-    final int endY = (height * (0.06 + t * 0.44)).round();
+    final int endY = (height * (0.04 + t * 0.42)).round();
 
-    final int startX = endX - (width * 0.15).round();
+    final int startX = endX - (width * 0.16).round();
 
-    final int startY = endY - (height * 0.11).round();
+    final int startY = endY - (height * 0.12).round();
 
     final double alpha = (1.0 - t).clamp(0.0, 1.0);
 
@@ -269,17 +268,17 @@ void _drawNightEffect(img.Image image, double progress) {
       startY,
       endX,
       endY,
-      const _Color(255, 255, 255, 180),
+      const _Color(255, 255, 255, 255),
       alpha,
-      3,
+      2,
     );
 
-    _drawGlowCircle(image, endX, endY, 3.0, alpha);
+    _drawGlowCircle(image, endX, endY, 2.0, alpha);
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // Animated border
-  // ------------------------------------------------------------
+  // ============================================================
 
   _drawAnimatedBorder(image, progress);
 }
