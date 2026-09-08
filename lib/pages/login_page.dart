@@ -547,7 +547,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       color: Colors.transparent,
       child: SizedBox(
         width: width,
-        height: 250,
+        height: 265,
         child: Stack(
           clipBehavior: Clip.none,
           children: [

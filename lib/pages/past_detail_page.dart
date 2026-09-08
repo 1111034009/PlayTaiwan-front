@@ -110,13 +110,15 @@ class _PastDetailPageState extends State<PastDetailPage> {
             final dynamic apiCompletedDate = result['completed_date'];
             final dynamic apiSynopsis = result['synopsis'];
             final dynamic apiRegion = result['region'];
-            final dynamic apiRouteSummary = result['route_summary'];
+            final dynamic apiSpots = result['spots'];
+
             DateTime? parsedDate;
             if (apiCompletedDate is String && apiCompletedDate.isNotEmpty) {
               parsedDate = DateTime.tryParse(apiCompletedDate);
             }
-            final List<String> routes = apiRouteSummary is List
-                ? apiRouteSummary
+
+            final List<String> routes = apiSpots is List
+                ? apiSpots
                       .whereType<String>()
                       .where((item) => item.trim().isNotEmpty)
                       .toList()
@@ -283,9 +285,11 @@ class _PastDetailPageState extends State<PastDetailPage> {
                                     ...routeSummary.asMap().entries.map((
                                       entry,
                                     ) {
+                                      final int stationNumber = entry.key + 1;
+
                                       return _ChapterItem(
                                         number:
-                                            '第${_toChineseNumber(entry.key + 1)}站',
+                                            '第${_toChineseNumber(stationNumber)}站',
                                         title: entry.value,
                                       );
                                     })
