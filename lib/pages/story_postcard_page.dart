@@ -1,8 +1,9 @@
-import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
 
 import '../api/postcard_api.dart';
 import '../block/navigationbar.dart';
@@ -31,29 +32,24 @@ class StoryPostcardPage extends StatefulWidget {
   State<StoryPostcardPage> createState() => _StoryPostcardPageState();
 }
 
-class _StoryPostcardPageState extends State<StoryPostcardPage> {
+class _StoryPostcardPageState extends State<StoryPostcardPage>
+    with SingleTickerProviderStateMixin {
   static const double designWidth = 430;
   static const double designHeight = 760;
 
   int currentIndex = 1;
 
-  // ============================================================
-  // AI 明信片生成
-  // ============================================================
-
   final PostcardApi _postcardApi = PostcardApi();
 
-  Timer? _progressTimer;
+  late final AnimationController _progressController;
 
-  double _progress = 0.0;
+  double _progress = 0.1;
 
   Uint8List? _postcardImage;
 
   String? _postcardError;
 
   String? _taskId;
-
-  String? _postcardIntroduction;
 
   bool _isGenerating = true;
 
@@ -71,79 +67,99 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
       ),
     );
 
-    // 進入頁面後自動開始生成
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 30),
+    );
+
+    _progressController.addListener(() {
+      if (!mounted || !_isGenerating) return;
+
+      setState(() {
+        _progress = 0.1 + (_progressController.value * 0.82);
+      });
+    });
+
     _startGeneratePostcard();
   }
 
   @override
   void dispose() {
-    _progressTimer?.cancel();
+    _progressController.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // AI 明信片生成
-  // ============================================================
-
   Future<void> _startGeneratePostcard() async {
-    const String imagePath = 'img/test/test.webp';
+    const String imagePath =
+        r'C:\Users\owner\nutc\Competition\InnoServe\PLAYTAIWAN\front\img\test\tset.webp';
 
-    const String spotName = '臺南孔廟';
+    const String spotName = '孔廟';
+    const String userPrompt = '復古水墨風';
+    const String storyId = 'story_001';
+    const bool isNightEdition = false;
 
     try {
       if (mounted) {
         setState(() {
           _isGenerating = true;
-          _progress = 0.05;
+          _progress = 0.1;
           _postcardError = null;
           _postcardImage = null;
+          _taskId = null;
         });
       }
 
-      _startProgressAnimation();
+      _progressController.forward(from: 0);
 
-      // 建立 AI 明信片任務
       final AiPostcardResult result = await _postcardApi.createAiPostcard(
         imagePath: imagePath,
         spotName: spotName,
-        userPrompt: '',
+        userPrompt: userPrompt,
+        storyId: storyId,
+        isNightEdition: isNightEdition,
       );
 
       _taskId = result.taskId;
-      _postcardIntroduction = result.postcardIntroduction;
 
-      // 等待 AI 圖片真正生成完成
       Uint8List? imageBytes;
 
       for (int i = 0; i < 60; i++) {
         imageBytes = await _postcardApi.downloadAiPostcard(result.downloadUrl);
 
-        if (imageBytes != null) {
+        if (imageBytes != null && imageBytes.isNotEmpty) {
           break;
         }
 
         await Future.delayed(const Duration(seconds: 2));
       }
 
-      // 超時
-      if (imageBytes == null) {
+      if (imageBytes == null || imageBytes.isEmpty) {
         throw Exception('AI 明信片生成逾時，請稍後再試。');
       }
-
-      _progressTimer?.cancel();
 
       if (!mounted) {
         return;
       }
 
-      // 圖片真正完成才進度 100%
+      _progressController.stop();
+
       setState(() {
         _progress = 1.0;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
         _postcardImage = imageBytes;
         _isGenerating = false;
+        _postcardError = null;
       });
     } catch (e) {
-      _progressTimer?.cancel();
+      _progressController.stop();
 
       if (!mounted) {
         return;
@@ -156,36 +172,433 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
     }
   }
 
-  // ============================================================
-  // 模擬 AI 進度
-  // ============================================================
+  Future<void> _printPostcard() async {
+    if (_isGenerating) {
+      showMessage('明信片尚未生成完成');
+      return;
+    }
 
-  void _startProgressAnimation() {
-    _progressTimer?.cancel();
+    if (_postcardImage == null) {
+      showMessage('目前沒有可列印的明信片');
+      return;
+    }
 
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+    final String postcardId = _taskId?.trim() ?? '';
 
-      if (_progress >= 0.92) {
-        return;
-      }
+    if (postcardId.isEmpty) {
+      showMessage('找不到明信片 ID');
+      return;
+    }
 
-      setState(() {
-        _progress += 0.015;
+    _showPrintLoadingDialog();
 
-        if (_progress > 0.92) {
-          _progress = 0.92;
-        }
-      });
-    });
+    try {
+      final Map<String, dynamic> printResult = await _postcardApi.printPostcard(
+        postcardId: postcardId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      await _showPrintDialog(printResult);
+    } catch (e) {
+      debugPrint('取得 ibon 取件碼失敗：$e');
+
+      if (!mounted) return;
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      showMessage('取得 ibon 取件碼失敗');
+    }
   }
 
-  // ============================================================
-  // 下一站功能
-  // ============================================================
+  Future<void> _showPrintLoadingDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: _PrintLoadingContent(),
+        );
+      },
+    );
+  }
+
+  Future<void> _showPrintDialog(Map<String, dynamic> result) async {
+    final String pickupCode = result['ibon_pickup_code']?.toString() ?? '';
+
+    final String deadline = result['deadline']?.toString() ?? '';
+
+    final String qrCodeBase64 = result['qrcode_base64']?.toString() ?? '';
+
+    Uint8List? qrCodeBytes;
+
+    if (qrCodeBase64.isNotEmpty) {
+      try {
+        String base64Data = qrCodeBase64;
+
+        if (base64Data.contains(',')) {
+          base64Data = base64Data.split(',').last;
+        }
+
+        qrCodeBytes = base64Decode(base64Data);
+      } catch (_) {
+        qrCodeBytes = null;
+      }
+    }
+
+    String formattedDeadline = deadline;
+
+    if (deadline.isNotEmpty) {
+      try {
+        final DateTime dateTime = DateTime.parse(deadline).toLocal();
+
+        formattedDeadline =
+            '${dateTime.year}/'
+            '${dateTime.month.toString().padLeft(2, '0')}/'
+            '${dateTime.day.toString().padLeft(2, '0')} '
+            '${dateTime.hour.toString().padLeft(2, '0')}:'
+            '${dateTime.minute.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          child: Container(
+            width: 360,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.90,
+            ),
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x55000000),
+                  blurRadius: 30,
+                  spreadRadius: 1,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'ibon 列印資訊',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.heading.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  if (formattedDeadline.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryRed.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: AppColors.secondaryRed.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryRed.withValues(
+                                alpha: 0.12,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.access_time_rounded,
+                              size: 17,
+                              color: AppColors.secondaryRed,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '列印期限',
+                                  style: AppTextStyles.microLabel.copyWith(
+                                    color: AppColors.textPrimary.withValues(
+                                      alpha: 0.55,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formattedDeadline,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  if (qrCodeBytes != null) ...[
+                    Text(
+                      '掃描 QR Code',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '至 ibon 機台掃描即可列印',
+                      style: AppTextStyles.microLabel.copyWith(
+                        color: AppColors.textPrimary.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: 220,
+                      height: 220,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.10),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x18000000),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Image.memory(
+                        qrCodeBytes,
+                        width: 230,
+                        height: 230,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: 220,
+                      height: 42,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            bool hasAccess = await Gal.hasAccess();
+
+                            if (!hasAccess) {
+                              hasAccess = await Gal.requestAccess();
+                            }
+
+                            if (!hasAccess) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(
+                                  dialogContext,
+                                ).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('沒有相簿權限，無法儲存 QR Code'),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
+                            await Gal.putImageBytes(
+                              qrCodeBytes!,
+                              album: '回憶明信片',
+                              name:
+                                  'ibon_qrcode_${DateTime.now().millisecondsSinceEpoch}.png',
+                            );
+
+                            if (dialogContext.mounted) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text('QR Code 已成功儲存到相簿'),
+                                ),
+                              );
+                            }
+                          } catch (_) {
+                            if (dialogContext.mounted) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(content: Text('QR Code 儲存失敗')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.download_rounded, size: 17),
+                        label: const Text('下載 QR Code'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: BorderSide(
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.25,
+                            ),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          textStyle: AppTextStyles.bodySmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      width: 220,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'QR Code 無法載入',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Container(
+                    height: 1,
+                    color: Colors.black.withValues(alpha: 0.10),
+                  ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '列印取件碼',
+                      style: AppTextStyles.microLabel.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 13, 10, 13),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.045),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            pickupCode.isEmpty ? '—' : pickupCode,
+                            style: AppTextStyles.heading.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: pickupCode.isEmpty
+                              ? null
+                              : () async {
+                                  await Clipboard.setData(
+                                    ClipboardData(text: pickupCode),
+                                  );
+
+                                  if (dialogContext.mounted) {
+                                    ScaffoldMessenger.of(
+                                      dialogContext,
+                                    ).showSnackBar(
+                                      const SnackBar(content: Text('取件碼已複製')),
+                                    );
+                                  }
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.paper,
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(
+                                color: Colors.black.withValues(alpha: 0.12),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.copy_rounded,
+                              size: 17,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        '關閉',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   void goNext() {
     if (widget.onNext != null) {
@@ -199,17 +612,9 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
     );
   }
 
-  // ============================================================
-  // 回首頁功能
-  // ============================================================
-
   void goHome() {
     Navigator.pushReplacementNamed(context, '/home');
   }
-
-  // ============================================================
-  // 訊息提示功能
-  // ============================================================
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -230,10 +635,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
       );
   }
 
-  // ============================================================
-  // 畫面
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -249,27 +650,15 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // ==================================================
-                // 背景
-                // ==================================================
-
                 const Positioned.fill(
                   child: ColoredBox(color: _backgroundColor),
                 ),
-
-                // ==================================================
-                // 主標題
-                // ==================================================
                 Positioned(
                   left: 0,
                   right: 0,
                   top: 90,
                   child: Center(child: _OutlinedTitle(text: '謎題解開')),
                 ),
-
-                // ==================================================
-                // 副標題
-                // ==================================================
                 Positioned(
                   left: 0,
                   right: 0,
@@ -284,15 +673,10 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                     ),
                   ),
                 ),
-
-                // ==================================================
-                // AI 明信片
-                // ==================================================
                 Positioned(
-                  left: 25,
                   top: 190,
-                  width: 380,
-                  height: 253,
+                  width: 418,
+                  height: 278,
                   child: _PostcardDisplay(
                     isGenerating: _isGenerating,
                     progress: _progress,
@@ -300,26 +684,13 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                     errorMessage: _postcardError,
                   ),
                 ),
-
-                // ==================================================
-                // 實體列印
-                // ==================================================
                 Positioned(
                   left: 22,
                   top: 478,
                   width: 184,
                   height: 52,
-                  child: _SecondaryButton(
-                    text: '實體列印',
-                    onTap: () {
-                      showMessage('已準備列印功能');
-                    },
-                  ),
+                  child: _SecondaryButton(text: '實體列印', onTap: _printPostcard),
                 ),
-
-                // ==================================================
-                // 分享
-                // ==================================================
                 Positioned(
                   left: 224,
                   top: 478,
@@ -332,10 +703,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
                     },
                   ),
                 ),
-
-                // ==================================================
-                // 前往下一站
-                // ==================================================
                 Positioned(
                   left: 22,
                   right: 22,
@@ -348,18 +715,92 @@ class _StoryPostcardPageState extends State<StoryPostcardPage> {
           ),
         ),
       ),
-
-      // ============================================================
-      // 底部導覽列
-      // ============================================================
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
 }
 
-// ============================================================
-// 標題功能
-// ============================================================
+class _PrintLoadingContent extends StatefulWidget {
+  const _PrintLoadingContent();
+
+  @override
+  State<_PrintLoadingContent> createState() => _PrintLoadingContentState();
+}
+
+class _PrintLoadingContentState extends State<_PrintLoadingContent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 55),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(26, 28, 26, 26),
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Color(0x66000000), blurRadius: 25, spreadRadius: 2),
+        ],
+      ),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) {
+          final double progress = (controller.value * 0.95).clamp(0.0, 0.95);
+
+          final int percentage = (progress * 100).round();
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '正在準備列印',
+                style: AppTextStyles.heading.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 22),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: Colors.black.withValues(alpha: 0.1),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.secondaryRed,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '$percentage%',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
@@ -371,7 +812,6 @@ class _OutlinedTitle extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // 黑色外框
         Text(
           text,
           style: AppTextStyles.heroDisplay
@@ -384,8 +824,6 @@ class _OutlinedTitle extends StatelessWidget {
                   ..color = Colors.black,
               ),
         ),
-
-        // 白色文字
         Text(
           text,
           style: AppTextStyles.heroDisplay
@@ -396,10 +834,6 @@ class _OutlinedTitle extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// AI 明信片顯示功能
-// ============================================================
 
 class _PostcardDisplay extends StatelessWidget {
   final bool isGenerating;
@@ -439,10 +873,6 @@ class _PostcardDisplay extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    // ============================================================
-    // 圖片完成
-    // ============================================================
-
     if (imageBytes != null) {
       return Image.memory(
         imageBytes!,
@@ -453,24 +883,12 @@ class _PostcardDisplay extends StatelessWidget {
       );
     }
 
-    // ============================================================
-    // 生成失敗
-    // ============================================================
-
     if (errorMessage != null) {
       return _buildError();
     }
 
-    // ============================================================
-    // 生成中
-    // ============================================================
-
     return _buildGenerating();
   }
-
-  // ============================================================
-  // 正在繪圖
-  // ============================================================
 
   Widget _buildGenerating() {
     return Center(
@@ -484,9 +902,7 @@ class _PostcardDisplay extends StatelessWidget {
               height: 42,
               child: CircularProgressIndicator(strokeWidth: 3),
             ),
-
             const SizedBox(height: 18),
-
             Text(
               '正在繪製你的專屬明信片',
               textAlign: TextAlign.center,
@@ -494,9 +910,7 @@ class _PostcardDisplay extends StatelessWidget {
                   .copyWith(color: const Color(0xFF6D2A1D))
                   .copyWith(height: 1.2),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               '臺南孔廟',
               textAlign: TextAlign.center,
@@ -504,21 +918,17 @@ class _PostcardDisplay extends StatelessWidget {
                   .copyWith(color: const Color(0xFF724E4E))
                   .copyWith(height: 1.2),
             ),
-
             const SizedBox(height: 20),
-
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: LinearProgressIndicator(
                 minHeight: 10,
-                value: progress,
+                value: progress.clamp(0.0, 1.0),
                 backgroundColor: const Color(0xFFE6D9C8),
                 valueColor: const AlwaysStoppedAnimation<Color>(_primaryOuter),
               ),
             ),
-
             const SizedBox(height: 9),
-
             Text(
               '${(progress * 100).round()}%',
               style: AppTextStyles.bodySmallBold.copyWith(
@@ -530,10 +940,6 @@ class _PostcardDisplay extends StatelessWidget {
       ),
     );
   }
-
-  // ============================================================
-  // 生成失敗
-  // ============================================================
 
   Widget _buildError() {
     return Center(
@@ -547,9 +953,7 @@ class _PostcardDisplay extends StatelessWidget {
               size: 42,
               color: Color(0xFF6D2A1D),
             ),
-
             const SizedBox(height: 14),
-
             Text(
               '明信片生成失敗',
               textAlign: TextAlign.center,
@@ -557,14 +961,8 @@ class _PostcardDisplay extends StatelessWidget {
                 color: const Color(0xFF6D2A1D),
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
-              // '請稍後再試',
-              // textAlign: TextAlign.center,
-              // style: AppTextStyles.bodySmall.copyWith(
-              //   color: const Color(0xFF724E4E),
               errorMessage ?? '未知錯誤',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
@@ -578,10 +976,6 @@ class _PostcardDisplay extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// 次要按鈕功能
-// ============================================================
 
 class _SecondaryButton extends StatefulWidget {
   final String text;
@@ -671,10 +1065,6 @@ class _SecondaryButtonState extends State<_SecondaryButton> {
     );
   }
 }
-
-// ============================================================
-// 主要按鈕功能
-// ============================================================
 
 class _PrimaryButton extends StatefulWidget {
   final String text;

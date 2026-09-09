@@ -13,6 +13,7 @@ import 'package:gal/gal.dart';
 import '../block/navigationbar.dart';
 import 'past_page.dart';
 import 'postcard_gif_dowload.dart';
+import '../api/postcard_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
@@ -164,11 +165,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
       return;
     }
 
-    if (_apiBaseUrl.isEmpty) {
-      _showMessage('尚未設定 API_BASE_URL');
-      return;
-    }
-
     final String postcardId =
         postcard['postcard_id']?.toString() ??
         postcard['PostcardId']?.toString() ??
@@ -186,41 +182,8 @@ class _PastMediaPageState extends State<PastMediaPage> {
     _showPrintLoadingDialog();
 
     try {
-      final Uri url = Uri.parse('$_apiBaseUrl/api/PostcardCatalog/Print');
-
-      final http.Response response = await http.post(
-        url,
-        headers: {
-          'accept': '*/*',
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'postcard_id': postcardId}),
-      );
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-
-      final dynamic decoded = jsonDecode(response.body);
-
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('API 回傳格式錯誤');
-      }
-
-      if (decoded['isSuccess'] != true) {
-        throw Exception(decoded['message']?.toString() ?? '取得 ibon 取件碼失敗');
-      }
-
-      final dynamic result = decoded['Result'];
-
-      if (result is! Map) {
-        throw Exception('API Result 格式錯誤');
-      }
-
-      final Map<String, dynamic> printResult = Map<String, dynamic>.from(
-        result,
-      );
+      final Map<String, dynamic> printResult = await PostcardApi()
+          .printPostcard(postcardId: postcardId);
 
       if (!mounted) return;
 
