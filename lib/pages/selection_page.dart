@@ -1,5 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+
+import '../core/app_session.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
@@ -22,45 +29,30 @@ class _SelectionPageState extends State<SelectionPage> {
 
   static const Color pageColor = AppColors.background;
 
-  static const Color darkText = AppColors.textPrimary;
-
   static const Color red = AppColors.primaryAccent;
-
-  // ==================================================================
-  // Design Size
-  // ==================================================================
 
   static const double designWidth = 360;
 
   static const double designHeight = 600;
 
-  // ==================================================================
   // Navigation Index
-  // ==================================================================
 
   int currentIndex = 0;
 
-  // ==================================================================
   // 地區
-  // ==================================================================
 
   String fakeLocation = '';
+  bool isLoadingLocation = false;
 
-  // ==================================================================
   // 地區輸入框
-  // ==================================================================
 
   final TextEditingController locationController = TextEditingController();
 
-  // ==================================================================
   // 一句話輸入框
-  // ==================================================================
 
   final TextEditingController ideaController = TextEditingController();
 
-  // ==================================================================
   // System UI
-  // ==================================================================
 
   @override
   void initState() {
@@ -91,22 +83,134 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
   // 使用當前定位
   // ==================================================================
+  Future<void> useCurrentLocation() async {
+    if (isLoadingLocation) return;
 
-  void useCurrentLocation() {
     setState(() {
-      fakeLocation = '臺中市';
-
-      locationController.text = fakeLocation;
-
-      locationController.selection = TextSelection.fromPosition(
-        TextPosition(offset: locationController.text.length),
-      );
+      isLoadingLocation = true;
     });
+
+    try {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        _showLocationMessage('請先開啟手機的定位服務');
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+
+        if (permission == LocationPermission.denied) {
+          _showLocationMessage('需要定位權限才能取得目前位置');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationMessage('定位權限已被永久拒絕，請到手機設定開啟');
+        return;
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '')
+          .trim()
+          .replaceFirst(RegExp(r'/$'), '');
+
+      final String url = '$baseUrl/api/Map/Location';
+
+      final String? token = AppSession.token;
+
+      if (token == null || token.isEmpty) {
+        _showLocationMessage('登入資訊已失效，請重新登入');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'lat': position.latitude,
+          'lng': position.longitude,
+          'traveler_count': 2,
+        }),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['isSuccess'] == true) {
+          final result = data['Result'];
+
+          if (result is Map<String, dynamic>) {
+            final String cityName =
+                result['city_name']?.toString().trim() ?? '';
+
+            final String districtName =
+                result['district_name']?.toString().trim() ?? '';
+
+            final String location = [
+              cityName,
+              districtName,
+            ].where((value) => value.isNotEmpty).join(' ');
+
+            if (location.isEmpty) {
+              _showLocationMessage('伺服器運行中，請稍後嘗試');
+              return;
+            }
+
+            if (!mounted) return;
+
+            setState(() {
+              fakeLocation = location;
+              locationController.text = location;
+
+              locationController.selection = TextSelection.fromPosition(
+                TextPosition(offset: locationController.text.length),
+              );
+            });
+
+            return;
+          }
+        }
+      }
+
+      _showLocationMessage('定位錯誤，請稍後再試');
+    } catch (e) {
+      print('Location Error: $e');
+
+      if (!mounted) return;
+
+      _showLocationMessage('無法取得目前定位，請稍後再試');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingLocation = false;
+        });
+      }
+    }
+  }
+
+  void _showLocationMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '目前位置：$fakeLocation',
+          message,
           textAlign: TextAlign.center,
           style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
         ),
@@ -122,22 +226,24 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
 
   Map<String, String> _parseLocation(String input) {
-    final String text = input.trim();
+    final String text = input.trim().replaceAll(RegExp(r'\s+'), ' ');
 
     if (text.isEmpty) {
       return {'cityName': '', 'townName': ''};
     }
 
-    final List<String> parts = text
-        .split(RegExp(r'\s+'))
-        .where((part) => part.trim().isNotEmpty)
-        .toList();
+    final RegExp pattern = RegExp(r'^(.+?[縣市])(?:\s*(.*))?$');
 
-    if (parts.length >= 2) {
-      return {'cityName': parts[0], 'townName': parts[1]};
+    final Match? match = pattern.firstMatch(text);
+
+    if (match == null) {
+      return {'cityName': text, 'townName': ''};
     }
 
-    return {'cityName': text, 'townName': ''};
+    final String cityName = match.group(1)?.trim() ?? '';
+    final String townName = match.group(2)?.trim() ?? '';
+
+    return {'cityName': cityName, 'townName': townName};
   }
 
   // ==================================================================
@@ -166,9 +272,25 @@ class _SelectionPageState extends State<SelectionPage> {
 
     final Map<String, String> location = _parseLocation(fakeLocation);
 
-    final String cityName = location['cityName'] ?? '';
+    final String cityName = location['cityName']?.trim() ?? '';
+    final String townName = location['townName']?.trim() ?? '';
 
-    final String townName = location['townName'] ?? '';
+    if (cityName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '請輸入完整城市，例如：臺北市或臺北市信義區',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
+          ),
+          backgroundColor: red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      return;
+    }
 
     Navigator.push(
       context,
@@ -268,7 +390,6 @@ class _SelectionPageState extends State<SelectionPage> {
                 // 遊你說了算
                 // ======================================================
                 Positioned(
-                  top: 10,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -291,7 +412,7 @@ class _SelectionPageState extends State<SelectionPage> {
                 // 現在揪出發
                 // ======================================================
                 Positioned(
-                  top: 200,
+                  top: 190,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -306,6 +427,7 @@ class _SelectionPageState extends State<SelectionPage> {
                           },
                           onLocationPressed: useCurrentLocation,
                           onPressed: startAdventure,
+                          loading: isLoadingLocation,
                         ),
                       ),
                     ),
@@ -318,7 +440,7 @@ class _SelectionPageState extends State<SelectionPage> {
                 // 來點遊意思
                 // ======================================================
                 Positioned(
-                  top: 420,
+                  top: 410,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -405,11 +527,14 @@ class _StartAdventureContent extends StatelessWidget {
 
   final VoidCallback onPressed;
 
+  final bool loading;
+
   const _StartAdventureContent({
     required this.locationController,
     required this.onLocationChanged,
     required this.onLocationPressed,
     required this.onPressed,
+    required this.loading,
   });
 
   @override
@@ -504,7 +629,7 @@ class _StartAdventureContent extends StatelessWidget {
           // ============================================================
           Align(
             alignment: Alignment.centerLeft,
-            child: _LocationButton(onTap: onLocationPressed),
+            child: _LocationButton(onTap: onLocationPressed, loading: loading),
           ),
 
           const Spacer(),
@@ -528,8 +653,9 @@ class _StartAdventureContent extends StatelessWidget {
 
 class _LocationButton extends StatefulWidget {
   final VoidCallback onTap;
+  final bool loading;
 
-  const _LocationButton({required this.onTap});
+  const _LocationButton({required this.onTap, required this.loading});
 
   @override
   State<_LocationButton> createState() => _LocationButtonState();
@@ -537,7 +663,6 @@ class _LocationButton extends StatefulWidget {
 
 class _LocationButtonState extends State<_LocationButton> {
   bool hovering = false;
-
   bool pressing = false;
 
   @override
@@ -554,6 +679,8 @@ class _LocationButtonState extends State<_LocationButton> {
 
     return MouseRegion(
       onEnter: (_) {
+        if (widget.loading) return;
+
         setState(() {
           hovering = true;
         });
@@ -564,22 +691,32 @@ class _LocationButtonState extends State<_LocationButton> {
         });
       },
       child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
+        onTap: widget.loading ? null : widget.onTap,
+
+        onTapDown: widget.loading
+            ? null
+            : (_) {
+                setState(() {
+                  pressing = true;
+                });
+              },
+
+        onTapUp: widget.loading
+            ? null
+            : (_) {
+                setState(() {
+                  pressing = false;
+                });
+              },
+
+        onTapCancel: widget.loading
+            ? null
+            : () {
+                setState(() {
+                  pressing = false;
+                });
+              },
+
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 180),
@@ -588,19 +725,31 @@ class _LocationButtonState extends State<_LocationButton> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '使用當前定位',
+                widget.loading ? '正在定位...' : '使用當前定位',
                 textAlign: TextAlign.left,
                 style: AppTextStyles.bodyEmphasisBold.copyWith(
                   color: AppColors.primaryAccent,
                 ),
               ),
-              const SizedBox(width: 3),
-              Image.asset(
-                'img/gps.png',
-                width: 35,
-                height: 25,
-                fit: BoxFit.contain,
-              ),
+
+              const SizedBox(width: 6),
+
+              if (widget.loading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.primaryAccent,
+                  ),
+                )
+              else
+                Image.asset(
+                  'img/gps.png',
+                  width: 35,
+                  height: 25,
+                  fit: BoxFit.contain,
+                ),
             ],
           ),
         ),
@@ -788,78 +937,6 @@ class _CustomAdventureContent extends StatelessWidget {
     );
   }
 }
-
-// ======================================================================
-// Hover Scale
-// ======================================================================
-
-class _HoverScaleButton extends StatefulWidget {
-  final Widget child;
-
-  final VoidCallback onTap;
-
-  const _HoverScaleButton({required this.child, required this.onTap});
-
-  @override
-  State<_HoverScaleButton> createState() => _HoverScaleButtonState();
-}
-
-class _HoverScaleButtonState extends State<_HoverScaleButton> {
-  bool hovering = false;
-
-  bool pressing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    double scale = 1.0;
-
-    if (hovering) {
-      scale = 1.18;
-    }
-
-    if (pressing) {
-      scale = 1.08;
-    }
-
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          hovering = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovering = false;
-        });
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutBack,
-          child: widget.child,
-        ),
-      ),
-    );
-  }
-}
-
 // ======================================================================
 // 紅色按鈕
 // ======================================================================
