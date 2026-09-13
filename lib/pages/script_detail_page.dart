@@ -150,46 +150,45 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   }
 
   Future<void> confirmScript() async {
-    if (isConfirming) {
+    if (_storyId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('找不到劇本 ID')));
       return;
     }
-
-    final String storyId = _storyId;
-
-    if (storyId.isEmpty) {
-      _showMessage('找不到劇本 ID，無法確認劇本');
-      return;
-    }
-
-    setState(() {
-      isConfirming = true;
-    });
 
     try {
-      await StoryApi.confirmStory(storyId: storyId);
+      await StoryApi.confirmStory(storyId: _storyId);
 
-      if (!mounted) {
-        return;
+      final fullDetailResponse = await StoryApi.getStoryFullDetail(
+        storyId: _storyId,
+      );
+
+      final result = fullDetailResponse['Result'];
+
+      if (result is! Map<String, dynamic>) {
+        throw Exception('取得完整劇本內容失敗');
       }
+
+      final Map<String, dynamic> storyForStoryPage = {
+        'story_id': _storyId,
+        'data': Map<String, dynamic>.from(result),
+      };
+
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => StoryPage(generatedScript: widget.generatedScript),
+          builder: (_) => StoryPage(generatedScript: storyForStoryPage),
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
-      _showMessage('劇本確認失敗，請稍後再試');
-    } finally {
-      if (mounted) {
-        setState(() {
-          isConfirming = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 

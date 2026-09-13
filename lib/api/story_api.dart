@@ -13,13 +13,19 @@ class StoryApi {
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
+  static String get Vlog_baseUrl {
+    final String baseUrl = (dotenv.env['VLOG_API_BASE_URL'] ?? '').trim();
+
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
+
   static Future<Map<String, dynamic>> generateScriptBlueprint({
     required String cityName,
     String? townName,
     required int travelerCount,
     required List<String> preferences,
     required List<String> transportation,
-    int nodeCount = 4,
+    int nodeCount = 8,
     bool isNight = false,
     int storyCount = 3,
   }) async {
@@ -85,7 +91,7 @@ class StoryApi {
     }
 
     final response = await http.post(
-      Uri.parse('$_baseUrl/api/npc/speak'),
+      Uri.parse('$Vlog_baseUrl/api/npc/speak'),
       headers: {
         'accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -168,6 +174,42 @@ class StoryApi {
     }
 
     return downloadNpcVoice(downloadUrl: downloadUrl, taskId: taskId);
+  }
+
+  static Future<Map<String, dynamic>> getStoryFullDetail({
+    required String storyId,
+  }) async {
+    final String cleanStoryId = storyId.trim();
+
+    if (cleanStoryId.isEmpty) {
+      throw Exception('story_id 不能為空');
+    }
+
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('登入資訊已失效，請重新登入');
+    }
+
+    final String encodedStoryId = Uri.encodeComponent(cleanStoryId);
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/Story/$encodedStoryId/FullDetail'),
+      headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('取得完整劇本失敗：HTTP ${response.statusCode}\n${response.body}');
+    }
+
+    final Map<String, dynamic> data =
+        jsonDecode(response.body) as Map<String, dynamic>;
+
+    if (data['isSuccess'] != true) {
+      throw Exception(data['message']?.toString() ?? '取得完整劇本失敗');
+    }
+
+    return data;
   }
 
   static Future<Map<String, dynamic>> confirmStory({
