@@ -5,6 +5,7 @@ import '../core/app_text_styles.dart';
 import '../api/story_api.dart';
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
+import 'dart:async';
 
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
@@ -34,6 +35,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   static const double designHeight = 640;
 
   int currentIndex = 1;
+  Timer? _progressTimer;
+
+  double generatingProgress = 0.0;
+
+  bool _generationCompleted = false;
 
   final TextEditingController peopleController = TextEditingController();
 
@@ -44,6 +50,128 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
   Map<String, dynamic>? generatedScript;
+  void _startGeneratingProgress() {
+    _progressTimer?.cancel();
+
+    setState(() {
+      generatingProgress = 0.01;
+      _generationCompleted = false;
+    });
+
+    const Duration totalDuration = Duration(seconds: 60);
+    const Duration interval = Duration(milliseconds: 100);
+
+    const double startProgress = 0.01;
+    const double maxProgress = 0.97;
+
+    final int totalTicks =
+        totalDuration.inMilliseconds ~/ interval.inMilliseconds;
+
+    int tick = 0;
+
+    _progressTimer = Timer.periodic(interval, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_generationCompleted) {
+        timer.cancel();
+        return;
+      }
+
+      tick++;
+
+      final double progress =
+          startProgress + (maxProgress - startProgress) * (tick / totalTicks);
+
+      setState(() {
+        generatingProgress = progress.clamp(startProgress, maxProgress);
+      });
+
+      if (generatingProgress >= maxProgress) {
+        setState(() {
+          generatingProgress = maxProgress;
+        });
+
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _finishGeneratingProgress() async {
+    _progressTimer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _generationCompleted = true;
+      generatingText = '劇本生成完成';
+    });
+
+    final double currentProgress = generatingProgress;
+
+    if (currentProgress < 0.97) {
+      const int fastSteps = 10;
+      final double difference = 0.97 - currentProgress;
+
+      for (int i = 1; i <= fastSteps; i++) {
+        if (!mounted) {
+          return;
+        }
+
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          generatingProgress = currentProgress + (difference * (i / fastSteps));
+        });
+      }
+    }
+    const int finishSteps = 12;
+
+    for (int i = 1; i <= finishSteps; i++) {
+      if (!mounted) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 70));
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        generatingProgress = 0.97 + (0.03 * (i / finishSteps));
+      });
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      generatingProgress = 1.0;
+      generatingText = '劇本生成完成';
+    });
+    await Future.delayed(const Duration(milliseconds: 450));
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      isGenerating = false;
+    });
+
+    _showScriptCompleteDialog();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +189,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     peopleController.dispose();
     super.dispose();
   }
@@ -116,15 +245,19 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
     setState(() {
       isGenerating = true;
-      generatingStep = 0;
+      generatingProgress = 0.01;
       generatingText = '正在整理旅程線索';
+      _generationCompleted = false;
     });
+
+    // 開始 60 秒進度條
+    _startGeneratingProgress();
 
     try {
       setState(() {
-        generatingStep = 1;
         generatingText = '正在分析隊伍偏好';
       });
+
       final Map<String, dynamic> result =
           await StoryApi.generateScriptBlueprint(
             cityName: widget.cityName,
@@ -134,7 +267,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             travelerCount: peopleCount,
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
-            nodeCount: 4,
+            nodeCount: 6,
             isNight: false,
             storyCount: 3,
           );
@@ -145,22 +278,23 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
       setState(() {
         generatedScript = result;
-        generatingStep = 3;
-        generatingText = '劇本即將完成';
+        generatingText = '劇本生成完成';
+        _generationCompleted = true;
       });
 
-      setState(() {
-        isGenerating = false;
-      });
-
-      _showScriptCompleteDialog();
+      // API 完成 → 97% 快速衝到 100%
+      await _finishGeneratingProgress();
     } catch (e) {
+      _progressTimer?.cancel();
+
       if (!mounted) {
         return;
       }
 
       setState(() {
         isGenerating = false;
+        generatingProgress = 0.0;
+        _generationCompleted = false;
       });
 
       _showMessage('劇本生成失敗，請稍後再試');
@@ -394,7 +528,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           Positioned.fill(
             child: _ScriptGeneratingOverlay(
               message: generatingText,
-              step: generatingStep,
+              progress: generatingProgress,
             ),
           ),
       ],
@@ -788,8 +922,12 @@ class _GenerateButtonState extends State<_GenerateButton> {
 
 class _ScriptGeneratingOverlay extends StatefulWidget {
   final String message;
-  final int step;
-  const _ScriptGeneratingOverlay({required this.message, required this.step});
+  final double progress;
+
+  const _ScriptGeneratingOverlay({
+    required this.message,
+    required this.progress,
+  });
 
   @override
   State<_ScriptGeneratingOverlay> createState() =>
@@ -892,19 +1030,37 @@ class _ScriptGeneratingOverlayState extends State<_ScriptGeneratingOverlay>
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    height: 7,
+                    height: 10,
                     width: double.infinity,
                     color: const Color(0xFFD0C0A8),
-                    child: AnimatedFractionallySizedBox(
-                      duration: const Duration(milliseconds: 500),
-                      alignment: Alignment.centerLeft,
-                      widthFactor: (widget.step + 1) / 4,
-                      child: Container(color: _redrawCenter),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: widget.progress.clamp(0.0, 1.0),
+                      ),
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      builder: (context, value, child) {
+                        return FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: value,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [_redrawCenter, _redrawOuter],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 18),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

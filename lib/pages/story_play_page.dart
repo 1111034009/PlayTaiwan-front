@@ -44,7 +44,9 @@ class _StoryPageState extends State<StoryPage> {
   bool _isPreparing = true;
   bool _isDisposed = false;
 
-  String _loadingText = '正在準備劇情語音…';
+  String _loadingText = '正在準備劇情資訊…';
+
+  double _voiceProgress = 0.0;
 
   int currentIndex = 1;
 
@@ -349,6 +351,7 @@ class _StoryPageState extends State<StoryPage> {
               const StoryLine(nodeIndex: -1, name: '旁白', text: '目前尚未取得劇本內容。'),
             ];
 
+            _voiceProgress = 1.0;
             _isPreparing = false;
           });
         }
@@ -358,6 +361,13 @@ class _StoryPageState extends State<StoryPage> {
 
       final List<StoryLine> preparedLines = [];
 
+      if (mounted) {
+        setState(() {
+          _voiceProgress = 0.0;
+          _loadingText = '正在建立劇情語音…';
+        });
+      }
+
       for (int i = 0; i < lines.length; i++) {
         if (_isDisposed) {
           return;
@@ -365,17 +375,16 @@ class _StoryPageState extends State<StoryPage> {
 
         final StoryLine line = lines[i];
 
-        if (mounted) {
-          setState(() {
-            _loadingText = '正在準備中 ${i + 1} / ${lines.length}…';
-          });
-        }
-
         final String localPath = await StoryApi.prepareNpcVoice(
           text: line.text,
         );
 
         preparedLines.add(line.copyWith(audioPath: localPath));
+        if (mounted) {
+          setState(() {
+            _voiceProgress = (i + 1) / lines.length;
+          });
+        }
       }
 
       if (!mounted || _isDisposed) {
@@ -383,6 +392,7 @@ class _StoryPageState extends State<StoryPage> {
       }
 
       setState(() {
+        _voiceProgress = 1.0;
         _storyLines = preparedLines;
         storyIndex = 0;
         _isPreparing = false;
@@ -550,7 +560,7 @@ class _StoryPageState extends State<StoryPage> {
   @override
   Widget build(BuildContext context) {
     if (_isPreparing) {
-      return _StoryLoadingPage(text: _loadingText);
+      return _StoryLoadingPage(text: _loadingText, progress: _voiceProgress);
     }
 
     final StoryLine story = _storyLines.isNotEmpty
@@ -685,35 +695,238 @@ class _StoryPageState extends State<StoryPage> {
   }
 }
 
-class _StoryLoadingPage extends StatelessWidget {
+class _StoryLoadingPage extends StatefulWidget {
   final String text;
+  final double progress;
 
-  const _StoryLoadingPage({required this.text});
+  const _StoryLoadingPage({required this.text, required this.progress});
+
+  @override
+  State<_StoryLoadingPage> createState() => _StoryLoadingPageState();
+}
+
+class _StoryLoadingPageState extends State<_StoryLoadingPage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  double _displayProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _displayProgress = widget.progress.clamp(0.0, 1.0);
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _StoryLoadingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.progress != oldWidget.progress) {
+      final double start = _displayProgress;
+      final double end = widget.progress.clamp(0.0, 1.0);
+
+      _controller.stop();
+      _controller.reset();
+
+      final Animation<double> animation = Tween<double>(begin: start, end: end)
+          .animate(
+            CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+          );
+
+      animation.addListener(() {
+        if (!mounted) return;
+
+        setState(() {
+          _displayProgress = animation.value;
+        });
+      });
+
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final double progress = _displayProgress.clamp(0.0, 1.0);
+
+    final int percent = (progress * 100).round().clamp(0, 100);
+
     return Scaffold(
       backgroundColor: _pageColor,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: _storyRed,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'img/background_papper.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const ColoredBox(color: _pageColor);
+              },
+            ),
+          ),
+
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.30)),
+          ),
+
+          Center(
+            child: SizedBox(
+              width: 330,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // =========================
+                  // 劇情框
+                  // =========================
+                  SizedBox(
+                    height: 245,
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        Positioned.fill(
+                          child: Image.asset(
+                            'img/story_box.png',
+                            fit: BoxFit.fill,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: _topColor.withOpacity(0.94),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: _storyRed,
+                                    width: 2,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+
+                        Positioned(
+                          bottom: 18,
+                          right: 25,
+                          child: Image.asset(
+                            'img/npc_.png',
+                            width: 145,
+                            height: 205,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.bottomCenter,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const SizedBox(width: 145, height: 205);
+                            },
+                          ),
+                        ),
+
+                        Positioned(
+                          left: 24,
+                          top: 30,
+                          right: 145,
+                          child: Text(
+                            '劇情準備中',
+                            style: AppTextStyles.titleMediumBold.copyWith(
+                              color: _storyRed,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  // =========================
+                  // 百分比
+                  // =========================
+                  Text(
+                    '$percent%',
+                    style: AppTextStyles.titleMediumBold.copyWith(
+                      color: _topColor,
+                      fontSize: 28,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // =========================
+                  // 長條進度條
+                  // =========================
+                  Container(
+                    width: double.infinity,
+                    height: 22,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.40),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _skipBorder, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.20),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: progress,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [_skipStart, _skipEnd, _storyRed],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // =========================
+                  // 狀態文字
+                  // =========================
+                  Text(
+                    widget.text,
+                    style: AppTextStyles.bodySmallBold.copyWith(
+                      color: _topColor,
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _topColor,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyCompactBold.copyWith(color: _darkText),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

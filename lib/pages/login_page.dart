@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
+import '../api/nearby_cache.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -140,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
         AppSession.token = token;
         AppSession.epId = epId;
         AppSession.epName = epName;
-
+        NearbyCache.instance.start();
         final bool shouldChangePassword = isForgotPasswordLogin;
 
         if (shouldChangePassword) {

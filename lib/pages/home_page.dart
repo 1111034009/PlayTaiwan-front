@@ -9,6 +9,7 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import '../core/app_session.dart';
+import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
@@ -550,6 +551,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _logout() async {
     final token = AppSession.token;
+    NearbyCache.instance.stop();
     AppSession.clear();
     if (!mounted) return;
 
