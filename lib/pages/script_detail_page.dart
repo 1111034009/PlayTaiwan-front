@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../api/story_api.dart';
 
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
@@ -24,11 +25,19 @@ const Color _sectionRed = AppColors.primaryAccent;
 class ScriptDetailPage extends StatefulWidget {
   final String title;
   final Map<String, dynamic>? generatedScript;
+  final Map<String, dynamic>? allGeneratedScripts;
+  final String cityName;
+  final String townName;
+  final List<String> transportation;
 
   const ScriptDetailPage({
     super.key,
     this.title = '府城儒生失落卷',
     this.generatedScript,
+    this.allGeneratedScripts,
+    this.cityName = '',
+    this.townName = '',
+    this.transportation = const [],
   });
 
   @override
@@ -45,6 +54,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
   bool buttonHovering = false;
   bool buttonPressing = false;
+  bool isConfirming = false;
 
   static const List<String> photoAssets = [
     'img/home_trip.png',
@@ -64,6 +74,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     }
 
     return null;
+  }
+
+  String get _storyId {
+    return widget.generatedScript?['story_id']?.toString().trim() ?? '';
   }
 
   String get _preface {
@@ -125,21 +139,76 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            ChooseScriptPage(generatedScript: widget.generatedScript),
+        builder: (_) => ChooseScriptPage(
+          generatedScript: widget.allGeneratedScripts,
+          cityName: widget.cityName,
+          townName: widget.townName,
+          transportation: widget.transportation,
+        ),
       ),
     );
   }
 
-  void confirmScript() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StoryPage(generatedScript: widget.generatedScript),
-      ),
-    );
+  Future<void> confirmScript() async {
+    if (isConfirming) {
+      return;
+    }
+
+    final String storyId = _storyId;
+
+    if (storyId.isEmpty) {
+      _showMessage('找不到劇本 ID，無法確認劇本');
+      return;
+    }
+
+    setState(() {
+      isConfirming = true;
+    });
+
+    try {
+      await StoryApi.confirmStory(storyId: storyId);
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StoryPage(generatedScript: widget.generatedScript),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage('劇本確認失敗，請稍後再試');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isConfirming = false;
+        });
+      }
+    }
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
+          ),
+          backgroundColor: _sectionRed,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
   // ============================================================
   // Build
   // ============================================================
@@ -371,7 +440,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                             text: '確認此卷',
                             hovering: buttonHovering,
                             pressing: buttonPressing,
-
+                            loading: isConfirming,
                             onHoverEnter: () {
                               setState(() {
                                 buttonHovering = true;
@@ -590,7 +659,7 @@ class _ConfirmButton extends StatelessWidget {
 
   final bool hovering;
   final bool pressing;
-
+  final bool loading;
   final VoidCallback onHoverEnter;
   final VoidCallback onHoverExit;
 
@@ -603,6 +672,7 @@ class _ConfirmButton extends StatelessWidget {
     required this.text,
     required this.hovering,
     required this.pressing,
+    required this.loading,
     required this.onHoverEnter,
     required this.onHoverExit,
     required this.onPress,
@@ -628,19 +698,23 @@ class _ConfirmButton extends StatelessWidget {
       },
 
       child: GestureDetector(
-        onTap: onTap,
+        onTap: loading ? null : onTap,
+        onTapDown: loading
+            ? null
+            : (_) {
+                onPress();
+              },
+        onTapUp: loading
+            ? null
+            : (_) {
+                onRelease();
+              },
 
-        onTapDown: (_) {
-          onPress();
-        },
-
-        onTapUp: (_) {
-          onRelease();
-        },
-
-        onTapCancel: () {
-          onRelease();
-        },
+        onTapCancel: loading
+            ? null
+            : () {
+                onRelease();
+              },
 
         child: AnimatedScale(
           scale: scale,
@@ -671,13 +745,22 @@ class _ConfirmButton extends StatelessWidget {
               ],
             ),
 
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(
-                color: AppColors.paper,
-              ),
-            ),
+            child: loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyEmphasisBold.copyWith(
+                      color: AppColors.paper,
+                    ),
+                  ),
           ),
         ),
       ),

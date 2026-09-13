@@ -55,92 +55,77 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
   }
 
   List<_ScriptData> _buildScripts() {
-    final Map<String, dynamic>? apiData = widget.generatedScript?['data'];
+    final dynamic result = widget.generatedScript?['Result'];
 
-    if (apiData == null) {
-      return [
-        const _ScriptData(
-          title: '府城儒生失落卷',
-          description: '清朝年間，一位準備赴考的考生在府城遺失了他的重要的記憶。尋著百年軌跡，找回失落記憶……',
-          reward: '徽章(文化系列) / 明信片(5)',
-          location: '台南市',
-          transport: '公車、步行',
-        ),
-        const _ScriptData(
-          title: '府城古城謎影',
-          description: '沿著古城留下的線索前進，在老街、古蹟與巷弄之間尋找被時間藏起來的秘密。',
-          reward: '徽章(古蹟系列) / 明信片(5)',
-          location: '台南市',
-          transport: '步行、捷運',
-        ),
-        const _ScriptData(
-          title: '港都消失的航線',
-          description: '一張神秘的舊船票，帶你踏上港都尋寶之旅。你能找到消失多年的航線嗎？',
-          reward: '徽章(探索系列) / 明信片(5)',
-          location: '高雄市',
-          transport: '捷運、步行',
-        ),
-      ];
+    if (result is! Map) {
+      return [];
     }
 
-    final String title = apiData['title']?.toString() ?? '未命名劇本';
+    final dynamic stories = result['stories'];
 
-    final String description = apiData['synopsis']?.toString() ?? '';
+    if (stories is! List) {
+      return [];
+    }
 
-    final String location = [
-      widget.cityName,
-      widget.townName,
-    ].where((value) => value.trim().isNotEmpty).join(' ');
+    final List<_ScriptData> resultScripts = [];
 
-    final String transport = widget.transportation.join('、');
+    for (final story in stories) {
+      if (story is! Map) {
+        continue;
+      }
 
-    return [
-      _ScriptData(
-        title: title,
-        description: description,
-        reward: '徽章(文化系列) / 明信片(5)',
-        location: location.isEmpty ? '未指定地區' : location,
-        transport: transport.isEmpty ? '未指定交通' : transport,
-      ),
+      final String storyId = story['story_id']?.toString().trim() ?? '';
 
-      const _ScriptData(
-        title: '府城古城謎影',
-        description: '沿著古城留下的線索前進，在老街、古蹟與巷弄之間尋找被時間藏起來的秘密。',
-        reward: '徽章(古蹟系列) / 明信片(5)',
-        location: '台南市',
-        transport: '步行、捷運',
-      ),
+      if (storyId.isEmpty) {
+        continue;
+      }
 
-      const _ScriptData(
-        title: '港都消失的航線',
-        description: '一張神秘的舊船票，帶你踏上港都尋寶之旅。你能找到消失多年的航線嗎？',
-        reward: '徽章(探索系列) / 明信片(5)',
-        location: '高雄市',
-        transport: '捷運、步行',
-      ),
-    ];
+      final dynamic data = story['data'];
+
+      if (data is! Map) {
+        continue;
+      }
+
+      final String title = data['title']?.toString().trim() ?? '未命名劇本';
+
+      final String description = data['synopsis']?.toString().trim() ?? '';
+
+      final String location = [
+        widget.cityName,
+        widget.townName,
+      ].where((value) => value.trim().isNotEmpty).join(' ');
+
+      final String transport = widget.transportation.join('、');
+
+      resultScripts.add(
+        _ScriptData(
+          storyId: storyId,
+          title: title,
+          description: description,
+          reward: '徽章(文化系列) / 明信片(5)',
+          location: location.isEmpty ? '未指定地區' : location,
+          transport: transport.isEmpty ? '未指定交通' : transport,
+          story: Map<String, dynamic>.from(story),
+        ),
+      );
+    }
+
+    return resultScripts;
   }
 
   void openScriptDetail(_ScriptData script) {
-    final int index = scripts.indexOf(script);
-
-    if (index == 0 && widget.generatedScript != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ScriptDetailPage(
-            title: script.title,
-            generatedScript: widget.generatedScript,
-          ),
-        ),
-      );
-
-      return;
-    }
-
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ScriptDetailPage(title: script.title)),
+      MaterialPageRoute(
+        builder: (_) => ScriptDetailPage(
+          title: script.title,
+          generatedScript: script.story,
+          allGeneratedScripts: widget.generatedScript,
+          cityName: widget.cityName,
+          townName: widget.townName,
+          transportation: widget.transportation,
+        ),
+      ),
     );
   }
 
@@ -274,18 +259,22 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
 }
 
 class _ScriptData {
+  final String storyId;
   final String title;
   final String description;
   final String reward;
   final String location;
   final String transport;
+  final Map<String, dynamic> story;
 
   const _ScriptData({
+    required this.storyId,
     required this.title,
     required this.description,
     required this.reward,
     required this.location,
     required this.transport,
+    required this.story,
   });
 }
 

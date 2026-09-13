@@ -143,7 +143,7 @@ class _SelectionPageState extends State<SelectionPage> {
         body: jsonEncode({
           'lat': position.latitude,
           'lng': position.longitude,
-          'traveler_count': 2,
+          'accuracy': 10,
         }),
       );
 

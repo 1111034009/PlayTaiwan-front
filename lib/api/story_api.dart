@@ -4,38 +4,63 @@ import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../core/app_session.dart';
 
 class StoryApi {
   static String get _baseUrl {
-    final String baseUrl = (dotenv.env['VLOG_API_BASE_URL'] ?? '').trim();
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
 
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
   static Future<Map<String, dynamic>> generateScriptBlueprint({
     required String cityName,
-    required String townName,
+    String? townName,
     required int travelerCount,
     required List<String> preferences,
     required List<String> transportation,
-    int nodeCount = 6,
+    int nodeCount = 4,
     bool isNight = false,
+    int storyCount = 3,
   }) async {
+    final String cleanCityName = cityName.trim();
+
+    final String? cleanTownName = townName?.trim().isNotEmpty == true
+        ? townName!.trim()
+        : null;
+
+    if (cleanCityName.isEmpty) {
+      throw Exception('city_name 不能為空');
+    }
+
+    final Map<String, dynamic> requestBody = {
+      'city_name': cleanCityName,
+      'traveler_count': travelerCount,
+      'preferences': preferences,
+      'transportation': transportation,
+      'node_count': nodeCount,
+      'is_night': isNight,
+      'story_count': storyCount,
+    };
+
+    if (cleanTownName != null) {
+      requestBody['town_name'] = cleanTownName;
+    }
+
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('登入資訊已失效，請重新登入');
+    }
+
     final response = await http.post(
-      Uri.parse('$_baseUrl/api/admin/generate_script_blueprint'),
+      Uri.parse('$_baseUrl/api/Story/GenerateByLocation'),
       headers: {
-        'accept': 'application/json',
+        'accept': '*/*',
+        'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'city_name': cityName,
-        'town_name': townName,
-        'traveler_count': travelerCount,
-        'preferences': preferences,
-        'transportation': transportation,
-        'node_count': nodeCount,
-        'is_night': isNight,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -45,7 +70,7 @@ class StoryApi {
     final Map<String, dynamic> data =
         jsonDecode(response.body) as Map<String, dynamic>;
 
-    if (data['status'] != 'success') {
+    if (data['isSuccess'] != true) {
       throw Exception(data['message']?.toString() ?? '劇本生成失敗');
     }
 
@@ -143,5 +168,44 @@ class StoryApi {
     }
 
     return downloadNpcVoice(downloadUrl: downloadUrl, taskId: taskId);
+  }
+
+  static Future<Map<String, dynamic>> confirmStory({
+    required String storyId,
+  }) async {
+    final String cleanStoryId = storyId.trim();
+
+    if (cleanStoryId.isEmpty) {
+      throw Exception('story_id 不能為空');
+    }
+
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('登入資訊已失效，請重新登入');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/Story/Confirm'),
+      headers: {
+        'accept': '*/*',
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'story_id': cleanStoryId}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('劇本確認失敗：HTTP ${response.statusCode}\n${response.body}');
+    }
+
+    final Map<String, dynamic> data =
+        jsonDecode(response.body) as Map<String, dynamic>;
+
+    if (data['isSuccess'] != true) {
+      throw Exception(data['message']?.toString() ?? '劇本確認失敗');
+    }
+
+    return data;
   }
 }

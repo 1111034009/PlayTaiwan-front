@@ -125,16 +125,18 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         generatingStep = 1;
         generatingText = '正在分析隊伍偏好';
       });
-
       final Map<String, dynamic> result =
           await StoryApi.generateScriptBlueprint(
             cityName: widget.cityName,
-            townName: widget.townName,
+            townName: widget.townName.trim().isEmpty
+                ? null
+                : widget.townName.trim(),
             travelerCount: peopleCount,
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
-            nodeCount: 6,
+            nodeCount: 4,
             isNight: false,
+            storyCount: 3,
           );
 
       if (!mounted) {

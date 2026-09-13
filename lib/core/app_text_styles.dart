@@ -44,6 +44,7 @@ abstract final class AppTextStyles {
   }) {
     return TextStyle(
       fontFamily: 'KaiseiHarunoUmi',
+      fontFamilyFallback: const ['Yomogi'],
       fontSize: size,
       fontWeight: normalizeWeight(weight),
       color: color,
@@ -121,8 +122,7 @@ abstract final class AppTextStyles {
   static TextStyle get bodyBold =>
       fromSize(size: bodySize, weight: FontWeight.w700);
 
-  static TextStyle get subtitle =>
-      fromSize(size: 17, weight: FontWeight.w700);
+  static TextStyle get subtitle => fromSize(size: 17, weight: FontWeight.w700);
 
   static TextStyle get subtitleMedium =>
       fromSize(size: 17, weight: FontWeight.w700);
@@ -136,14 +136,12 @@ abstract final class AppTextStyles {
   static TextStyle get titleMediumBold =>
       fromSize(size: 19, weight: FontWeight.w700);
 
-  static TextStyle get heading =>
-      fromSize(size: 20, weight: FontWeight.w700);
+  static TextStyle get heading => fromSize(size: 20, weight: FontWeight.w700);
 
   static TextStyle get titleLarge =>
       fromSize(size: 22, weight: FontWeight.w700);
 
-  static TextStyle get pageTitle =>
-      fromSize(size: 23, weight: FontWeight.w700);
+  static TextStyle get pageTitle => fromSize(size: 23, weight: FontWeight.w700);
 
   static TextStyle get displayMedium =>
       fromSize(size: 24, weight: FontWeight.w700);
@@ -154,8 +152,7 @@ abstract final class AppTextStyles {
   static TextStyle get displayLargeWide =>
       fromSize(size: 26, weight: FontWeight.w700);
 
-  static TextStyle get heroTitle =>
-      fromSize(size: 27, weight: FontWeight.w700);
+  static TextStyle get heroTitle => fromSize(size: 27, weight: FontWeight.w700);
 
   static TextStyle get heroDisplay =>
       fromSize(size: 30, weight: FontWeight.w700);
@@ -163,9 +160,13 @@ abstract final class AppTextStyles {
   static TextStyle get merchantStat =>
       fromSize(size: 39, weight: FontWeight.w700);
 
-  static TextStyle topBarTitle(double scale) =>
-      fromSize(size: (14.0 * scale).clamp(10.0, 14.0).toDouble(), weight: FontWeight.w700).copyWith(height: 1.0);
+  static TextStyle topBarTitle(double scale) => fromSize(
+    size: (14.0 * scale).clamp(10.0, 14.0).toDouble(),
+    weight: FontWeight.w700,
+  ).copyWith(height: 1.0);
 
-  static TextStyle topBarNumber(double scale) =>
-      fromSize(size: (13.0 * scale).clamp(9.0, 13.0).toDouble(), weight: FontWeight.w700).copyWith(height: 1.0);
+  static TextStyle topBarNumber(double scale) => fromSize(
+    size: (13.0 * scale).clamp(9.0, 13.0).toDouble(),
+    weight: FontWeight.w700,
+  ).copyWith(height: 1.0);
 }
