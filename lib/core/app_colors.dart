@@ -32,4 +32,5 @@ abstract final class AppColors {
   static const Color pastBackground = Color(0xFF4F4141);
   static const Color warmPaper = Color(0xFFE9DDC6);
   static const Color merchantPaper = Color(0xFFFCF9EA);
+  static const Color yellow = Color(0x99FBBF24);
 }

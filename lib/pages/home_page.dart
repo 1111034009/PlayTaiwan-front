@@ -13,6 +13,7 @@ import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
+import '../block/story_nfc_button.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -367,6 +368,18 @@ class _HomePageState extends State<HomePage> {
                           child: _GoPolaroid(),
                         ),
                       ),
+                      Positioned(
+                        left: 255,
+                        top: 510,
+                        width: 130,
+                        height: 60,
+                        child: StoryNfcButton(
+                          onSuccess: () {
+                            _showTopSnackBar('NFC 驗證成功！');
+                          },
+                        ),
+                      ),
+
                       Positioned(
                         left: 48,
                         top: 261,

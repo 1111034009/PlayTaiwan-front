@@ -13,7 +13,7 @@ class NearbyCache {
 
   static final NearbyCache instance = NearbyCache._();
 
-  static const double radiusKm = 2.5;
+  static const double radiusKm = 2;
 
   Timer? _timer;
 
