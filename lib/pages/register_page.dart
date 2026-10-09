@@ -221,7 +221,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Register'),
-        headers: {'accept': '*/*', 'Content-Type': 'application/json'},
+        headers: {'accept': 'text/plain', 'Content-Type': 'application/json'},
         body: jsonEncode({
           'Username': username,
           'Email': email,

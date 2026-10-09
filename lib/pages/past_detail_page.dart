@@ -42,8 +42,9 @@ class PastDetailPage extends StatefulWidget {
 
 class _PastDetailPageState extends State<PastDetailPage> {
   static const double designWidth = 360;
-  static const double designHeight = 640;
   static const double contentScale = 1.06;
+  static const double paperMinHeight = 500;
+
   String get _apiBaseUrl {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
 
@@ -98,7 +99,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
         Uri.parse(
           '$_apiBaseUrl/api/History/${Uri.encodeComponent(widget.storyId)}',
         ),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -174,9 +175,99 @@ class _PastDetailPageState extends State<PastDetailPage> {
     );
   }
 
+  Widget _buildPaperContent() {
+    if (isLoading) {
+      return const SizedBox(
+        height: paperMinHeight - 70,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.secondaryRed,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.heading.copyWith(color: _darkText),
+        ),
+        Text(
+          '完成日期：$completedDate',
+          style: AppTextStyles.label.copyWith(color: _sectionRed),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 128,
+          child: FlutterCarousel(
+            options: FlutterCarouselOptions(
+              height: 128,
+              viewportFraction: 0.68,
+              initialPage: 1,
+              enableInfiniteScroll: true,
+              autoPlay: false,
+              enlargeCenterPage: true,
+              showIndicator: false,
+              pageSnapping: true,
+              scrollDirection: Axis.horizontal,
+              enlargeStrategy: CenterPageEnlargeStrategy.scale,
+            ),
+            items: photoAssets.map((asset) {
+              return _PastPhoto(assetPath: asset);
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            '←  左右滑動探索  →',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.microLabel.copyWith(color: _darkBrown),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('探索總覽', style: AppTextStyles.button.copyWith(color: _sectionRed)),
+        const SizedBox(height: 6),
+        if (routeSummary.isNotEmpty)
+          ...routeSummary.asMap().entries.map((entry) {
+            final int stationNumber = entry.key + 1;
+
+            return _ChapterItem(
+              number: '第${_toChineseNumber(stationNumber)}站',
+              title: entry.value,
+            );
+          })
+        else
+          const _ChapterItem(number: '第一站', title: '暫無路線資料'),
+        const SizedBox(height: 5),
+        Center(
+          child: _PrimaryButton(
+            text: '查看明信片與專屬紀錄片',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PastMediaPage(storyId: widget.storyId),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
+    final double topInset = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
       backgroundColor: _pageColor,
@@ -184,148 +275,58 @@ class _PastDetailPageState extends State<PastDetailPage> {
       body: Stack(
         clipBehavior: Clip.none,
         children: [
-          Center(
-            child: Transform.scale(
-              scale: contentScale,
-              alignment: Alignment.center,
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: designWidth,
-                  height: designHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Positioned.fill(
-                        child: ColoredBox(color: _pageColor),
-                      ),
-                      Positioned(
-                        left: 16,
-                        top: 55,
-                        width: 328,
-                        height: 500,
-                        child: Image.asset(
-                          'img/long_papper.png',
-                          fit: BoxFit.fill,
-                          filterQuality: FilterQuality.high,
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(top: topInset),
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: FittedBox(
+                      fit: BoxFit.fitWidth,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: designWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(height: 55),
+                            Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              constraints: const BoxConstraints(
+                                minHeight: paperMinHeight,
+                              ),
+                              padding: const EdgeInsets.fromLTRB(
+                                19,
+                                20,
+                                19,
+                                30,
+                              ),
+                              decoration: const BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage('img/long_papper.png'),
+                                  fit: BoxFit.fill,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                              ),
+                              child: _buildPaperContent(),
+                            ),
+                            SizedBox(height: kBottomNavigationBarHeight + 30),
+                          ],
                         ),
                       ),
-                      Positioned(
-                        left: 35,
-                        right: 35,
-                        top: 75,
-                        bottom: 20,
-                        child: isLoading
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.secondaryRed,
-                                ),
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTextStyles.heading.copyWith(
-                                      color: _darkText,
-                                    ),
-                                  ),
-                                  Text(
-                                    '完成日期：$completedDate',
-                                    style: AppTextStyles.label.copyWith(
-                                      color: _sectionRed,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 128,
-                                    child: FlutterCarousel(
-                                      options: FlutterCarouselOptions(
-                                        height: 128,
-                                        viewportFraction: 0.68,
-                                        initialPage: 1,
-                                        enableInfiniteScroll: true,
-                                        autoPlay: false,
-                                        enlargeCenterPage: true,
-                                        showIndicator: false,
-                                        pageSnapping: true,
-                                        scrollDirection: Axis.horizontal,
-                                        enlargeStrategy:
-                                            CenterPageEnlargeStrategy.scale,
-                                      ),
-                                      items: photoAssets.map((asset) {
-                                        return _PastPhoto(assetPath: asset);
-                                      }).toList(),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Center(
-                                    child: Text(
-                                      '←  左右滑動探索  →',
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.microLabel.copyWith(
-                                        color: _darkBrown,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '探索總覽',
-                                    style: AppTextStyles.button.copyWith(
-                                      color: _sectionRed,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  if (routeSummary.isNotEmpty)
-                                    ...routeSummary.asMap().entries.map((
-                                      entry,
-                                    ) {
-                                      final int stationNumber = entry.key + 1;
-
-                                      return _ChapterItem(
-                                        number:
-                                            '第${_toChineseNumber(stationNumber)}站',
-                                        title: entry.value,
-                                      );
-                                    })
-                                  else
-                                    const _ChapterItem(
-                                      number: '第一站',
-                                      title: '暫無路線資料',
-                                    ),
-                                  const SizedBox(height: 5),
-                                  Center(
-                                    child: _PrimaryButton(
-                                      text: '查看明信片與專屬紀錄片',
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => PastMediaPage(
-                                              storyId: widget.storyId,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
           Positioned(
             left: 22,
-            top: screenSize.height * 0.01 + 10 * contentScale,
+            top: topInset + screenSize.height * 0.01 + 10 * contentScale,
             child: Transform.scale(
               scale: contentScale,
               alignment: Alignment.topLeft,

@@ -18,8 +18,6 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
-  bool isForgotPasswordLogin = false;
-  String? temporaryPassword;
 
   final TextEditingController accountController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -89,8 +87,8 @@ class _LoginPageState extends State<LoginPage> {
 
       final response = await http.post(
         uri,
-        headers: {'accept': '*/*', 'Content-Type': 'application/json'},
-        body: jsonEncode({'ep_name': account, 'ep_pswd': password}),
+        headers: {'accept': 'text/plain', 'Content-Type': 'application/json'},
+        body: jsonEncode({'auth_name': account, 'auth_pswd': password}),
       );
 
       Map<String, dynamic>? data;
@@ -122,12 +120,14 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         final String? token = rawResult['token']?.toString();
-        final String? epId = rawResult['ep_id']?.toString();
-        final String? epName = rawResult['ep_name']?.toString();
-        final int? accountType = rawResult['account_type'] is int
-            ? rawResult['account_type'] as int
-            : int.tryParse(rawResult['account_type']?.toString() ?? '');
-
+        final String? epId = rawResult['au_id']?.toString();
+        final String? epName = rawResult['auth_name']?.toString();
+        final int? accountType = rawResult['auth_type'] is int
+            ? rawResult['auth_type'] as int
+            : int.tryParse(rawResult['auth_type']?.toString() ?? '');
+        final int? store_id = rawResult['store_id'] is int
+            ? rawResult['store_id'] as int
+            : int.tryParse(rawResult['store_id']?.toString() ?? '');
         if (token == null || token.isEmpty) {
           if (!mounted) return;
 
@@ -141,32 +141,19 @@ class _LoginPageState extends State<LoginPage> {
         AppSession.token = token;
         AppSession.epId = epId;
         AppSession.epName = epName;
+        AppSession.store_id = store_id;
         NearbyCache.instance.start();
-        final bool shouldChangePassword = isForgotPasswordLogin;
 
-        if (shouldChangePassword) {
-          temporaryPassword = password;
-          isForgotPasswordLogin = false;
+        if (!mounted) return;
 
-          if (!mounted) return;
-
-          Navigator.pushReplacementNamed(
-            context,
-            '/change-password',
-            arguments: {'temporaryPassword': temporaryPassword},
-          );
+        if (accountType == 1) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else if (accountType == 2) {
+          Navigator.pushReplacementNamed(context, '/merchant-home');
         } else {
-          if (!mounted) return;
-
-          if (accountType == 1) {
-            Navigator.pushReplacementNamed(context, '/home');
-          } else if (accountType == 2) {
-            Navigator.pushReplacementNamed(context, '/merchant-home');
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('無效的帳號類型')));
-          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('無效的帳號類型')));
         }
       } else {
         if (!mounted) return;
@@ -223,13 +210,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    setState(() {
-      isForgotPasswordLogin = true;
-    });
-
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('臨時密碼已寄至您的 Email')));
+    ).showSnackBar(const SnackBar(content: Text('密碼重設信已寄至您的 Email')));
   }
 
   InputDecoration inputDecoration({required String hintText}) {
@@ -490,7 +473,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
       final response = await http.post(
         uri,
-        headers: {'accept': '*/*', 'Content-Type': 'application/json'},
+        headers: {'accept': 'text/plain', 'Content-Type': 'application/json'},
         body: jsonEncode({'Email': email}),
       );
 

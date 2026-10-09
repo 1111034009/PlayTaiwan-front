@@ -69,7 +69,7 @@ class _PastPageState extends State<PastPage> {
     try {
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/api/History'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {

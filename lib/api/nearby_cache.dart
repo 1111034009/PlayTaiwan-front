@@ -116,7 +116,7 @@ class NearbyCache {
 
     final response = await http.get(
       uri,
-      headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
     );
 
     debugPrint('Nearby API Status: ${response.statusCode}');

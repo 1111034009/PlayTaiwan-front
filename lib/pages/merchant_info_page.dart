@@ -68,7 +68,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     try {
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -117,7 +117,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
         headers: {
-          'accept': '*/*',
+          'accept': 'text/plain',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
@@ -167,7 +167,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/ChangePassword'),
         headers: {
-          'accept': '*/*',
+          'accept': 'text/plain',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
@@ -346,7 +346,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     try {
       await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Logout'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
     } catch (e) {
       // 已經導向登入頁，不需要再處理 UI

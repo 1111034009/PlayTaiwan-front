@@ -66,7 +66,7 @@ class PostcardApi {
       Uri.parse(_createAiUrl),
     );
 
-    request.headers['accept'] = '*/*';
+    request.headers['accept'] = 'text/plain';
     request.headers['Authorization'] = 'Bearer $token';
 
     request.fields['spot_name'] = spotName;
@@ -122,7 +122,7 @@ class PostcardApi {
 
     final http.Response response = await http.get(
       Uri.parse(downloadUrl),
-      headers: {'accept': '*/*'},
+      headers: {'accept': 'text/plain'},
     );
 
     if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
@@ -152,7 +152,7 @@ class PostcardApi {
     final http.Response response = await http.post(
       Uri.parse(_printUrl),
       headers: {
-        'accept': '*/*',
+        'accept': 'text/plain',
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },

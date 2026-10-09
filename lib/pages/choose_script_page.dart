@@ -55,57 +55,77 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
   }
 
   List<_ScriptData> _buildScripts() {
-    final dynamic result = widget.generatedScript?['Result'];
+    final dynamic result =
+        widget.generatedScript?['Result'] ?? widget.generatedScript?['result'];
 
-    if (result is! Map) {
-      return [];
-    }
-
-    final dynamic stories = result['stories'];
-
-    if (stories is! List) {
+    if (result is! List) {
       return [];
     }
 
     final List<_ScriptData> resultScripts = [];
 
-    for (final story in stories) {
-      if (story is! Map) {
+    for (final item in result) {
+      if (item is! Map) {
         continue;
       }
 
-      final String storyId = story['story_id']?.toString().trim() ?? '';
+      final String storyId = item['story_id']?.toString().trim() ?? '';
 
       if (storyId.isEmpty) {
         continue;
       }
 
-      final dynamic data = story['data'];
+      final dynamic storyInfo = item['story'];
 
-      if (data is! Map) {
+      if (storyInfo is! Map) {
         continue;
       }
 
-      final String title = data['title']?.toString().trim() ?? '未命名劇本';
+      final String title =
+          storyInfo['story_title']?.toString().trim().isNotEmpty == true
+          ? storyInfo['story_title'].toString().trim()
+          : '未命名劇本';
 
-      final String description = data['synopsis']?.toString().trim() ?? '';
+      final String description =
+          storyInfo['story_synopsis']?.toString().trim() ?? '';
+
+      final String apiCity = storyInfo['city_name']?.toString().trim() ?? '';
+      final String apiDistrict =
+          storyInfo['district_name']?.toString().trim() ?? '';
 
       final String location = [
-        widget.cityName,
-        widget.townName,
+        apiCity.isNotEmpty ? apiCity : widget.cityName,
+        apiDistrict.isNotEmpty ? apiDistrict : widget.townName,
       ].where((value) => value.trim().isNotEmpty).join(' ');
 
-      final String transport = widget.transportation.join('、');
+      final dynamic apiTransport = storyInfo['sd_transport'];
+      final List<String> transportList = apiTransport is List
+          ? apiTransport.map((e) => e.toString()).toList()
+          : widget.transportation;
+      final String transport = transportList.join('、');
+
+      final dynamic badges = storyInfo['story_badge'];
+      final List<String> badgeNames = badges is List
+          ? badges
+                .map((e) => e.toString().trim())
+                .where((e) => e.isNotEmpty)
+                .toList()
+          : [];
+      final String postcards = storyInfo['story_postcards']?.toString() ?? '0';
+
+      final String badgeText = badgeNames.isEmpty
+          ? '徽章(0)'
+          : '徽章 ${badgeNames.join('、')}';
 
       resultScripts.add(
         _ScriptData(
           storyId: storyId,
           title: title,
           description: description,
-          reward: '徽章(文化系列) / 明信片(5)',
+          reward: '明信片($postcards張) /徽章類別 $badgeText',
           location: location.isEmpty ? '未指定地區' : location,
           transport: transport.isEmpty ? '未指定交通' : transport,
-          story: Map<String, dynamic>.from(story),
+          story: Map<String, dynamic>.from(item),
         ),
       );
     }
@@ -391,10 +411,13 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _TicketChip(text: widget.script.location),
+                      Expanded(
+                        child: _TicketChip(
+                          text: widget.script.location,
+                          maxWidth: double.infinity,
+                        ),
+                      ),
                       const SizedBox(width: 5),
-                      _TicketChip(text: widget.script.transport),
-                      const Spacer(),
                       _SeeMoreButton(onTap: widget.onSeeMore),
                     ],
                   ),
@@ -410,34 +433,34 @@ class _ScriptTicketState extends State<_ScriptTicket> {
 
 class _TicketChip extends StatelessWidget {
   final String text;
-  const _TicketChip({required this.text});
+  final double maxWidth;
+
+  const _TicketChip({required this.text, this.maxWidth = 84});
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      flex: 0,
-      child: Container(
-        height: 23,
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        alignment: Alignment.center,
-        constraints: const BoxConstraints(maxWidth: 84),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: AppColors.postcardLine, width: 1),
-          gradient: const RadialGradient(
-            center: Alignment(0, -0.15),
-            radius: 1.15,
-            colors: [AppColors.paper, AppColors.paper, Color(0xFFE5D7B2)],
-            stops: [0.0, 0.45, 1.0],
-          ),
+    return Container(
+      height: 23,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      alignment: Alignment.center,
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppColors.postcardLine, width: 1),
+        gradient: const RadialGradient(
+          center: Alignment(0, -0.15),
+          radius: 1.15,
+          colors: [AppColors.paper, AppColors.paper, Color(0xFFE5D7B2)],
+          stops: [0.0, 0.45, 1.0],
         ),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.microLabelWide.copyWith(color: _darkBrown),
-        ),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: AppTextStyles.microLabelWide.copyWith(color: _darkBrown),
       ),
     );
   }

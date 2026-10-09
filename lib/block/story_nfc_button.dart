@@ -35,28 +35,39 @@ class StoryNfcButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openNfcPage(context),
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.28),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openNfcPage(context),
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+
+            color: AppColors.primary,
+
+            border: Border.all(color: AppColors.darkBrown, width: 2.5),
+
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.darkBrown.withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+
+          padding: const EdgeInsets.all(2.5),
+
+          child: ClipOval(
+            child: Image.asset(
+              'img/qr_code.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
             ),
-            padding: const EdgeInsets.all(2.5),
-            child: Image.asset('img/nfc.png', fit: BoxFit.contain),
           ),
         ),
       ),

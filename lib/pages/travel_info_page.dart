@@ -267,9 +267,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             travelerCount: peopleCount,
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
-            nodeCount: 6,
-            isNight: false,
-            storyCount: 3,
           );
 
       if (!mounted) {
@@ -282,9 +279,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         _generationCompleted = true;
       });
 
-      // API 完成 → 97% 快速衝到 100%
       await _finishGeneratingProgress();
-    } catch (e) {
+    } catch (e, stackTrace) {
       _progressTimer?.cancel();
 
       if (!mounted) {
@@ -298,6 +294,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       });
 
       _showMessage('劇本生成失敗，請稍後再試');
+      _showMessage('劇本生成失敗：$e');
     }
   }
 

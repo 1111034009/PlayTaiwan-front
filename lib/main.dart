@@ -7,9 +7,9 @@ import 'pages/collection_page.dart';
 import 'pages/past_page.dart';
 import 'pages/register_page.dart';
 import 'pages/merchant_home_page.dart';
-import 'pages/change_password_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
+import 'block/app_shell.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
@@ -46,29 +46,13 @@ class PlayTaiwanApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => AppShell(child: HomePage()),
         '/story': (context) => const StoryPage(),
         '/story-map': (context) => const StoryMapPage(),
         '/collection': (context) => const CollectionPage(),
         '/past': (context) => const PastPage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
-        '/change-password': (context) {
-          final arguments = ModalRoute.of(context)?.settings.arguments;
-
-          if (arguments is! Map<String, dynamic>) {
-            return const LoginPage();
-          }
-
-          final String? temporaryPassword = arguments['temporaryPassword']
-              ?.toString();
-
-          if (temporaryPassword == null || temporaryPassword.isEmpty) {
-            return const LoginPage();
-          }
-
-          return ChangePasswordPage(temporaryPassword: temporaryPassword);
-        },
       },
     );
   }

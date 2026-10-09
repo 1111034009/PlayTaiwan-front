@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -19,38 +20,63 @@ class StoryApi {
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
+  static Future<({double lat, double lng})> geocodeLocation({
+    required String cityName,
+    String? townName,
+  }) async {
+    final String city = cityName.trim();
+    final String town = townName?.trim() ?? '';
+
+    final List<String> queries = [
+      if (town.isNotEmpty) '$city$town',
+      if (town.isNotEmpty) '${city.replaceAll('台', '臺')}$town',
+      city,
+      city.replaceAll('台', '臺'),
+    ];
+
+    for (final String q in queries) {
+      final Uri uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+        'q': q,
+        'format': 'jsonv2',
+        'limit': '1',
+        'countrycodes': 'tw',
+        'accept-language': 'zh-TW',
+      });
+
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'playtaiwan-app/1.0'},
+      );
+
+      if (response.statusCode != 200) continue;
+
+      final List<dynamic> list = jsonDecode(response.body) as List<dynamic>;
+      if (list.isEmpty) continue;
+
+      final Map<String, dynamic> first = list.first as Map<String, dynamic>;
+      final double? lat = double.tryParse(first['lat']?.toString() ?? '');
+      final double? lng = double.tryParse(first['lon']?.toString() ?? '');
+
+      if (lat != null && lng != null) {
+        return (lat: lat, lng: lng);
+      }
+    }
+
+    throw Exception('找不到「$city$town」的位置，請重新選擇');
+  }
+
   static Future<Map<String, dynamic>> generateScriptBlueprint({
     required String cityName,
     String? townName,
     required int travelerCount,
     required List<String> preferences,
     required List<String> transportation,
-    int nodeCount = 8,
-    bool isNight = false,
-    int storyCount = 3,
+    int isNight = 1,
   }) async {
     final String cleanCityName = cityName.trim();
 
-    final String? cleanTownName = townName?.trim().isNotEmpty == true
-        ? townName!.trim()
-        : null;
-
     if (cleanCityName.isEmpty) {
       throw Exception('city_name 不能為空');
-    }
-
-    final Map<String, dynamic> requestBody = {
-      'city_name': cleanCityName,
-      'traveler_count': travelerCount,
-      'preferences': preferences,
-      'transportation': transportation,
-      'node_count': nodeCount,
-      'is_night': isNight,
-      'story_count': storyCount,
-    };
-
-    if (cleanTownName != null) {
-      requestBody['town_name'] = cleanTownName;
     }
 
     final String? token = AppSession.token;
@@ -59,10 +85,24 @@ class StoryApi {
       throw Exception('登入資訊已失效，請重新登入');
     }
 
+    final location = await geocodeLocation(
+      cityName: cleanCityName,
+      townName: townName,
+    );
+
+    final Map<String, dynamic> requestBody = {
+      'lat': location.lat,
+      'lng': location.lng,
+      'party_size': travelerCount,
+      'transportation': transportation,
+      'preferences': preferences,
+      'is_night_mode': isNight,
+    };
+    debugPrint('requestBody: $requestBody');
     final response = await http.post(
-      Uri.parse('$_baseUrl/api/Story/GenerateByLocation'),
+      Uri.parse('$_baseUrl/api/Story/GenerateGameStory'),
       headers: {
-        'accept': '*/*',
+        'accept': 'text/plain',
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
@@ -195,7 +235,7 @@ class StoryApi {
 
     final response = await http.get(
       Uri.parse('$_baseUrl/api/Story/$encodedStoryId/FullDetail'),
-      headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+      headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -230,7 +270,7 @@ class StoryApi {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/Story/Confirm'),
       headers: {
-        'accept': '*/*',
+        'accept': 'text/plain',
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },

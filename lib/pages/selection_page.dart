@@ -136,7 +136,7 @@ class _SelectionPageState extends State<SelectionPage> {
       final response = await http.post(
         Uri.parse(url),
         headers: {
-          'accept': '*/*',
+          'accept': 'text/plain',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },

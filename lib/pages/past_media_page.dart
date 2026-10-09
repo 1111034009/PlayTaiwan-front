@@ -101,7 +101,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
       final http.Response response = await http.get(
         url,
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -127,14 +127,13 @@ class _PastMediaPageState extends State<PastMediaPage> {
       final List<Map<String, dynamic>> loadedPostcards = result
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
-          .where((item) => item['IsActive'] != false)
           .toList();
 
       loadedPostcards.sort((a, b) {
-        final int sortA = int.tryParse(a['SortOrder']?.toString() ?? '') ?? 0;
-        final int sortB = int.tryParse(b['SortOrder']?.toString() ?? '') ?? 0;
+        final int nodeA = int.tryParse(a['NodeId']?.toString() ?? '') ?? 0;
+        final int nodeB = int.tryParse(b['NodeId']?.toString() ?? '') ?? 0;
 
-        return sortA.compareTo(sortB);
+        return nodeA.compareTo(nodeB);
       });
 
       if (!mounted) return;
@@ -645,8 +644,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
     try {
       if (isSpecial) {
-        _showMessage('正在製作動畫明信片...');
-
+        _showMessage('正在製作動畫明信片，完成後將通知你！');
         final String? error = await PostcardGifDownload.downloadPostcard(
           imageUrl: imageUrl,
           isSpecial: true,
@@ -769,7 +767,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
   }
 
   bool _isNightPostcard(Map<String, dynamic> postcard) {
-    return postcard['IsNightEditionDefault'] == true;
+    return postcard['IsNightEdition'] == true;
   }
 
   @override
@@ -1400,7 +1398,7 @@ class _PostcardCardState extends State<_PostcardCard>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(seconds: 4),
     );
 
     if (widget.isSpecial) {
@@ -1475,11 +1473,7 @@ class _PostcardVisual extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isSpecial
-                ? Color.lerp(
-                    const Color(0x44000000),
-                    const Color(0xFF7568FF),
-                    progress,
-                  )!
+                ? const Color(0xAA7568FF)
                 : const Color(0x44000000),
             blurRadius: isSpecial ? 14 : 6,
             spreadRadius: isSpecial ? 1 : 0,
@@ -1545,12 +1539,12 @@ class _NightCardPainter extends CustomPainter {
   const _NightCardPainter({required this.progress});
 
   static const List<_StarData> stars = [
-    _StarData(0.12, 0.20, 0.8, 0.00),
-    _StarData(0.30, 0.38, 0.6, 0.24),
-    _StarData(0.76, 0.18, 0.9, 0.46),
-    _StarData(0.88, 0.48, 0.6, 0.68),
-    _StarData(0.20, 0.78, 0.7, 0.35),
-    _StarData(0.78, 0.80, 0.9, 0.58),
+    _StarData(0.12, 0.20, 2.0, 0.00),
+    _StarData(0.30, 0.38, 1.5, 0.24),
+    _StarData(0.76, 0.18, 2.3, 0.46),
+    _StarData(0.88, 0.48, 1.6, 0.68),
+    _StarData(0.20, 0.78, 1.8, 0.35),
+    _StarData(0.78, 0.80, 2.1, 0.58),
   ];
 
   @override

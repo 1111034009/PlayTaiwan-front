@@ -33,8 +33,6 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   static const Color accentBrass = AppColors.postcardLine;
   static const Color borderBrass = AppColors.postcard;
 
-  // 彈窗外框的邊框寬度與圓角半徑，內層 ClipRRect 會依此內縮，
-  // 避免紅色標題區塊蓋住金色外框。
   static const double _dialogBorderWidth = 2;
   static const double _dialogRadius = 22;
 
@@ -152,7 +150,6 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     );
   }
 
-  /// 上方列只保留關閉用的 X。
   Widget _buildTopBar() {
     return Container(
       decoration: const BoxDecoration(
@@ -495,9 +492,6 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     );
   }
 
-  /// 優惠券彈窗。外層 Container 只負責畫金色外框與陰影，
-  /// 內容改用 ClipRRect 包住並依邊框寬度內縮，
-  /// 這樣紅色標題區塊的顏色就不會蓋到外框上。
   Widget _buildCouponDialog() {
     return Container(
       decoration: BoxDecoration(

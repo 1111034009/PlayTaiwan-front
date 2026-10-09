@@ -13,7 +13,6 @@ import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
-import '../block/story_nfc_button.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -43,7 +42,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -76,7 +75,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/api/Home/Overview'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -91,19 +90,22 @@ class _HomePageState extends State<HomePage> {
             setState(() {
               completedStoryCount =
                   int.tryParse(
-                    result['completed_story_count']?.toString() ?? '0',
+                    result['ho_completed_story']?.toString() ?? '0',
                   ) ??
                   0;
 
               postcardCount =
-                  int.tryParse(result['postcard_count']?.toString() ?? '0') ??
+                  int.tryParse(
+                    result['ho_postcard_count']?.toString() ?? '0',
+                  ) ??
                   0;
 
               badgeCount =
-                  int.tryParse(result['badge_count']?.toString() ?? '0') ?? 0;
+                  int.tryParse(result['ho_badge_count']?.toString() ?? '0') ??
+                  0;
 
               vlogCount =
-                  int.tryParse(result['vlog_count']?.toString() ?? '0') ?? 0;
+                  int.tryParse(result['ho_vlog_count']?.toString() ?? '0') ?? 0;
             });
           }
         }
@@ -180,11 +182,11 @@ class _HomePageState extends State<HomePage> {
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
         headers: {
-          'accept': '*/*',
+          'accept': 'text/plain',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'ep_name': newName}),
+        body: jsonEncode({'auth_name': newName}),
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -226,9 +228,9 @@ class _HomePageState extends State<HomePage> {
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/ChangePassword'),
         headers: {
-          'accept': '*/*',
-          'Content-Type': 'application/json',
+          'accept': 'text/plain',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
         body: jsonEncode({
           'OldPassword': oldPassword,
@@ -366,17 +368,6 @@ class _HomePageState extends State<HomePage> {
                             );
                           },
                           child: _GoPolaroid(),
-                        ),
-                      ),
-                      Positioned(
-                        left: 255,
-                        top: 510,
-                        width: 130,
-                        height: 60,
-                        child: StoryNfcButton(
-                          onSuccess: () {
-                            _showTopSnackBar('NFC 驗證成功！');
-                          },
                         ),
                       ),
 
@@ -577,7 +568,7 @@ class _HomePageState extends State<HomePage> {
     try {
       await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Logout'),
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
     } catch (e) {
       if (!mounted) return;

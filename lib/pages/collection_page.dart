@@ -94,7 +94,7 @@ class _CollectionPageState extends State<CollectionPage> {
 
       final response = await http.get(
         uri,
-        headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode == 401) {
@@ -292,7 +292,7 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
   @override
   Widget build(BuildContext context) {
     final bool expanded = widget.series.expanded;
-
+    final bool isMidnightTaiwan = widget.series.title.trim() == '🌙 午夜台灣';
     final double scale = pressing ? 0.985 : 1.0;
 
     return GestureDetector(
@@ -360,13 +360,6 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
                 children: [
                   Row(
                     children: [
-                      const Text(
-                        '🏆',
-                        style: TextStyle(fontSize: 23, height: 1.0),
-                      ),
-
-                      const SizedBox(width: 6),
-
                       Expanded(
                         child: Text(
                           widget.series.title,
@@ -397,7 +390,10 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
                     child: expanded
                         ? Padding(
                             padding: const EdgeInsets.only(top: 12),
-                            child: _BadgeGrid(badges: widget.series.badges),
+                            child: _BadgeGrid(
+                              badges: widget.series.badges,
+                              isMidnight: isMidnightTaiwan,
+                            ),
                           )
                         : const SizedBox.shrink(),
                   ),
@@ -413,8 +409,9 @@ class _BadgeSeriesCardState extends State<_BadgeSeriesCard> {
 
 class _BadgeGrid extends StatelessWidget {
   final List<_Badge> badges;
+  final bool isMidnight;
 
-  const _BadgeGrid({required this.badges});
+  const _BadgeGrid({required this.badges, required this.isMidnight});
 
   @override
   Widget build(BuildContext context) {
@@ -422,20 +419,17 @@ class _BadgeGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
-
       itemCount: badges.length,
-
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
+        crossAxisCount: 3,
         crossAxisSpacing: 9,
         mainAxisSpacing: 9,
         childAspectRatio: 1,
       ),
-
       itemBuilder: (context, index) {
         final _Badge badge = badges[index];
 
-        return _BadgeItem(badge: badge);
+        return _BadgeItem(badge: badge, isMidnight: isMidnight);
       },
     );
   }
@@ -443,8 +437,9 @@ class _BadgeGrid extends StatelessWidget {
 
 class _BadgeItem extends StatefulWidget {
   final _Badge badge;
+  final bool isMidnight;
 
-  const _BadgeItem({required this.badge});
+  const _BadgeItem({required this.badge, required this.isMidnight});
 
   @override
   State<_BadgeItem> createState() => _BadgeItemState();
@@ -458,9 +453,7 @@ class _BadgeItemState extends State<_BadgeItem> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Badge',
-
-      barrierColor: Colors.black.withOpacity(0.72),
-
+      barrierColor: Colors.black.withOpacity(0.90),
       transitionDuration: const Duration(milliseconds: 300),
 
       pageBuilder:
@@ -469,7 +462,10 @@ class _BadgeItemState extends State<_BadgeItem> {
             Animation<double> animation,
             Animation<double> secondaryAnimation,
           ) {
-            return _BadgePopup(badge: widget.badge);
+            return _BadgePopup(
+              badge: widget.badge,
+              isMidnight: widget.isMidnight,
+            );
           },
 
       transitionBuilder:
@@ -486,13 +482,11 @@ class _BadgeItemState extends State<_BadgeItem> {
 
             return FadeTransition(
               opacity: animation,
-
               child: ScaleTransition(
                 scale: Tween<double>(
                   begin: 0.55,
                   end: 1.0,
                 ).animate(curvedAnimation),
-
                 child: child,
               ),
             );
@@ -531,8 +525,11 @@ class _BadgeItemState extends State<_BadgeItem> {
         curve: Curves.easeOut,
 
         child: widget.badge.isOwned
-            ? _UnlockedBadge(imageUrl: widget.badge.imageUrl)
-            : const _LockedBadge(),
+            ? _UnlockedBadge(
+                imageUrl: widget.badge.imageUrl,
+                isMidnight: widget.isMidnight,
+              )
+            : _LockedBadge(isMidnight: widget.isMidnight),
       ),
     );
   }
@@ -540,8 +537,9 @@ class _BadgeItemState extends State<_BadgeItem> {
 
 class _BadgePopup extends StatelessWidget {
   final _Badge badge;
+  final bool isMidnight;
 
-  const _BadgePopup({required this.badge});
+  const _BadgePopup({required this.badge, required this.isMidnight});
 
   @override
   Widget build(BuildContext context) {
@@ -568,8 +566,11 @@ class _BadgePopup extends StatelessWidget {
                   height: 180,
 
                   child: badge.isOwned
-                      ? _UnlockedBadge(imageUrl: badge.imageUrl)
-                      : const _LockedBadge(),
+                      ? _UnlockedBadge(
+                          imageUrl: badge.imageUrl,
+                          isMidnight: isMidnight,
+                        )
+                      : _LockedBadge(isMidnight: isMidnight),
                 ),
 
                 const SizedBox(height: 18),
@@ -577,7 +578,6 @@ class _BadgePopup extends StatelessWidget {
                 Text(
                   badge.name,
                   textAlign: TextAlign.center,
-
                   style: AppTextStyles.titleLarge.copyWith(color: Colors.white),
                 ),
 
@@ -621,23 +621,105 @@ class _BadgePopup extends StatelessWidget {
   }
 }
 
-class _UnlockedBadge extends StatelessWidget {
+class _UnlockedBadge extends StatefulWidget {
   final String? imageUrl;
+  final bool isMidnight;
 
-  const _UnlockedBadge({this.imageUrl});
+  const _UnlockedBadge({this.imageUrl, this.isMidnight = false});
+
+  @override
+  State<_UnlockedBadge> createState() => _UnlockedBadgeState();
+}
+
+class _UnlockedBadgeState extends State<_UnlockedBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
+
+    if (widget.isMidnight) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isMidnight) {
+      return _buildBadge();
+    }
+
+    return AnimatedBuilder(
+      animation: _controller,
+
+      builder: (context, child) {
+        final double glow = Curves.easeInOut.transform(_controller.value);
+
+        return Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+
+          children: [
+            // 外圍藍紫色夜光
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+
+                boxShadow: [
+                  BoxShadow(
+                    color: Color.lerp(
+                      const Color(0x553B82F6),
+                      const Color(0xCC8B5CF6),
+                      glow,
+                    )!,
+                    blurRadius: 8 + (10 * glow),
+                    spreadRadius: 1 + (3 * glow),
+                  ),
+                ],
+              ),
+
+              child: _buildBadge(),
+            ),
+
+            // 外圍星星
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _MidnightStarsPainter(progress: glow),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBadge() {
     return CustomPaint(
-      painter: _BadgeDashedBorderPainter(),
+      painter: _BadgeDashedBorderPainter(isMidnight: widget.isMidnight),
 
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
 
-          color: Color(0xFFE6D8AB),
+          color: widget.isMidnight
+              ? const Color(0xFF171A3D)
+              : const Color(0xFFE6D8AB),
 
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Color(0x35000000),
               blurRadius: 4,
@@ -652,24 +734,32 @@ class _UnlockedBadge extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
 
-            border: Border.all(color: _badgeBorder, width: 1.3),
+            border: Border.all(
+              color: widget.isMidnight ? const Color(0xFF8B86FF) : _badgeBorder,
+              width: 1.3,
+            ),
           ),
 
           padding: const EdgeInsets.all(3),
 
           child: ClipOval(
-            child: imageUrl != null && imageUrl!.isNotEmpty
+            child: widget.imageUrl != null && widget.imageUrl!.isNotEmpty
                 ? Image.network(
-                    imageUrl!,
+                    widget.imageUrl!,
 
                     fit: BoxFit.cover,
 
                     filterQuality: FilterQuality.high,
 
                     errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'img/Badge_location.png',
-                        fit: BoxFit.cover,
+                      return Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: widget.isMidnight
+                              ? Colors.white54
+                              : Colors.grey,
+                          size: 30,
+                        ),
                       );
                     },
 
@@ -678,12 +768,18 @@ class _UnlockedBadge extends StatelessWidget {
                         return child;
                       }
 
-                      return const Center(
+                      return Center(
                         child: SizedBox(
                           width: 18,
                           height: 18,
 
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+
+                            color: widget.isMidnight
+                                ? const Color(0xFF9B8CFF)
+                                : null,
+                          ),
                         ),
                       );
                     },
@@ -696,27 +792,124 @@ class _UnlockedBadge extends StatelessWidget {
   }
 }
 
+class _MidnightStarsPainter extends CustomPainter {
+  final double progress;
+
+  const _MidnightStarsPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = size.center(Offset.zero);
+    final double radius = size.shortestSide / 2;
+
+    final Paint paint = Paint()..style = PaintingStyle.fill;
+
+    const List<_MidnightStar> stars = [
+      _MidnightStar(angle: -0.9, distance: 0.82, size: 2.2, phase: 0.0),
+      _MidnightStar(angle: 0.15, distance: 0.88, size: 1.5, phase: 0.35),
+      _MidnightStar(angle: 1.15, distance: 0.82, size: 2.0, phase: 0.7),
+      _MidnightStar(angle: 2.15, distance: 0.88, size: 1.5, phase: 0.2),
+      _MidnightStar(angle: 3.0, distance: 0.82, size: 2.1, phase: 0.55),
+      _MidnightStar(angle: -2.25, distance: 0.87, size: 1.5, phase: 0.85),
+    ];
+
+    for (final star in stars) {
+      final double opacity =
+          0.25 + 0.75 * math.sin((progress + star.phase) * math.pi).abs();
+
+      final double x =
+          center.dx + math.cos(star.angle) * radius * star.distance;
+
+      final double y =
+          center.dy + math.sin(star.angle) * radius * star.distance;
+
+      paint.color = Colors.white.withOpacity(opacity);
+
+      canvas.drawCircle(Offset(x, y), star.size, paint);
+
+      // 十字型星光
+      if (star.size >= 2) {
+        final Paint glowPaint = Paint()
+          ..color = Colors.white.withOpacity(opacity * 0.5)
+          ..strokeWidth = 0.8
+          ..strokeCap = StrokeCap.round;
+
+        canvas.drawLine(
+          Offset(x - star.size * 2, y),
+          Offset(x + star.size * 2, y),
+          glowPaint,
+        );
+
+        canvas.drawLine(
+          Offset(x, y - star.size * 2),
+          Offset(x, y + star.size * 2),
+          glowPaint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MidnightStarsPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _MidnightStar {
+  final double angle;
+  final double distance;
+  final double size;
+  final double phase;
+
+  const _MidnightStar({
+    required this.angle,
+    required this.distance,
+    required this.size,
+    required this.phase,
+  });
+}
+
 class _LockedBadge extends StatelessWidget {
-  const _LockedBadge();
+  final bool isMidnight;
+
+  const _LockedBadge({this.isMidnight = false});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _BadgeDashedBorderPainter(),
+      painter: _BadgeDashedBorderPainter(isMidnight: isMidnight),
 
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
 
-          color: _lockedColor,
+          color: isMidnight ? const Color(0xFF25264D) : _lockedColor,
 
           boxShadow: [
             BoxShadow(
-              color: Color(0x45000000),
-              blurRadius: 4,
-              offset: Offset(0, 3),
+              color: isMidnight
+                  ? const Color(0x554F46E5)
+                  : const Color(0x45000000),
+
+              blurRadius: isMidnight ? 10 : 4,
+
+              spreadRadius: isMidnight ? 1 : 0,
+
+              offset: const Offset(0, 3),
             ),
           ],
+        ),
+
+        alignment: Alignment.center,
+
+        child: Text(
+          '未解鎖',
+
+          textAlign: TextAlign.center,
+
+          style: AppTextStyles.captionBold.copyWith(
+            color: isMidnight ? const Color(0xFFC4C7FF) : Colors.white,
+          ),
         ),
       ),
     );
@@ -724,6 +917,10 @@ class _LockedBadge extends StatelessWidget {
 }
 
 class _BadgeDashedBorderPainter extends CustomPainter {
+  final bool isMidnight;
+
+  const _BadgeDashedBorderPainter({this.isMidnight = false});
+
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = size.center(Offset.zero);
@@ -731,9 +928,9 @@ class _BadgeDashedBorderPainter extends CustomPainter {
     final double radius = size.shortestSide / 2 - 1;
 
     final Paint paint = Paint()
-      ..color = _lockedBorder
+      ..color = isMidnight ? const Color(0xFF8B86FF) : _lockedBorder
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = isMidnight ? 1.8 : 1.5
       ..strokeCap = StrokeCap.round;
 
     const double dashLength = 4.0;
@@ -766,7 +963,7 @@ class _BadgeDashedBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BadgeDashedBorderPainter oldDelegate) {
-    return false;
+    return oldDelegate.isMidnight != isMidnight;
   }
 }
 
@@ -824,11 +1021,26 @@ class _Badge {
   });
 
   factory _Badge.fromJson(Map<String, dynamic> json) {
+    final String imagePath = json['b_image']?.toString() ?? '';
+
+    String? imageUrl;
+
+    if (imagePath.isNotEmpty) {
+      final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        imageUrl = imagePath;
+      } else if (baseUrl.isNotEmpty) {
+        imageUrl =
+            '${baseUrl.replaceFirst(RegExp(r'/$'), '')}/${imagePath.replaceFirst(RegExp(r'^/'), '')}';
+      }
+    }
+
     return _Badge(
-      badgeId: json['badge_id']?.toString() ?? '',
-      name: json['badge_name']?.toString() ?? '',
-      description: json['description']?.toString() ?? '',
-      imageUrl: json['image_url']?.toString(),
+      badgeId: json['b_id']?.toString() ?? '',
+      name: json['b_name']?.toString() ?? '',
+      description: json['b_thing']?.toString() ?? '',
+      imageUrl: imageUrl,
       isOwned: json['is_owned'] == true,
       obtainedAt: json['obtained_at']?.toString(),
     );
