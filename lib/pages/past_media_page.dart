@@ -2,18 +2,19 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
-
+import 'package:video_player/video_player.dart';
 import '../block/navigationbar.dart';
 import 'past_page.dart';
 import 'postcard_gif_dowload.dart';
 import '../api/postcard_api.dart';
+import '../api/vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
@@ -50,6 +51,18 @@ class _PastMediaPageState extends State<PastMediaPage> {
   String? loadError;
 
   List<Map<String, dynamic>> postcards = [];
+  // Vlog API 與影片暫存
+  final VlogApi _vlogApi = VlogApi();
+
+  Map<String, dynamic>? _vlogStatus;
+  File? _cachedVideoFile;
+
+  bool _isVlogLoading = true;
+  bool _isVideoPreparing = false;
+  bool _isSavingVideo = false;
+
+  String? _vlogError;
+  String? _videoUrl;
 
   @override
   void initState() {
@@ -66,6 +79,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
     );
 
     _fetchPostcards();
+    _loadVlog();
   }
 
   Future<void> _fetchPostcards() async {
@@ -152,6 +166,70 @@ class _PastMediaPageState extends State<PastMediaPage> {
         postcards = [];
         isLoading = false;
         loadError = '明信片資料取得失敗';
+      });
+    }
+  }
+
+  Future<void> _loadVlog() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isVlogLoading = true;
+      _vlogError = null;
+    });
+
+    try {
+      final Map<String, dynamic> result = await _vlogApi.getStatus(
+        storyId: widget.storyId,
+      );
+
+      if (!mounted) return;
+
+      _vlogStatus = result;
+
+      final int status = int.tryParse(result['status']?.toString() ?? '') ?? -1;
+
+      final String videoUrl = result['video_url']?.toString().trim() ?? '';
+
+      setState(() {
+        _videoUrl = videoUrl.isEmpty ? null : videoUrl;
+      });
+
+      if (status != 3) {
+        setState(() {
+          _isVlogLoading = false;
+          _vlogError =
+              result['status_text']?.toString().trim().isNotEmpty == true
+              ? '影片狀態：${result['status_text']}'
+              : '影片尚未完成製作';
+        });
+        return;
+      }
+
+      if (videoUrl.isEmpty) {
+        throw Exception('影片已完成，但 API 沒有提供影片網址');
+      }
+
+      final File file = await _vlogApi.downloadToCache(
+        storyId: widget.storyId,
+        videoUrl: videoUrl,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cachedVideoFile = file;
+        _isVlogLoading = false;
+        _vlogError = null;
+      });
+    } catch (e) {
+      debugPrint('取得 Vlog 失敗：$e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isVlogLoading = false;
+        _vlogError = 'Vlog 載入失敗，請點擊影片區域重試';
       });
     }
   }
@@ -754,20 +832,129 @@ class _PastMediaPageState extends State<PastMediaPage> {
     });
   }
 
-  void openVideo() {
+  Future<void> openVideo() async {
+    if (_isVideoPreparing) return;
+
+    if (_isVlogLoading) {
+      _showMessage('正在準備 Vlog，請稍候');
+      return;
+    }
+
+    final File? cachedFile = _cachedVideoFile;
+    if (cachedFile != null && await cachedFile.exists()) {
+      if (!mounted) return;
+      setState(() {
+        showVideo = true;
+      });
+      return;
+    }
+
+    if (_vlogStatus == null || (_videoUrl ?? '').isEmpty) {
+      await _loadVlog();
+      if (!mounted) return;
+    }
+
+    final int status =
+        int.tryParse(_vlogStatus?['status']?.toString() ?? '') ?? -1;
+
+    if (status != 3) {
+      _showMessage(_vlogError ?? '影片尚未完成製作，請稍後再試');
+      return;
+    }
+
+    final String? url = _videoUrl;
+    if (url == null || url.isEmpty) {
+      _showMessage('目前沒有可播放的影片網址');
+      return;
+    }
+
     setState(() {
-      showVideo = true;
+      _isVideoPreparing = true;
     });
+
+    try {
+      final File file = await _vlogApi.downloadToCache(
+        storyId: widget.storyId,
+        videoUrl: url,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cachedVideoFile = file;
+        _vlogError = null;
+        showVideo = true;
+      });
+    } catch (e) {
+      debugPrint('下載 Vlog 失敗：$e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _vlogError = '影片下載失敗，請稍後重試';
+      });
+
+      _showMessage('影片下載失敗，請稍後重試');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVideoPreparing = false;
+        });
+      }
+    }
   }
 
   void closeVideo() {
+    if (!mounted) return;
+
     setState(() {
       showVideo = false;
     });
   }
 
+  Future<void> _saveVlogToGallery() async {
+    if (_isSavingVideo) return;
+
+    final File? file = _cachedVideoFile;
+    if (file == null || !await file.exists()) {
+      _showMessage('影片尚未準備完成，請稍後再試');
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSavingVideo = true;
+    });
+
+    try {
+      await _vlogApi.saveVideoToGallery(file);
+
+      if (!mounted) return;
+      _showMessage('Vlog 已儲存到手機相簿');
+    } catch (e) {
+      debugPrint('儲存 Vlog 失敗：$e');
+
+      if (!mounted) return;
+
+      _showMessage('儲存影片失敗：${e.toString().replaceFirst('Exception: ', '')}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingVideo = false;
+        });
+      }
+    }
+  }
+
   bool _isNightPostcard(Map<String, dynamic> postcard) {
     return postcard['IsNightEdition'] == true;
+  }
+
+  @override
+  void dispose() {
+    _vlogApi.dispose();
+    super.dispose();
   }
 
   @override
@@ -818,20 +1005,24 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                 children: [
                                   const _OutlinedTitle(text: '回憶vlog'),
                                   const Spacer(),
+
                                   _ActionIcon(
                                     icon: Icons.download_rounded,
                                     onTap: () {
-                                      if (postcards.isEmpty) {
-                                        _showMessage('目前沒有可下載的明信片');
+                                      if (_isVlogLoading || _isVideoPreparing) {
+                                        _showMessage('Vlog 正在準備中，請稍候');
                                         return;
                                       }
 
-                                      final int index =
-                                          selectedPostcardIndex ?? 0;
+                                      if (_cachedVideoFile == null) {
+                                        _showMessage('目前沒有可下載的 Vlog 影片');
+                                        return;
+                                      }
 
-                                      _downloadPostcard(postcards[index]);
+                                      _saveVlogToGallery();
                                     },
                                   ),
+
                                   const SizedBox(width: 12),
                                   _ActionIcon(
                                     icon: Icons.share_rounded,
@@ -855,7 +1046,12 @@ class _PastMediaPageState extends State<PastMediaPage> {
                               right: 15,
                               top: 140,
                               height: 350,
-                              child: _VideoSection(onTap: openVideo),
+                              child: _VideoSection(
+                                onTap: openVideo,
+                                isLoading: _isVlogLoading || _isVideoPreparing,
+                                isReady: _cachedVideoFile != null,
+                                error: _vlogError,
+                              ),
                             ),
                             const Positioned(
                               left: 25,
@@ -924,8 +1120,15 @@ class _PastMediaPageState extends State<PastMediaPage> {
                 },
               ),
             ),
-          if (showVideo)
-            Positioned.fill(child: _VideoOverlay(onClose: closeVideo)),
+          if (showVideo && _cachedVideoFile != null)
+            Positioned.fill(
+              child: _VideoOverlay(
+                videoFile: _cachedVideoFile!,
+                onClose: closeVideo,
+                onDownload: _saveVlogToGallery,
+                isSaving: _isSavingVideo,
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
@@ -1170,11 +1373,25 @@ class _ActionIconState extends State<_ActionIcon> {
 
 class _VideoSection extends StatelessWidget {
   final VoidCallback onTap;
+  final bool isLoading;
+  final bool isReady;
+  final String? error;
 
-  const _VideoSection({required this.onTap});
+  const _VideoSection({
+    required this.onTap,
+    required this.isLoading,
+    required this.isReady,
+    required this.error,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final String message = isLoading
+        ? '正在準備 Vlog……'
+        : isReady
+        ? '點擊播放 Vlog'
+        : error ?? '點擊重新載入 Vlog';
+
     return Center(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -1182,10 +1399,39 @@ class _VideoSection extends StatelessWidget {
         child: Container(
           width: 240,
           height: 426.67,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _videoPoster,
             borderRadius: BorderRadius.circular(5),
             border: Border.all(color: Colors.white, width: 1.4),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                const CircularProgressIndicator(
+                  color: AppColors.secondaryRed,
+                  strokeWidth: 2,
+                )
+              else
+                Icon(
+                  isReady
+                      ? Icons.play_circle_fill_rounded
+                      : Icons.movie_creation_outlined,
+                  color: AppColors.secondaryRed,
+                  size: 54,
+                ),
+              const SizedBox(height: 14),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1194,9 +1440,17 @@ class _VideoSection extends StatelessWidget {
 }
 
 class _VideoOverlay extends StatefulWidget {
+  final File videoFile;
   final VoidCallback onClose;
+  final VoidCallback onDownload;
+  final bool isSaving;
 
-  const _VideoOverlay({required this.onClose});
+  const _VideoOverlay({
+    required this.videoFile,
+    required this.onClose,
+    required this.onDownload,
+    required this.isSaving,
+  });
 
   @override
   State<_VideoOverlay> createState() => _VideoOverlayState();
@@ -1212,7 +1466,7 @@ class _VideoOverlayState extends State<_VideoOverlay>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 350),
     )..forward();
   }
 
@@ -1234,7 +1488,7 @@ class _VideoOverlayState extends State<_VideoOverlay>
               onTap: widget.onClose,
               child: BackdropFilter(
                 filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(color: Colors.black.withValues(alpha: 0.82)),
+                child: Container(color: Colors.black.withValues(alpha: 0.84)),
               ),
             ),
           ),
@@ -1244,15 +1498,15 @@ class _VideoOverlayState extends State<_VideoOverlay>
                 child: AnimatedBuilder(
                   animation: controller,
                   builder: (context, child) {
-                    final double value = Curves.easeOutBack.transform(
-                      controller.value,
-                    );
-
                     return Transform.scale(
-                      scale: value,
+                      scale: Curves.easeOutBack.transform(controller.value),
                       child: GestureDetector(
                         onTap: () {},
-                        child: const _VideoPlayerCard(),
+                        child: _VideoPlayerCard(
+                          videoFile: widget.videoFile,
+                          onDownload: widget.onDownload,
+                          isSaving: widget.isSaving,
+                        ),
                       ),
                     );
                   },
@@ -1263,25 +1517,13 @@ class _VideoOverlayState extends State<_VideoOverlay>
           Positioned(
             top: MediaQuery.paddingOf(context).top + 14,
             right: 18,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.onClose,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.close_rounded,
-                  color: Colors.white,
-                  size: 25,
-                ),
+            child: IconButton(
+              onPressed: widget.onClose,
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.45),
+                foregroundColor: Colors.white,
               ),
+              icon: const Icon(Icons.close_rounded, size: 26),
             ),
           ),
         ],
@@ -1290,20 +1532,92 @@ class _VideoOverlayState extends State<_VideoOverlay>
   }
 }
 
-class _VideoPlayerCard extends StatelessWidget {
-  const _VideoPlayerCard();
+class _VideoPlayerCard extends StatefulWidget {
+  final File videoFile;
+  final VoidCallback onDownload;
+  final bool isSaving;
+
+  const _VideoPlayerCard({
+    required this.videoFile,
+    required this.onDownload,
+    required this.isSaving,
+  });
+
+  @override
+  State<_VideoPlayerCard> createState() => _VideoPlayerCardState();
+}
+
+class _VideoPlayerCardState extends State<_VideoPlayerCard> {
+  late final VideoPlayerController _controller;
+  bool _isInitialized = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    _controller = VideoPlayerController.file(widget.videoFile);
+
+    try {
+      await _controller.initialize();
+      if (!mounted) return;
+
+      setState(() {
+        _isInitialized = true;
+      });
+
+      await _controller.setLooping(false);
+      await _controller.play();
+    } catch (e) {
+      debugPrint('Vlog 播放器初始化失敗：$e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _error = '影片無法播放，請確認影片檔案是否完整';
+      });
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final String minutes = duration.inMinutes
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    final String seconds = duration.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+
+    if (duration.inHours > 0) {
+      return '${duration.inHours.toString().padLeft(2, '0')}:$minutes:$seconds';
+    }
+
+    return '$minutes:$seconds';
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
-
     final double width = math.min(screenSize.width * 0.92, 520.0);
-
-    final double height = math.min(screenSize.height * 0.82, width * 16 / 9);
+    final double height = math.min(
+      screenSize.height * 0.82,
+      width * 16 / 9 + 112,
+    );
 
     return Container(
       width: width,
       height: height,
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: _videoPoster,
         borderRadius: BorderRadius.circular(10),
@@ -1312,6 +1626,102 @@ class _VideoPlayerCard extends StatelessWidget {
           BoxShadow(color: Color(0xAA000000), blurRadius: 30, spreadRadius: 5),
         ],
       ),
+      child: _error != null
+          ? Center(
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            )
+          : !_isInitialized
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.secondaryRed),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio > 0
+                          ? _controller.value.aspectRatio
+                          : 9 / 16,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: VideoPlayer(_controller),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                VideoProgressIndicator(
+                  _controller,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: AppColors.secondaryRed,
+                    bufferedColor: Color(0x66888888),
+                    backgroundColor: Color(0x33888888),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        if (_controller.value.isPlaying) {
+                          _controller.pause();
+                        } else {
+                          _controller.play();
+                        }
+                        setState(() {});
+                      },
+                      icon: Icon(
+                        _controller.value.isPlaying
+                            ? Icons.pause_circle_filled_rounded
+                            : Icons.play_circle_fill_rounded,
+                        color: AppColors.secondaryRed,
+                        size: 30,
+                      ),
+                    ),
+                    Expanded(
+                      child: ValueListenableBuilder<VideoPlayerValue>(
+                        valueListenable: _controller,
+                        builder: (context, value, child) {
+                          return Text(
+                            '${_formatDuration(value.position)} / '
+                            '${_formatDuration(value.duration)}',
+                            style: AppTextStyles.microLabel.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.isSaving ? null : widget.onDownload,
+                    icon: widget.isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_rounded),
+                    label: Text(widget.isSaving ? '正在儲存……' : '下載影片至手機相簿'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondaryRed,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
