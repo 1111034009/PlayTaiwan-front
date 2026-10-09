@@ -224,7 +224,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
     final int? peopleCount = int.tryParse(people);
 
-    if (peopleCount == null || peopleCount <= 0) {
+    if (peopleCount == null || peopleCount <= 0 || peopleCount > 999) {
       _showMessage('旅程人數請輸入正確數字');
       return;
     }
@@ -614,6 +614,10 @@ class _FormContent extends StatelessWidget {
           child: TextField(
             controller: peopleController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(3),
+            ],
             textAlign: TextAlign.left,
             style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkText),
             cursorColor: _optionColor,

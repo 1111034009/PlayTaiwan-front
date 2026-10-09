@@ -9,11 +9,14 @@ import 'pages/register_page.dart';
 import 'pages/merchant_home_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
+import 'core/auth_guard.dart';
 import 'block/app_shell.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  AuthGuard.init();
   runApp(const PlayTaiwanApp());
 }
 
@@ -23,6 +26,8 @@ class PlayTaiwanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: AuthGuard.navigatorKey,
+      navigatorObservers: [AuthGuard.observer],
       title: '日遊所思，夜遊所夢',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

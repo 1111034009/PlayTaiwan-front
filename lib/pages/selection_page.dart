@@ -51,7 +51,61 @@ class _SelectionPageState extends State<SelectionPage> {
   // 一句話輸入框
 
   final TextEditingController ideaController = TextEditingController();
+  //防呆
+  static const Set<String> _validCities = {
+    '臺北市',
+    '新北市',
+    '桃園市',
+    '臺中市',
+    '臺南市',
+    '高雄市',
+    '基隆市',
+    '新竹市',
+    '嘉義市',
+    '新竹縣',
+    '苗栗縣',
+    '彰化縣',
+    '南投縣',
+    '雲林縣',
+    '嘉義縣',
+    '屏東縣',
+    '宜蘭縣',
+    '花蓮縣',
+    '臺東縣',
+    '澎湖縣',
+    '金門縣',
+    '連江縣',
+  };
 
+  static const int _maxIdeaLength = 100;
+
+  String _normalizeCity(String city) {
+    return city.trim().replaceAll('台', '臺');
+  }
+
+  bool _isValidCity(String city) {
+    return _validCities.contains(_normalizeCity(city));
+  }
+
+  String? _validateIdea(String idea) {
+    final String text = idea.trim();
+
+    if (text.isEmpty) return '先說點什麼吧！';
+
+    if (text.runes.length > _maxIdeaLength) {
+      return '內容請在 $_maxIdeaLength 字以內';
+    }
+
+    if (RegExp(r'^[\s0-9０-９]+$').hasMatch(text)) {
+      return '請輸入文字描述，不能只有數字';
+    }
+
+    if (!RegExp(r'\p{L}', unicode: true).hasMatch(text)) {
+      return '請輸入文字描述，不能只有符號';
+    }
+
+    return null;
+  }
   // System UI
 
   @override
@@ -254,43 +308,21 @@ class _SelectionPageState extends State<SelectionPage> {
     fakeLocation = locationController.text.trim();
 
     if (fakeLocation.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '請先輸入地區',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
+      _showLocationMessage('請先輸入地區');
       return;
     }
 
     final Map<String, String> location = _parseLocation(fakeLocation);
 
-    final String cityName = location['cityName']?.trim() ?? '';
+    final String rawCity = location['cityName']?.trim() ?? '';
     final String townName = location['townName']?.trim() ?? '';
 
-    if (cityName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '請輸入完整城市，例如：臺北市或臺北市信義區',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
+    if (rawCity.isEmpty || !_isValidCity(rawCity)) {
+      _showLocationMessage('請輸入正確的縣市名稱，例如：台中市');
       return;
     }
+
+    final String cityName = _normalizeCity(rawCity);
 
     Navigator.push(
       context,
@@ -300,7 +332,6 @@ class _SelectionPageState extends State<SelectionPage> {
       ),
     );
   }
-
   // ==================================================================
   // 來點遊意思
   // ==================================================================
@@ -315,24 +346,13 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
   // 遊你說了算
   // ==================================================================
-
   void customAdventure() {
     final String idea = ideaController.text.trim();
 
-    if (idea.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '先說點什麼吧！',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    final String? error = _validateIdea(idea);
 
+    if (error != null) {
+      _showLocationMessage(error);
       return;
     }
 
@@ -343,7 +363,6 @@ class _SelectionPageState extends State<SelectionPage> {
       ),
     );
   }
-
   // ==================================================================
   // 回首頁
   // ==================================================================
