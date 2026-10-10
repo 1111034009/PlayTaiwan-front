@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
+import 'merchant_coupon_page.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
@@ -149,9 +150,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       context: context,
       barrierDismissible: true,
       barrierColor: const Color.fromARGB(199, 0, 0, 0),
-      builder: (_) {
-        return const MerchantInfoPage();
-      },
+      builder: (_) => const MerchantInfoPage(),
     );
   }
 
@@ -159,6 +158,17 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MerchantInputPage()),
+    );
+  }
+
+  void openTaskManagement() {
+    _showMessage('任務管理');
+  }
+
+  void openCouponManagement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MerchantCouponPage()),
     );
   }
 
@@ -219,7 +229,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                       ),
                       Positioned(
                         left: 23,
-                        top: 78,
+                        top: 58,
                         width: 198,
                         height: 118,
                         child: _GeneratedFileCard(
@@ -229,7 +239,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                       ),
                       Positioned(
                         left: 224,
-                        top: 80,
+                        top: 60,
                         width: 110,
                         height: 40,
                         child: _SmallActionButton(
@@ -240,7 +250,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                       ),
                       Positioned(
                         left: 224,
-                        top: 126,
+                        top: 106,
                         width: 110,
                         height: 66,
                         child: _GenerateVideoButton(
@@ -250,9 +260,19 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                       ),
                       Positioned(
                         left: 24,
-                        top: 212,
+                        top: 187,
                         width: 311,
-                        height: 294,
+                        height: 53,
+                        child: _ManagementButtons(
+                          onTaskTap: openTaskManagement,
+                          onCouponTap: openCouponManagement,
+                        ),
+                      ),
+                      Positioned(
+                        left: 24,
+                        top: 253,
+                        width: 311,
+                        height: 253,
                         child: _RecentFilesCard(
                           files: recentFiles,
                           isLoading: isLoading,
@@ -412,6 +432,116 @@ class _GeneratedFileCard extends StatelessWidget {
   }
 }
 
+class _ManagementButtons extends StatelessWidget {
+  final VoidCallback onTaskTap;
+  final VoidCallback onCouponTap;
+
+  const _ManagementButtons({
+    required this.onTaskTap,
+    required this.onCouponTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ManagementButton(
+            icon: Icons.assignment_outlined,
+            title: '任務管理',
+            onTap: onTaskTap,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _ManagementButton(
+            icon: Icons.confirmation_number_outlined,
+            title: '優惠券管理',
+            onTap: onCouponTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ManagementButton extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _ManagementButton({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  State<_ManagementButton> createState() => _ManagementButtonState();
+}
+
+class _ManagementButtonState extends State<_ManagementButton> {
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? 0.97 : 1,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutBack,
+        child: Container(
+          height: 49,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          decoration: BoxDecoration(
+            color: paperColor,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.black, width: 1.2),
+            boxShadow: const [
+              BoxShadow(color: darkText, offset: Offset(2, 3), blurRadius: 0),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: generateRed.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: darkText, width: 1),
+                ),
+                child: Icon(widget.icon, size: 20, color: red),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmallBold.copyWith(
+                    color: darkText,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: darkText.withOpacity(0.75),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SmallActionButton extends StatefulWidget {
   final IconData icon;
   final String text;
@@ -439,21 +569,9 @@ class _SmallActionButtonState extends State<_SmallActionButton> {
       children: [
         GestureDetector(
           onTap: widget.onTap,
-          onTapDown: (_) {
-            setState(() {
-              pressing = true;
-            });
-          },
-          onTapUp: (_) {
-            setState(() {
-              pressing = false;
-            });
-          },
-          onTapCancel: () {
-            setState(() {
-              pressing = false;
-            });
-          },
+          onTapDown: (_) => setState(() => pressing = true),
+          onTapUp: (_) => setState(() => pressing = false),
+          onTapCancel: () => setState(() => pressing = false),
           child: AnimatedScale(
             scale: scale,
             duration: const Duration(milliseconds: 160),
@@ -512,21 +630,9 @@ class _GenerateVideoButtonState extends State<_GenerateVideoButton> {
 
     return GestureDetector(
       onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 160),
@@ -589,7 +695,7 @@ class _RecentFilesCard extends StatelessWidget {
               BoxShadow(color: darkText, blurRadius: 0, offset: Offset(1, 2)),
             ],
           ),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -597,7 +703,7 @@ class _RecentFilesCard extends StatelessWidget {
                 '近期檔案',
                 style: AppTextStyles.titleMediumBold.copyWith(color: darkText),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Expanded(child: _buildFileContent()),
             ],
           ),
@@ -700,21 +806,9 @@ class _RecentFileItemState extends State<_RecentFileItem> {
 
     return GestureDetector(
       onTap: widget.onPlay,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 140),
@@ -775,21 +869,9 @@ class _PlayButtonState extends State<_PlayButton> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 140),
