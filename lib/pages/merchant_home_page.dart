@@ -1,10 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
+import '../core/app_session.dart';
 
 const Color pageColor = AppColors.background;
 const Color paperColor = AppColors.merchantPaper;
@@ -25,11 +31,16 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
 
-  final List<_MerchantFile> recentFiles = const [
-    _MerchantFile(title: '日式復古串燒居酒屋', date: '2026.08.01'),
-    _MerchantFile(title: '巷弄咖啡廳-暑期活動', date: '2026.08.01'),
-    _MerchantFile(title: '巷弄咖啡廳-暑期活動', date: '2026.08.01'),
-  ];
+  final String _apiBaseUrl =
+      (dotenv.env['API_BASE_URL'] ?? 'https://backend.angelalala.com')
+          .trim()
+          .replaceFirst(RegExp(r'/$'), '');
+
+  List<_MerchantFile> files = [];
+  bool isLoading = true;
+  String? filesError;
+
+  List<_MerchantFile> get recentFiles => files.take(8).toList();
 
   @override
   void initState() {
@@ -44,7 +55,95 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    _fetchFiles();
   }
+
+  Future<void> _fetchFiles() async {
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+      filesError = null;
+    });
+
+    try {
+      final token = AppSession.token;
+
+      if (token == null || token.isEmpty) {
+        throw Exception('登入狀態已失效，請重新登入');
+      }
+
+      final uri = Uri.parse('$_apiBaseUrl/api/Merchant/Files');
+
+      final response = await http
+          .get(
+            uri,
+            headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('取得檔案失敗（HTTP ${response.statusCode}）');
+      }
+
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('伺服器回傳格式錯誤');
+      }
+
+      if (decoded['isSuccess'] != true) {
+        throw Exception(decoded['message']?.toString() ?? '查詢檔案失敗');
+      }
+
+      final dynamic result = decoded['Result'];
+
+      if (result is! List) {
+        throw Exception('檔案資料格式錯誤');
+      }
+
+      final List<_MerchantFile> loadedFiles = result
+          .whereType<Map>()
+          .map(
+            (item) => _MerchantFile(
+              id: item['mm_id'],
+              title: item['mm_title']?.toString() ?? '未命名檔案',
+              videoUrl: item['mm_video_url']?.toString() ?? '',
+              status: item['mm_status'],
+              updatedAt: item['updated_at']?.toString() ?? '',
+            ),
+          )
+          .toList();
+
+      loadedFiles.sort((a, b) {
+        final dateA = DateTime.tryParse(a.updatedAt);
+        final dateB = DateTime.tryParse(b.updatedAt);
+
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+
+        return dateB.compareTo(dateA);
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        files = loadedFiles;
+        isLoading = false;
+        filesError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        filesError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
   void openSettings() {
     showDialog<void>(
       context: context,
@@ -64,6 +163,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   }
 
   void playFile(_MerchantFile file) {
+    if (file.videoUrl.isEmpty) {
+      _showMessage('此檔案目前沒有影片網址');
+      return;
+    }
+
     _showMessage('播放：${file.title}');
   }
 
@@ -118,7 +222,10 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 78,
                         width: 198,
                         height: 118,
-                        child: _GeneratedFileCard(),
+                        child: _GeneratedFileCard(
+                          count: files.length,
+                          isLoading: isLoading,
+                        ),
                       ),
                       Positioned(
                         left: 224,
@@ -129,7 +236,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                           icon: Icons.settings,
                           text: '資訊設定',
                           onTap: openSettings,
-),
+                        ),
                       ),
                       Positioned(
                         left: 224,
@@ -139,7 +246,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         child: _GenerateVideoButton(
                           text: '前往生成影音',
                           onTap: openVideoGenerator,
-),
+                        ),
                       ),
                       Positioned(
                         left: 24,
@@ -148,8 +255,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         height: 294,
                         child: _RecentFilesCard(
                           files: recentFiles,
+                          isLoading: isLoading,
+                          error: filesError,
                           onPlay: playFile,
-),
+                          onRetry: _fetchFiles,
+                        ),
                       ),
                     ],
                   ),
@@ -228,7 +338,10 @@ class _Pin extends StatelessWidget {
 }
 
 class _GeneratedFileCard extends StatelessWidget {
-const _GeneratedFileCard();
+  final int count;
+  final bool isLoading;
+
+  const _GeneratedFileCard({required this.count, required this.isLoading});
 
   static const double cardWidth = 190;
   static const double cardHeight = 118;
@@ -261,10 +374,26 @@ const _GeneratedFileCard();
                   const SizedBox(height: 6),
                   Container(width: 105, height: 1, color: darkText),
                   const SizedBox(height: 4),
-                  Text(
-                    '25',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.merchantStat.copyWith(color: red).copyWith(height: 1),
+                  SizedBox(
+                    height: 44,
+                    child: Center(
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: red,
+                              ),
+                            )
+                          : Text(
+                              '$count',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.merchantStat
+                                  .copyWith(color: red)
+                                  .copyWith(height: 1),
+                            ),
+                    ),
                   ),
                 ],
               ),
@@ -287,18 +416,19 @@ class _SmallActionButton extends StatefulWidget {
   final IconData icon;
   final String text;
   final VoidCallback onTap;
+
   const _SmallActionButton({
     required this.icon,
     required this.text,
     required this.onTap,
-});
+  });
 
   @override
   State<_SmallActionButton> createState() => _SmallActionButtonState();
 }
 
 class _SmallActionButtonState extends State<_SmallActionButton> {
-bool pressing = false;
+  bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -308,55 +438,55 @@ bool pressing = false;
       clipBehavior: Clip.none,
       children: [
         GestureDetector(
-            onTap: widget.onTap,
-            onTapDown: (_) {
-              setState(() {
-                pressing = true;
-              });
-            },
-            onTapUp: (_) {
-              setState(() {
-                pressing = false;
-              });
-            },
-            onTapCancel: () {
-              setState(() {
-                pressing = false;
-              });
-            },
-            child: AnimatedScale(
-              scale: scale,
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOutBack,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: Colors.black, width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: darkText,
-                      blurRadius: 0,
-                      spreadRadius: 0,
-                      offset: Offset(1, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(widget.icon, size: 24, color: darkText),
-                    const SizedBox(width: 5),
-                    Text(
-                      widget.text,
-                      style: AppTextStyles.captionBold.copyWith(color: darkText),
-                    ),
-                  ],
-                ),
+          onTap: widget.onTap,
+          onTapDown: (_) {
+            setState(() {
+              pressing = true;
+            });
+          },
+          onTapUp: (_) {
+            setState(() {
+              pressing = false;
+            });
+          },
+          onTapCancel: () {
+            setState(() {
+              pressing = false;
+            });
+          },
+          child: AnimatedScale(
+            scale: scale,
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOutBack,
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: Colors.black, width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: darkText,
+                    blurRadius: 0,
+                    spreadRadius: 0,
+                    offset: Offset(1, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(widget.icon, size: 24, color: darkText),
+                  const SizedBox(width: 5),
+                  Text(
+                    widget.text,
+                    style: AppTextStyles.captionBold.copyWith(color: darkText),
+                  ),
+                ],
               ),
             ),
           ),
+        ),
         const Positioned(right: -2, top: -9, child: _Pin(size: 18)),
       ],
     );
@@ -366,78 +496,84 @@ bool pressing = false;
 class _GenerateVideoButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-  const _GenerateVideoButton({
-    required this.text,
-    required this.onTap,
-});
+
+  const _GenerateVideoButton({required this.text, required this.onTap});
 
   @override
   State<_GenerateVideoButton> createState() => _GenerateVideoButtonState();
 }
 
 class _GenerateVideoButtonState extends State<_GenerateVideoButton> {
-bool pressing = false;
+  bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
     final double scale = pressing ? 0.96 : 1;
 
     return GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: generateRed,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: Colors.black, width: 1.5),
-              boxShadow: const [
-                BoxShadow(
-                  color: darkText,
-                  blurRadius: 0,
-                  spreadRadius: 0,
-                  offset: Offset(3, 4),
-                ),
-              ],
-            ),
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmallBold.copyWith(color: paperColor)
-                  .copyWith(height: 1.25),
-            ),
+      onTap: widget.onTap,
+      onTapDown: (_) {
+        setState(() {
+          pressing = true;
+        });
+      },
+      onTapUp: (_) {
+        setState(() {
+          pressing = false;
+        });
+      },
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutBack,
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: generateRed,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.black, width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: darkText,
+                blurRadius: 0,
+                spreadRadius: 0,
+                offset: Offset(3, 4),
+              ),
+            ],
+          ),
+          child: Text(
+            widget.text,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmallBold
+                .copyWith(color: paperColor)
+                .copyWith(height: 1.25),
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
 class _RecentFilesCard extends StatelessWidget {
   final List<_MerchantFile> files;
+  final bool isLoading;
+  final String? error;
   final ValueChanged<_MerchantFile> onPlay;
+  final VoidCallback onRetry;
+
   const _RecentFilesCard({
     required this.files,
+    required this.isLoading,
+    required this.error,
     required this.onPlay,
-});
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -462,25 +598,70 @@ class _RecentFilesCard extends StatelessWidget {
                 style: AppTextStyles.titleMediumBold.copyWith(color: darkText),
               ),
               const SizedBox(height: 10),
-              Expanded(
-                child: Column(
-                  children: [
-                    for (int i = 0; i < files.length; i++) ...[
-                      Expanded(
-                        child: _RecentFileItem(
-                          file: files[i],
-                          onPlay: () => onPlay(files[i]),
-),
-                      ),
-                      if (i != files.length - 1) const SizedBox(height: 9),
-                    ],
-                  ],
-                ),
-              ),
+              Expanded(child: _buildFileContent()),
             ],
           ),
         ),
         const Positioned(left: 1, top: -1, child: _Pin(size: 19)),
+      ],
+    );
+  }
+
+  Widget _buildFileContent() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(strokeWidth: 2, color: red),
+      );
+    }
+
+    if (error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              error!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.captionBold.copyWith(color: darkText),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: onRetry,
+              child: Text(
+                '重新載入',
+                style: AppTextStyles.captionBold.copyWith(
+                  color: red,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (files.isEmpty) {
+      return Center(
+        child: Text(
+          '目前沒有生成檔案',
+          style: AppTextStyles.captionBold.copyWith(color: darkText),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (int i = 0; i < files.length; i++) ...[
+          Expanded(
+            child: _RecentFileItem(
+              file: files[i],
+              onPlay: () => onPlay(files[i]),
+            ),
+          ),
+          if (i != files.length - 1) const SizedBox(height: 4),
+        ],
       ],
     );
   }
@@ -489,89 +670,89 @@ class _RecentFilesCard extends StatelessWidget {
 class _RecentFileItem extends StatefulWidget {
   final _MerchantFile file;
   final VoidCallback onPlay;
-  const _RecentFileItem({
-    required this.file,
-    required this.onPlay,
-});
+
+  const _RecentFileItem({required this.file, required this.onPlay});
 
   @override
   State<_RecentFileItem> createState() => _RecentFileItemState();
 }
 
 class _RecentFileItemState extends State<_RecentFileItem> {
-bool pressing = false;
+  bool pressing = false;
+
+  String _formatDate(String value) {
+    final date = DateTime.tryParse(value);
+
+    if (date == null) {
+      return value.isEmpty ? '無更新日期' : value;
+    }
+
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+
+    return '$year.$month.$day';
+  }
 
   @override
   Widget build(BuildContext context) {
     final double scale = pressing ? 0.98 : 1;
 
     return GestureDetector(
-        onTap: widget.onPlay,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOut,
-          child: Container(
-            height: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-            decoration: BoxDecoration(
-              color: itemColor,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: darkText, width: 1),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8C807A),
-                    borderRadius: BorderRadius.circular(5),
+      onTap: widget.onPlay,
+      onTapDown: (_) {
+        setState(() {
+          pressing = true;
+        });
+      },
+      onTapUp: (_) {
+        setState(() {
+          pressing = false;
+        });
+      },
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: itemColor,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: darkText, width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.file.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.captionBold.copyWith(
+                    color: Colors.black,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.file.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.captionBold.copyWith(color: Colors.black)
-                            .copyWith(height: 1.15),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        widget.file.date,
-                        style: AppTextStyles.captionBold.copyWith(color: Colors.black.withOpacity(0.8)),
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _formatDate(widget.file.updatedAt),
+                style: AppTextStyles.captionBold.copyWith(
+                  color: Colors.black.withOpacity(0.8),
                 ),
-                const SizedBox(width: 5),
-                _PlayButton(onTap: widget.onPlay),
-              ],
-            ),
+              ),
+              const SizedBox(width: 6),
+              _PlayButton(onTap: widget.onPlay),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -585,56 +766,65 @@ class _PlayButton extends StatefulWidget {
 }
 
 class _PlayButtonState extends State<_PlayButton> {
-bool pressing = false;
+  bool pressing = false;
 
   @override
   Widget build(BuildContext context) {
     final double scale = pressing ? 0.90 : 1;
 
     return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: (_) {
-          setState(() {
-            pressing = true;
-          });
-        },
-        onTapUp: (_) {
-          setState(() {
-            pressing = false;
-          });
-        },
-        onTapCancel: () {
-          setState(() {
-            pressing = false;
-          });
-        },
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOutBack,
-          child: Container(
-            width: 29,
-            height: 29,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: red,
-              border: Border.all(color: darkText, width: 1.2),
-            ),
-            child: const Icon(
-              Icons.play_arrow_rounded,
-              size: 19,
-              color: paperColor,
-            ),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) {
+        setState(() {
+          pressing = true;
+        });
+      },
+      onTapUp: (_) {
+        setState(() {
+          pressing = false;
+        });
+      },
+      onTapCancel: () {
+        setState(() {
+          pressing = false;
+        });
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: 29,
+          height: 29,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: red,
+            border: Border.all(color: darkText, width: 1.2),
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            size: 19,
+            color: paperColor,
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
 class _MerchantFile {
+  final dynamic id;
   final String title;
-  final String date;
+  final String videoUrl;
+  final dynamic status;
+  final String updatedAt;
 
-  const _MerchantFile({required this.title, required this.date});
+  const _MerchantFile({
+    required this.id,
+    required this.title,
+    required this.videoUrl,
+    required this.status,
+    required this.updatedAt,
+  });
 }

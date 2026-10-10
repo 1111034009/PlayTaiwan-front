@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -31,14 +32,36 @@ class MerchantInfoPage extends StatefulWidget {
 class _MerchantInfoPageState extends State<MerchantInfoPage> {
   String get _apiBaseUrl {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
-
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
-  // 從 AppSession 取得目前登入的帳號名稱
-  String accountName = AppSession.epName ?? '';
+  OverlayEntry? _activeSnackBarEntry;
+  Timer? _snackBarTimer;
 
-  String shopName = '日式復古串燒居酒屋';
+  String accountName = AppSession.epName ?? '';
+  String shopName = '';
+  String shopDescription = '';
+  String shopAddress = '';
+  String shopCity = '';
+  String shopTown = '';
+
+  double? shopLat;
+  double? shopLng;
+
+  bool isMerchantLoading = true;
+
+  @override
+  void dispose() {
+    _snackBarTimer?.cancel();
+
+    if (_activeSnackBarEntry?.mounted ?? false) {
+      _activeSnackBarEntry!.remove();
+    }
+
+    _activeSnackBarEntry = null;
+
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -54,52 +77,157 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       ),
     );
 
-    _fetchProfile();
+    _loadCachedMerchantProfile();
+
+    unawaited(_fetchProfile());
+    unawaited(_fetchMerchantProfile());
   }
 
-  /// 取得目前登入帳號資訊
+  void _loadCachedMerchantProfile() {
+    final cached = AppSession.merchantProfile;
+    if (cached == null) return;
+
+    _applyMerchantProfile(cached, updateSession: false);
+    isMerchantLoading = false;
+  }
+
+  void _applyMerchantProfile(
+    Map<String, dynamic> data, {
+    bool updateSession = true,
+  }) {
+    if (updateSession) {
+      AppSession.updateMerchantProfile(data);
+    }
+
+    final profile = AppSession.merchantProfile ?? data;
+
+    if (!mounted) {
+      shopName = profile['store_name']?.toString() ?? shopName;
+      shopDescription = profile['store_dec']?.toString() ?? shopDescription;
+      shopAddress = profile['store_address']?.toString() ?? shopAddress;
+      shopCity = profile['store_city']?.toString() ?? shopCity;
+      shopTown = profile['store_town']?.toString() ?? shopTown;
+
+      final dynamic lat = profile['lat'];
+      final dynamic lng = profile['lng'];
+
+      shopLat = lat is num ? lat.toDouble() : double.tryParse('$lat');
+      shopLng = lng is num ? lng.toDouble() : double.tryParse('$lng');
+
+      return;
+    }
+
+    setState(() {
+      shopName = profile['store_name']?.toString() ?? '';
+      shopDescription = profile['store_dec']?.toString() ?? '';
+      shopAddress = profile['store_address']?.toString() ?? '';
+      shopCity = profile['store_city']?.toString() ?? '';
+      shopTown = profile['store_town']?.toString() ?? '';
+
+      final dynamic lat = profile['lat'];
+      final dynamic lng = profile['lng'];
+
+      shopLat = lat is num ? lat.toDouble() : double.tryParse('$lat');
+      shopLng = lng is num ? lng.toDouble() : double.tryParse('$lng');
+    });
+  }
+
   Future<void> _fetchProfile() async {
     final token = AppSession.token;
 
-    if (token == null || token.isEmpty) {
+    if (token == null || token.isEmpty || _apiBaseUrl.isEmpty) return;
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
+            headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) return;
+
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is! Map<String, dynamic> || decoded['isSuccess'] != true) {
+        return;
+      }
+
+      final result = decoded['Result'];
+
+      final String? name = result is Map ? result['ep_name']?.toString() : null;
+
+      if (name != null && name.isNotEmpty && mounted) {
+        setState(() {
+          accountName = name;
+          AppSession.epName = name;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchMerchantProfile() async {
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty || _apiBaseUrl.isEmpty) {
+      if (mounted) {
+        setState(() {
+          isMerchantLoading = false;
+        });
+      }
       return;
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
-        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
-      );
+      final response = await http
+          .get(
+            Uri.parse('$_apiBaseUrl/api/Merchant/Profile'),
+            headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-
-        if (data['isSuccess'] == true) {
-          final result = data['Result'];
-
-          final String? epName = result?['ep_name']?.toString();
-
-          if (epName != null && epName.isNotEmpty) {
-            if (!mounted) return;
-
-            setState(() {
-              accountName = epName;
-            });
-          }
-        }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return;
       }
-    } catch (e) {
-      // 需要的話可以在這裡處理錯誤
+
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is Map<String, dynamic> &&
+          decoded['isSuccess'] == true &&
+          decoded['Result'] is Map) {
+        final result = Map<String, dynamic>.from(decoded['Result'] as Map);
+
+        if (!mounted) return;
+
+        _applyMerchantProfile(result);
+      } else if (mounted) {
+        _showSnackBar(
+          decoded is Map
+              ? decoded['message']?.toString() ?? '取得店家資訊失敗'
+              : '取得店家資訊失敗',
+        );
+      }
+    } on TimeoutException {
+      if (mounted && AppSession.merchantProfile == null) {
+        _showSnackBar('取得店家資訊逾時，請稍後再試');
+      }
+    } catch (_) {
+      if (mounted && AppSession.merchantProfile == null) {
+        _showSnackBar('無法連線到伺服器');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isMerchantLoading = false;
+        });
+      }
     }
   }
 
-  /// 修改帳號名稱
   Future<bool> _updateProfile(String epName) async {
     final String newName = epName.trim();
 
     if (newName.isEmpty) {
-      if (!mounted) return false;
-
       _showSnackBar('帳號名稱不可為空');
       return false;
     }
@@ -107,88 +235,133 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     final token = AppSession.token;
 
     if (token == null || token.isEmpty) {
-      if (!mounted) return false;
-
       _showSnackBar('登入資訊已失效，請重新登入');
       return false;
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
-        headers: {
-          'accept': 'text/plain',
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'ep_name': newName}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_apiBaseUrl/api/Auth/Profile'),
+            headers: {
+              'accept': 'text/plain',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'auth_name': newName}),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (!mounted) return false;
 
         setState(() {
           accountName = newName;
+          AppSession.epName = newName;
         });
-
-        // 如果 AppSession 有提供 epName setter，
-        // 建議同步更新 Session。
-        //
-        // 例如：
-        // AppSession.epName = newName;
 
         return true;
       }
 
-      if (!mounted) return false;
+      if (mounted) _showSnackBar('更新帳號名稱失敗');
 
-      _showSnackBar('更新帳號名稱失敗');
       return false;
-    } catch (e) {
-      if (!mounted) return false;
+    } catch (_) {
+      if (mounted) _showSnackBar('無法連線到伺服器');
 
-      _showSnackBar('無法連線到伺服器');
       return false;
     }
   }
 
-  /// 修改密碼
   Future<bool> _changePassword(String oldPassword, String newPassword) async {
     final token = AppSession.token;
 
     if (token == null || token.isEmpty) {
-      if (!mounted) return false;
-
       _showSnackBar('登入資訊已失效，請重新登入');
       return false;
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/Auth/ChangePassword'),
-        headers: {
-          'accept': 'text/plain',
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'OldPassword': oldPassword,
-          'NewPassword': newPassword,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_apiBaseUrl/api/Auth/ChangePassword'),
+            headers: {
+              'accept': 'text/plain',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'OldPassword': oldPassword,
+              'NewPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       }
 
-      if (!mounted) return false;
+      if (mounted) _showSnackBar('修改密碼失敗');
 
-      _showSnackBar('修改密碼失敗');
       return false;
-    } catch (e) {
-      if (!mounted) return false;
+    } catch (_) {
+      if (mounted) _showSnackBar('無法連線到伺服器');
 
-      _showSnackBar('無法連線到伺服器');
+      return false;
+    }
+  }
+
+  Future<bool> _updateMerchantProfile(Map<String, dynamic> fields) async {
+    if (fields.isEmpty) return true;
+
+    final token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      _showSnackBar('登入資訊已失效，請重新登入');
+      return false;
+    }
+
+    try {
+      final response = await http
+          .put(
+            Uri.parse('$_apiBaseUrl/api/Merchant/Profile'),
+            headers: {
+              'accept': '*/*',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(fields),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (mounted) _showSnackBar('更新店家資訊失敗');
+
+        return false;
+      }
+
+      Map<String, dynamic> data = {};
+
+      try {
+        final decoded = jsonDecode(response.body);
+
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {}
+
+      if (data['isSuccess'] == false) {
+        if (mounted) {
+          _showSnackBar(data['message']?.toString() ?? '更新店家資訊失敗');
+        }
+
+        return false;
+      }
+
+      return true;
+    } catch (_) {
+      if (mounted) _showSnackBar('無法連線到伺服器');
+
       return false;
     }
   }
@@ -196,41 +369,56 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
   void _showSnackBar(String message) {
     if (!mounted) return;
 
-    final OverlayState overlay = Overlay.of(context, rootOverlay: true);
+    _snackBarTimer?.cancel();
 
-    late OverlayEntry overlayEntry;
+    if (_activeSnackBarEntry?.mounted ?? false) {
+      _activeSnackBarEntry!.remove();
+    }
+    _activeSnackBarEntry = null;
 
-    overlayEntry = OverlayEntry(
-      builder: (context) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    late final OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (overlayContext) {
+        final mediaQuery = MediaQuery.of(overlayContext);
+
         return Positioned(
           left: 16,
           right: 16,
-          bottom: 20,
-          child: IgnorePointer(
-            ignoring: false,
-            child: Material(
-              color: Colors.transparent,
-              child: SafeArea(
-                child: _TopSnackBar(
-                  message: message,
-                  onClose: () {
-                    if (overlayEntry.mounted) {
-                      overlayEntry.remove();
-                    }
-                  },
-                ),
-              ),
+          // 固定在畫面底部，避開系統導覽列
+          bottom: mediaQuery.padding.bottom + 16,
+          child: Material(
+            color: Colors.transparent,
+            child: _TopSnackBar(
+              message: message,
+              onClose: () {
+                if (entry.mounted) {
+                  entry.remove();
+                }
+
+                if (identical(_activeSnackBarEntry, entry)) {
+                  _activeSnackBarEntry = null;
+                  _snackBarTimer?.cancel();
+                }
+              },
             ),
           ),
         );
       },
     );
 
-    overlay.insert(overlayEntry);
+    _activeSnackBarEntry = entry;
+    overlay.insert(entry);
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
+    _snackBarTimer = Timer(const Duration(seconds: 3), () {
+      if (entry.mounted) {
+        entry.remove();
+      }
+
+      if (identical(_activeSnackBarEntry, entry)) {
+        _activeSnackBarEntry = null;
       }
     });
   }
@@ -245,9 +433,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       },
     );
 
-    if (!mounted || result == null) {
-      return;
-    }
+    if (!mounted || result == null) return;
 
     final String newAccountName = result.accountName.trim();
     final String oldPassword = result.oldPassword;
@@ -259,98 +445,144 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     }
 
     final bool nameChanged = newAccountName != accountName;
-
     final bool oldPasswordEntered = oldPassword.isNotEmpty;
     final bool newPasswordEntered = newPassword.isNotEmpty;
 
-    // 密碼必須兩個一起填
     if (oldPasswordEntered != newPasswordEntered) {
       _showSnackBar('原密碼與新密碼都必須填寫才可修改');
       return;
     }
 
-    // 完全沒有修改
     if (!nameChanged && !oldPasswordEntered && !newPasswordEntered) {
       return;
     }
 
-    // 修改名稱
     if (nameChanged) {
-      final bool profileSuccess = await _updateProfile(newAccountName);
+      final bool success = await _updateProfile(newAccountName);
 
-      if (!profileSuccess) {
-        return;
-      }
+      if (!success) return;
     }
 
-    // 修改密碼
     if (oldPasswordEntered && newPasswordEntered) {
-      final bool passwordSuccess = await _changePassword(
-        oldPassword,
-        newPassword,
-      );
+      final bool success = await _changePassword(oldPassword, newPassword);
 
-      if (!passwordSuccess) {
-        return;
-      }
+      if (!success) return;
     }
 
-    if (!mounted) return;
-
-    _showSnackBar('探員資料更新成功');
+    if (mounted) {
+      _showSnackBar('帳號資料更新成功');
+    }
   }
 
-  void editShop() {
-    _showEditShopDialog();
-  }
-
-  Future<void> _showEditShopDialog() async {
-    final String? result = await showDialog<String>(
+  Future<void> editShop() async {
+    final result = await showDialog<_MerchantEditResult>(
       context: context,
       barrierDismissible: true,
       barrierColor: const Color(0xDD000000),
       builder: (dialogContext) {
-        return _EditDialog(
-          title: '編輯店家名稱',
-          label: '店家名稱',
-          initialValue: shopName,
+        return _MerchantEditDialog(
+          initialName: shopName,
+          initialDescription: shopDescription,
+          initialAddress: _fullAddress,
+          initialCity: shopCity,
+          initialTown: shopTown,
+          initialLat: shopLat,
+          initialLng: shopLng,
         );
       },
     );
 
-    if (!mounted) {
-      return;
+    if (!mounted || result == null) return;
+
+    final Map<String, dynamic> fields = {};
+
+    final String newName = result.name.trim();
+    final String newDescription = result.description.trim();
+
+    if (newName != shopName) {
+      fields['store_name'] = newName;
     }
 
-    if (result != null && result.trim().isNotEmpty) {
-      setState(() {
-        shopName = result.trim();
-      });
+    if (newDescription != shopDescription) {
+      fields['store_dec'] = newDescription;
     }
+
+    final String newFullAddress =
+        '${result.city}${result.town}${result.address}';
+
+    final bool addressChanged = newFullAddress != _fullAddress;
+
+    if (addressChanged) {
+      if (!result.addressConfirmed ||
+          result.lat == null ||
+          result.lng == null) {
+        _showSnackBar('請先確認地址');
+        return;
+      }
+
+      fields['store_address'] = result.address;
+      fields['store_city'] = result.city;
+      fields['store_town'] = result.town;
+      fields['lat'] = result.lat;
+      fields['lng'] = result.lng;
+    }
+
+    if (fields.isEmpty) return;
+
+    final bool success = await _updateMerchantProfile(fields);
+
+    if (!success || !mounted) return;
+
+    final updatedProfile = <String, dynamic>{
+      'store_name': result.name.trim(),
+      'store_dec': result.description.trim(),
+      'store_address': addressChanged ? result.address : shopAddress,
+      'store_city': addressChanged ? result.city : shopCity,
+      'store_town': addressChanged ? result.town : shopTown,
+      'lat': addressChanged ? result.lat : shopLat,
+      'lng': addressChanged ? result.lng : shopLng,
+    };
+
+    AppSession.updateMerchantProfile(updatedProfile);
+
+    setState(() {
+      shopName = updatedProfile['store_name'] as String;
+      shopDescription = updatedProfile['store_dec'] as String;
+      shopAddress = updatedProfile['store_address'] as String;
+      shopCity = updatedProfile['store_city'] as String;
+      shopTown = updatedProfile['store_town'] as String;
+      shopLat = updatedProfile['lat'] as double?;
+      shopLng = updatedProfile['lng'] as double?;
+    });
+
+    _showSnackBar('店家資訊更新成功');
+  }
+
+  String get _fullAddress {
+    final String city = shopCity.trim();
+    final String town = shopTown.trim();
+    final String address = shopAddress.trim();
+
+    return '$city$town$address';
   }
 
   Future<void> logout() async {
     final token = AppSession.token;
 
-    // 先清除本地 Session
     AppSession.clear();
 
     if (!mounted) return;
 
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
 
-    if (token == null || token.isEmpty) {
-      return;
-    }
+    if (token == null || token.isEmpty) return;
 
     try {
       await http.post(
         Uri.parse('$_apiBaseUrl/api/Auth/Logout'),
         headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
-    } catch (e) {
-      // 已經導向登入頁，不需要再處理 UI
-    }
+    } catch (_) {}
   }
 
   @override
@@ -360,13 +592,15 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 330, maxHeight: 405),
+        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 560),
         child: SizedBox(
-          width: 330,
-          height: 230,
+          width: 360,
           child: _InfoCard(
             accountName: accountName,
             shopName: shopName,
+            shopDescription: shopDescription,
+            shopAddress: _fullAddress,
+            isLoading: isMerchantLoading && AppSession.merchantProfile == null,
             onEditAccount: editAccount,
             onEditShop: editShop,
             onLogout: logout,
@@ -377,7 +611,6 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
   }
 }
 
-/// 帳號編輯結果
 class _AccountEditResult {
   final String accountName;
   final String oldPassword;
@@ -390,7 +623,6 @@ class _AccountEditResult {
   });
 }
 
-/// 帳號名稱 + 密碼編輯 Dialog
 class _AccountEditDialog extends StatefulWidget {
   final String initialAccountName;
 
@@ -412,7 +644,6 @@ class _AccountEditDialogState extends State<_AccountEditDialog> {
     accountController = TextEditingController(text: widget.initialAccountName);
 
     oldPasswordController = TextEditingController();
-
     newPasswordController = TextEditingController();
   }
 
@@ -427,19 +658,15 @@ class _AccountEditDialogState extends State<_AccountEditDialog> {
 
   void submit() {
     final String accountName = accountController.text.trim();
-    final String oldPassword = oldPasswordController.text;
-    final String newPassword = newPasswordController.text;
 
-    if (accountName.isEmpty) {
-      return;
-    }
+    if (accountName.isEmpty) return;
 
     Navigator.pop(
       context,
       _AccountEditResult(
         accountName: accountName,
-        oldPassword: oldPassword,
-        newPassword: newPassword,
+        oldPassword: oldPasswordController.text,
+        newPassword: newPasswordController.text,
       ),
     );
   }
@@ -472,78 +699,34 @@ class _AccountEditDialogState extends State<_AccountEditDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '編輯探員資料',
-                style: AppTextStyles.titleLarge
-                    .copyWith(color: Colors.black)
-                    .copyWith(height: 1.0),
+                '編輯帳號資料',
+                style: AppTextStyles.titleLarge.copyWith(
+                  color: Colors.black,
+                  height: 1,
+                ),
               ),
-
               const SizedBox(height: 18),
-
               _AccountTextField(
                 controller: accountController,
                 label: '帳號名稱',
                 obscureText: false,
               ),
-
               const SizedBox(height: 12),
-
               _AccountTextField(
                 controller: oldPasswordController,
                 label: '原通行密碼',
                 obscureText: true,
               ),
-
               const SizedBox(height: 12),
-
               _AccountTextField(
                 controller: newPasswordController,
                 label: '新通行密碼',
                 obscureText: true,
               ),
-
               const SizedBox(height: 18),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      '取消',
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(
-                        color: _bodyText,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _accentRed,
-                      foregroundColor: _paperColor,
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        side: const BorderSide(color: Colors.black, width: 1),
-                      ),
-                    ),
-                    onPressed: submit,
-                    child: Text(
-                      '儲存',
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(
-                        color: _paperColor,
-                      ),
-                    ),
-                  ),
-                ],
+              _DialogActions(
+                onCancel: () => Navigator.pop(context),
+                onSave: submit,
               ),
             ],
           ),
@@ -601,52 +784,379 @@ class _AccountTextField extends StatelessWidget {
   }
 }
 
-class _EditDialog extends StatefulWidget {
-  final String title;
-  final String label;
-  final String initialValue;
+class _MerchantEditResult {
+  final String name;
+  final String description;
+  final String address;
+  final String city;
+  final String town;
+  final double? lat;
+  final double? lng;
+  final bool addressConfirmed;
 
-  const _EditDialog({
-    required this.title,
-    required this.label,
-    required this.initialValue,
+  const _MerchantEditResult({
+    required this.name,
+    required this.description,
+    required this.address,
+    required this.city,
+    required this.town,
+    required this.lat,
+    required this.lng,
+    required this.addressConfirmed,
+  });
+}
+
+class _MerchantEditDialog extends StatefulWidget {
+  final String initialName;
+  final String initialDescription;
+  final String initialAddress;
+  final String initialCity;
+  final String initialTown;
+  final double? initialLat;
+  final double? initialLng;
+
+  const _MerchantEditDialog({
+    required this.initialName,
+    required this.initialDescription,
+    required this.initialAddress,
+    required this.initialCity,
+    required this.initialTown,
+    required this.initialLat,
+    required this.initialLng,
   });
 
   @override
-  State<_EditDialog> createState() => _EditDialogState();
+  State<_MerchantEditDialog> createState() => _MerchantEditDialogState();
 }
 
-class _EditDialogState extends State<_EditDialog> {
-  late final TextEditingController controller;
-  late final FocusNode focusNode;
+class _MerchantEditDialogState extends State<_MerchantEditDialog> {
+  String get _apiBaseUrl {
+    final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
+    return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
+
+  late final TextEditingController nameController;
+  late final TextEditingController descriptionController;
+  late final TextEditingController addressController;
+
+  late String city;
+  late String town;
+
+  double? lat;
+  double? lng;
+
+  bool addressConfirmed = true;
+  bool isGeocoding = false;
 
   @override
   void initState() {
     super.initState();
 
-    controller = TextEditingController(text: widget.initialValue);
+    nameController = TextEditingController(text: widget.initialName);
 
-    focusNode = FocusNode();
+    descriptionController = TextEditingController(
+      text: widget.initialDescription,
+    );
+
+    addressController = TextEditingController(text: widget.initialAddress);
+
+    city = widget.initialCity;
+    town = widget.initialTown;
+    lat = widget.initialLat;
+    lng = widget.initialLng;
+
+    addressController.addListener(_onAddressChanged);
   }
 
   @override
   void dispose() {
-    focusNode.dispose();
-    controller.dispose();
+    addressController.removeListener(_onAddressChanged);
+
+    nameController.dispose();
+    descriptionController.dispose();
+    addressController.dispose();
 
     super.dispose();
   }
 
-  void submit() {
-    final String value = controller.text.trim();
+  void _onAddressChanged() {
+    final String currentAddress = addressController.text.trim();
 
-    if (value.isEmpty) {
+    if (currentAddress != widget.initialAddress &&
+        (addressConfirmed || lat != null || lng != null)) {
+      setState(() {
+        addressConfirmed = false;
+        lat = null;
+        lng = null;
+      });
+    }
+  }
+
+  Map<String, String>? _splitAddress(String input) {
+    String value = input
+        .trim()
+        .replaceAll('　', '')
+        .replaceAll('台', '臺')
+        .replaceAll('０', '0')
+        .replaceAll('１', '1')
+        .replaceAll('２', '2')
+        .replaceAll('３', '3')
+        .replaceAll('４', '4')
+        .replaceAll('５', '5')
+        .replaceAll('６', '6')
+        .replaceAll('７', '7')
+        .replaceAll('８', '8')
+        .replaceAll('９', '9');
+
+    value = value.replaceFirst(RegExp(r'^(中華民國|臺灣|台灣)'), '');
+
+    const cities = [
+      '臺北市',
+      '新北市',
+      '桃園市',
+      '臺中市',
+      '臺南市',
+      '高雄市',
+      '基隆市',
+      '新竹市',
+      '嘉義市',
+      '新竹縣',
+      '苗栗縣',
+      '彰化縣',
+      '南投縣',
+      '雲林縣',
+      '嘉義縣',
+      '屏東縣',
+      '宜蘭縣',
+      '花蓮縣',
+      '臺東縣',
+      '澎湖縣',
+      '金門縣',
+      '連江縣',
+    ];
+
+    String? foundCity;
+
+    for (final cityName in cities) {
+      if (value.startsWith(cityName)) {
+        foundCity = cityName;
+        break;
+      }
+    }
+
+    if (foundCity == null) return null;
+
+    value = value.substring(foundCity.length);
+
+    final townMatch = RegExp(r'^(.{1,6}?(?:區|鄉|鎮|市))').firstMatch(value);
+
+    if (townMatch == null) return null;
+
+    final String foundTown = townMatch.group(1)!;
+
+    final String foundAddress = value.substring(foundTown.length).trim();
+
+    if (foundAddress.isEmpty) return null;
+
+    final bool hasAddressKeyword = RegExp(
+      r'(路|街|大道|巷|弄|號|段)',
+    ).hasMatch(foundAddress);
+
+    final bool hasNumber = RegExp(r'\d').hasMatch(foundAddress);
+
+    if (!hasAddressKeyword || !hasNumber) return null;
+
+    return {'city': foundCity, 'town': foundTown, 'address': foundAddress};
+  }
+
+  Future<void> _confirmAddress() async {
+    final String input = addressController.text.trim();
+
+    if (input.isEmpty) {
+      _showMessage('請輸入完整地址');
       return;
     }
 
-    focusNode.unfocus();
+    if (_apiBaseUrl.isEmpty) {
+      _showMessage('尚未設定 API_BASE_URL');
+      return;
+    }
 
-    Navigator.pop(context, value);
+    final parsed = _splitAddress(input);
+
+    if (parsed == null) {
+      _showMessage('請輸入完整地址，例如：台中市北屯區三民路三段201巷29號');
+      return;
+    }
+
+    setState(() {
+      isGeocoding = true;
+      addressConfirmed = false;
+      lat = null;
+      lng = null;
+    });
+
+    try {
+      final uri =
+          Uri.parse(
+            '$_apiBaseUrl/api/merchant/register/address-to-location',
+          ).replace(
+            queryParameters: {
+              'store_city': parsed['city']!,
+              'store_town': parsed['town']!,
+              'store_address': parsed['address']!,
+            },
+          );
+
+      final response = await http
+          .get(uri, headers: {'accept': 'text/plain'})
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (mounted) {
+          _showMessage('地址轉換失敗（HTTP ${response.statusCode}），請稍後再試');
+        }
+        return;
+      }
+
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (decoded is! Map<String, dynamic>) {
+        if (mounted) {
+          _showMessage('地址轉換 API 回傳格式錯誤');
+        }
+        return;
+      }
+
+      if (decoded['isSuccess'] != true) {
+        if (mounted) {
+          _showMessage(decoded['message']?.toString() ?? '地址轉換失敗');
+        }
+        return;
+      }
+
+      final dynamic result = decoded['Result'];
+
+      if (result is! Map) {
+        if (mounted) {
+          _showMessage('地址轉換 API 未回傳座標資料');
+        }
+        return;
+      }
+
+      final double? resultLat = double.tryParse('${result['lat']}');
+
+      final double? resultLng = double.tryParse('${result['lng']}');
+
+      if (resultLat == null ||
+          resultLng == null ||
+          resultLat < -90 ||
+          resultLat > 90 ||
+          resultLng < -180 ||
+          resultLng > 180) {
+        if (mounted) {
+          _showMessage('API 未回傳有效的經緯度');
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      if (addressController.text.trim() != input) {
+        _showMessage('地址已變更，請重新確認地址');
+        return;
+      }
+
+      setState(() {
+        city = parsed['city']!;
+        town = parsed['town']!;
+        lat = resultLat;
+        lng = resultLng;
+        addressConfirmed = true;
+      });
+
+      _showMessage(
+        '地址確認成功\n'
+        '緯度：${resultLat.toStringAsFixed(6)}，'
+        '經度：${resultLng.toStringAsFixed(6)}',
+      );
+    } on TimeoutException {
+      if (mounted) {
+        _showMessage('地址查詢逾時，請稍後再試');
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage('地址轉換失敗，請確認網路連線或稍後再試');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isGeocoding = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _submit() {
+    final String name = nameController.text.trim();
+    final String address = addressController.text.trim();
+
+    if (name.isEmpty) {
+      _showMessage('店家名稱不可為空');
+      return;
+    }
+
+    final bool addressChanged = address != widget.initialAddress;
+
+    if (addressChanged) {
+      if (!addressConfirmed || lat == null || lng == null) {
+        _showMessage('修改地址後，請先按「確認地址」');
+        return;
+      }
+
+      final parsed = _splitAddress(address);
+
+      if (parsed == null) {
+        _showMessage('請輸入完整地址');
+        return;
+      }
+
+      Navigator.pop(
+        context,
+        _MerchantEditResult(
+          name: name,
+          description: descriptionController.text.trim(),
+          address: parsed['address']!,
+          city: parsed['city']!,
+          town: parsed['town']!,
+          lat: lat,
+          lng: lng,
+          addressConfirmed: true,
+        ),
+      );
+
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      _MerchantEditResult(
+        name: name,
+        description: descriptionController.text.trim(),
+        address: widget.initialAddress,
+        city: widget.initialCity,
+        town: widget.initialTown,
+        lat: widget.initialLat,
+        lng: widget.initialLng,
+        addressConfirmed: true,
+      ),
+    );
   }
 
   @override
@@ -654,9 +1164,12 @@ class _EditDialogState extends State<_EditDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
       child: Container(
-        width: 310,
+        width: 360,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.82,
+        ),
         padding: const EdgeInsets.fromLTRB(22, 25, 22, 20),
         decoration: BoxDecoration(
           color: _paperColor,
@@ -677,103 +1190,70 @@ class _EditDialogState extends State<_EditDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.title,
-                style: AppTextStyles.titleLarge
-                    .copyWith(color: Colors.black)
-                    .copyWith(height: 1.0),
-              ),
-
-              const SizedBox(height: 18),
-
-              Text(
-                widget.label,
-                style: AppTextStyles.bodyEmphasisBold.copyWith(
-                  color: _bodyText,
+                '編輯店家資訊',
+                style: AppTextStyles.titleLarge.copyWith(
+                  color: Colors.black,
+                  height: 1,
                 ),
               ),
-
-              const SizedBox(height: 7),
-
-              TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: true,
-                maxLength: 30,
-                textInputAction: TextInputAction.done,
-                style: AppTextStyles.subtitle.copyWith(color: _bodyText),
-                decoration: InputDecoration(
-                  counterText: '',
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 11,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: const BorderSide(
-                      color: Colors.black,
-                      width: 1.2,
+              const SizedBox(height: 20),
+              _MerchantTextField(
+                controller: nameController,
+                label: '店家名稱',
+                maxLines: 1,
+              ),
+              const SizedBox(height: 14),
+              _MerchantTextField(
+                controller: descriptionController,
+                label: '店家介紹',
+                maxLines: 4,
+              ),
+              const SizedBox(height: 14),
+              _MerchantTextField(
+                controller: addressController,
+                label: '完整地址（縣市、區、路段、巷弄、門牌號碼）',
+                maxLines: 3,
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: isGeocoding ? null : _confirmAddress,
+                  icon: isGeocoding
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.location_on),
+                  label: Text(isGeocoding ? '正在確認地址...' : '確認地址'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _buttonOuter,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      side: const BorderSide(color: Colors.black, width: 1),
                     ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: const BorderSide(
-                      color: Colors.black,
-                      width: 1.2,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: const BorderSide(color: _accentRed, width: 2),
                   ),
                 ),
-                onSubmitted: (_) => submit(),
               ),
-
+              if (addressConfirmed && lat != null && lng != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '地址已確認',
+                  style: AppTextStyles.captionBold.copyWith(
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      focusNode.unfocus();
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      '取消',
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(
-                        color: _bodyText,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _accentRed,
-                      foregroundColor: _paperColor,
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        side: const BorderSide(color: Colors.black, width: 1),
-                      ),
-                    ),
-                    onPressed: submit,
-                    child: Text(
-                      '儲存',
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(
-                        color: _paperColor,
-                      ),
-                    ),
-                  ),
-                ],
+              _DialogActions(
+                onCancel: () => Navigator.pop(context),
+                onSave: _submit,
               ),
             ],
           ),
@@ -783,9 +1263,101 @@ class _EditDialogState extends State<_EditDialog> {
   }
 }
 
+class _MerchantTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final int maxLines;
+
+  const _MerchantTextField({
+    required this.controller,
+    required this.label,
+    required this.maxLines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      maxLength: 300,
+      style: AppTextStyles.subtitle.copyWith(color: _bodyText),
+      decoration: InputDecoration(
+        labelText: label,
+        alignLabelWithHint: true,
+        counterText: '',
+        labelStyle: AppTextStyles.captionBold.copyWith(
+          color: const Color(0xFF6F6258),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.black, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.black, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: _accentRed, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogActions extends StatelessWidget {
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  const _DialogActions({required this.onCancel, required this.onSave});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: onCancel,
+          child: Text(
+            '取消',
+            style: AppTextStyles.bodyEmphasisBold.copyWith(color: _bodyText),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _accentRed,
+            foregroundColor: _paperColor,
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+              side: const BorderSide(color: Colors.black, width: 1),
+            ),
+          ),
+          onPressed: onSave,
+          child: Text(
+            '儲存',
+            style: AppTextStyles.bodyEmphasisBold.copyWith(color: _paperColor),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoCard extends StatelessWidget {
   final String accountName;
   final String shopName;
+  final String shopDescription;
+  final String shopAddress;
+  final bool isLoading;
   final VoidCallback onEditAccount;
   final VoidCallback onEditShop;
   final VoidCallback onLogout;
@@ -793,6 +1365,9 @@ class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.accountName,
     required this.shopName,
+    required this.shopDescription,
+    required this.shopAddress,
+    required this.isLoading,
     required this.onEditAccount,
     required this.onEditShop,
     required this.onLogout,
@@ -805,8 +1380,7 @@ class _InfoCard extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: double.infinity,
-          padding: const EdgeInsets.fromLTRB(25, 40, 25, 22),
+          padding: const EdgeInsets.fromLTRB(22, 40, 22, 22),
           decoration: BoxDecoration(
             color: _paperColor,
             borderRadius: BorderRadius.circular(5),
@@ -820,27 +1394,61 @@ class _InfoCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SectionTitle(icon: 'img/shop_icon.png', title: '帳號資訊'),
-
-              const SizedBox(height: 14),
-
-              _InfoRow(
-                text: '帳號名稱：$accountName',
-                showEdit: true,
-                onEdit: onEditAccount,
-              ),
-
-              const SizedBox(height: 40),
-              Center(
-                child: _LogoutButton(text: '登出', onTap: onLogout),
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _SectionTitle(
+                  icon: 'img/shop_icon.png',
+                  title: '帳號與店家資訊',
+                ),
+                const SizedBox(height: 14),
+                _InfoRow(
+                  text: '使用者名稱：${accountName.isEmpty ? '尚未設定' : accountName}',
+                  showEdit: true,
+                  onEdit: onEditAccount,
+                ),
+                const SizedBox(height: 12),
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                else ...[
+                  _InfoRow(
+                    text: '店家名稱：${shopName.isEmpty ? '尚未設定' : shopName}',
+                    showEdit: true,
+                    onEdit: onEditShop,
+                  ),
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    text:
+                        '店家介紹：${shopDescription.isEmpty ? '尚未設定' : shopDescription}',
+                    showEdit: false,
+                    onEdit: onEditShop,
+                  ),
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    text: '店家地址：${shopAddress.isEmpty ? '尚未設定' : shopAddress}',
+                    showEdit: false,
+                    onEdit: onEditShop,
+                  ),
+                ],
+                const SizedBox(height: 25),
+                Center(
+                  child: _LogoutButton(text: '登出', onTap: onLogout),
+                ),
+              ],
+            ),
           ),
         ),
-
         const Positioned(
           top: 7,
           left: 0,
@@ -864,14 +1472,15 @@ class _SectionTitle extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Image.asset(icon, width: 27, height: 27, fit: BoxFit.contain),
-
         const SizedBox(width: 7),
-
-        Text(
-          title,
-          style: AppTextStyles.pageTitle
-              .copyWith(color: Colors.black)
-              .copyWith(height: 1.0),
+        Expanded(
+          child: Text(
+            title,
+            style: AppTextStyles.pageTitle.copyWith(
+              color: Colors.black,
+              height: 1,
+            ),
+          ),
         ),
       ],
     );
@@ -897,14 +1506,12 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.sectionTitle
-                .copyWith(color: _bodyText)
-                .copyWith(height: 1.25),
+            style: AppTextStyles.sectionTitle.copyWith(
+              color: _bodyText,
+              height: 1.35,
+            ),
           ),
         ),
-
         if (showEdit) ...[const SizedBox(width: 8), _EditButton(onTap: onEdit)],
       ],
     );
@@ -930,21 +1537,9 @@ class _EditButtonState extends State<_EditButton> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 150),
@@ -998,7 +1593,6 @@ class _Pin extends StatelessWidget {
               ],
             ),
           ),
-
           Positioned(
             left: 5,
             top: 4,
@@ -1037,21 +1631,9 @@ class _LogoutButtonState extends State<_LogoutButton> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      onTapDown: (_) {
-        setState(() {
-          pressing = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          pressing = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          pressing = false;
-        });
-      },
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 170),
@@ -1081,9 +1663,10 @@ class _LogoutButtonState extends State<_LogoutButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.sectionTitle
-                  .copyWith(color: AppColors.paper)
-                  .copyWith(height: 1.0),
+              style: AppTextStyles.sectionTitle.copyWith(
+                color: AppColors.paper,
+                height: 1,
+              ),
             ),
           ),
         ),

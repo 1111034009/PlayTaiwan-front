@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import 'merchant_register_page.dart';
 
 InputDecoration registerInputDecoration({required String hintText}) {
   const border = UnderlineInputBorder(
@@ -50,7 +51,6 @@ class _RegisterPageState extends State<RegisterPage> {
   bool password = true;
   bool confirmPassword = true;
   bool isLoading = false;
-  int accountType = 1;
 
   @override
   void initState() {
@@ -208,10 +208,6 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    if (accountType != 1 && accountType != 2) {
-      showMessage('帳號類型無效');
-      return;
-    }
     final String genderForApi = getGenderForApi();
 
     setState(() {
@@ -228,7 +224,7 @@ class _RegisterPageState extends State<RegisterPage> {
           'Password': password,
           'Birthday': formatBirthday(birthday!),
           'Gender': genderForApi,
-          'AccountType': accountType,
+          'AccountType': 1,
         }),
       );
 
@@ -277,7 +273,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     left: 13,
                     right: 13,
                     top: 30,
-                    height: 610,
+                    height: 560,
                     child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
                   ),
                   Positioned(
@@ -447,26 +443,11 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
                   ),
-                  Positioned(
-                    left: 42,
-                    right: 42,
-                    top: 470,
-                    child: _RegisterField(
-                      label: '帳號類型',
-                      child: _AccountTypeSelector(
-                        value: accountType,
-                        onChanged: (value) {
-                          setState(() {
-                            accountType = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
+
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: 555,
+                    top: 490,
                     child: Center(
                       child: SizedBox(
                         width: 240,
@@ -474,6 +455,48 @@ class _RegisterPageState extends State<RegisterPage> {
                         child: _RegisterButton(
                           onPressed: register,
                           isLoading: isLoading,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    top: 535,
+                    child: Center(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const StoryRegisterPage(),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                              children: [
+                                const TextSpan(text: '非探員？'),
+                                TextSpan(
+                                  text: '前往商家註冊',
+                                  style: AppTextStyles.bodySmallBold.copyWith(
+                                    color: AppColors.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -586,72 +609,6 @@ class _GenderSelector extends StatelessWidget {
           value ?? '請選擇性別',
           style: AppTextStyles.bodySmall.copyWith(
             color: value == null ? AppColors.inputHint : AppColors.textPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AccountTypeSelector extends StatelessWidget {
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  const _AccountTypeSelector({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _AccountTypeButton(
-            text: '遊客',
-            selected: value == 1,
-            onTap: () => onChanged(1),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _AccountTypeButton(
-            text: '商家',
-            selected: value == 2,
-            onTap: () => onChanged(2),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AccountTypeButton extends StatelessWidget {
-  final String text;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _AccountTypeButton({
-    required this.text,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: selected ? AppColors.darkBrown : Colors.transparent,
-          border: Border.all(color: AppColors.darkBrown, width: 1.5),
-        ),
-        child: Text(
-          text,
-          style: AppTextStyles.bodySmallBold.copyWith(
-            color: selected ? Colors.white : AppColors.darkBrown,
           ),
         ),
       ),
