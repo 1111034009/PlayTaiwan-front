@@ -1179,14 +1179,8 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                   style: AppTextStyles.body.copyWith(color: _textColor),
                   decoration: _decoration('優惠類型'),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'percent',
-                      child: Text('百分比折扣（percent）'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'amount',
-                      child: Text('固定金額折抵（amount）'),
-                    ),
+                    DropdownMenuItem(value: 'percent', child: Text('百分比折扣')),
+                    DropdownMenuItem(value: 'amount', child: Text('固定金額折抵')),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -1258,7 +1252,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
           ),
           onPressed: _submit,
           child: Text(
-            isEditing ? '儲存' : '建立優惠券',
+            isEditing ? '儲存' : '建立',
             style: AppTextStyles.button.copyWith(color: Colors.white),
           ),
         ),

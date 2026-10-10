@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
 import 'merchant_coupon_page.dart';
+import 'merchant_task_page.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
@@ -162,7 +163,10 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   }
 
   void openTaskManagement() {
-    _showMessage('任務管理');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MerchantTaskPage()),
+    );
   }
 
   void openCouponManagement() {
