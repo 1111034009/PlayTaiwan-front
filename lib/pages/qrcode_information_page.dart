@@ -70,6 +70,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
   static const double _dialogBorderWidth = 2;
   static const double _dialogRadius = 22;
+  static const double _dialogMaxWidth = 420;
 
   bool get _hasCoupon => _coupon.isNotEmpty;
 
@@ -168,7 +169,12 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(18),
-          child: _buildCouponDialog(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
+              child: _buildCouponDialog(),
+            ),
+          ),
         );
       },
     );
@@ -204,14 +210,14 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
   Future<void> _downloadCoupon() async {
     try {
-      final context = _couponKey.currentContext;
+      final boundaryContext = _couponKey.currentContext;
 
-      if (context == null) {
+      if (boundaryContext == null) {
         _showSnack(Icons.error_outline_rounded, '優惠券尚未準備完成');
         return;
       }
 
-      final renderObject = context.findRenderObject();
+      final renderObject = boundaryContext.findRenderObject();
 
       if (renderObject is! RenderRepaintBoundary) {
         _showSnack(Icons.error_outline_rounded, '無法取得優惠券畫面');
@@ -247,7 +253,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
     Navigator.of(context).pop();
 
-    _showSnack(Icons.confirmation_number_rounded, '專屬優惠券已存入優惠包');
+    _showSnack(Icons.confirmation_number_rounded, '已存入錢包，使用請前往錢包');
   }
 
   @override
@@ -642,15 +648,18 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
             children: [
               RepaintBoundary(
                 key: _couponKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildCouponHeader(),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                      child: _buildCouponCard(),
-                    ),
-                  ],
+                child: Container(
+                  color: paperLight,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildCouponHeader(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        child: _buildCouponCard(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Padding(
@@ -763,6 +772,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
                 const SizedBox(height: 3),
                 Text(
                   _couponValidity,
+                  textAlign: TextAlign.center,
                   style: AppTextStyles.microLabelWide.copyWith(
                     color: textLight,
                   ),
