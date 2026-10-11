@@ -1,18 +1,16 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 
+import 'merchant_coupon_page.dart';
+import 'merchant_file_item.dart';
+import 'merchant_files_page.dart';
 import 'merchant_info_page.dart';
 import 'merchant_input_page.dart';
-import 'merchant_coupon_page.dart';
 import 'merchant_task_page.dart';
+import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
-import '../core/app_session.dart';
 
 const Color pageColor = AppColors.background;
 const Color paperColor = AppColors.merchantPaper;
@@ -33,16 +31,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
 
-  final String _apiBaseUrl =
-      (dotenv.env['API_BASE_URL'] ?? 'https://backend.angelalala.com')
-          .trim()
-          .replaceFirst(RegExp(r'/$'), '');
-
-  List<_MerchantFile> files = [];
+  List<MerchantFile> files = [];
   bool isLoading = true;
   String? filesError;
 
-  List<_MerchantFile> get recentFiles => files.take(8).toList();
+  List<MerchantFile> get recentFiles => files.take(8).toList();
 
   @override
   void initState() {
@@ -61,73 +54,18 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     _fetchFiles();
   }
 
-  Future<void> _fetchFiles() async {
+  Future<void> _fetchFiles({bool silent = false}) async {
     if (!mounted) return;
 
-    setState(() {
-      isLoading = true;
-      filesError = null;
-    });
+    if (!silent) {
+      setState(() {
+        isLoading = true;
+        filesError = null;
+      });
+    }
 
     try {
-      final token = AppSession.token;
-
-      if (token == null || token.isEmpty) {
-        throw Exception('登入狀態已失效，請重新登入');
-      }
-
-      final uri = Uri.parse('$_apiBaseUrl/api/Merchant/Files');
-
-      final response = await http
-          .get(
-            uri,
-            headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('取得檔案失敗（HTTP ${response.statusCode}）');
-      }
-
-      final dynamic decoded = jsonDecode(response.body);
-
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('伺服器回傳格式錯誤');
-      }
-
-      if (decoded['isSuccess'] != true) {
-        throw Exception(decoded['message']?.toString() ?? '查詢檔案失敗');
-      }
-
-      final dynamic result = decoded['Result'];
-
-      if (result is! List) {
-        throw Exception('檔案資料格式錯誤');
-      }
-
-      final List<_MerchantFile> loadedFiles = result
-          .whereType<Map>()
-          .map(
-            (item) => _MerchantFile(
-              id: item['mm_id'],
-              title: item['mm_title']?.toString() ?? '未命名檔案',
-              videoUrl: item['mm_video_url']?.toString() ?? '',
-              status: item['mm_status'],
-              updatedAt: item['updated_at']?.toString() ?? '',
-            ),
-          )
-          .toList();
-
-      loadedFiles.sort((a, b) {
-        final dateA = DateTime.tryParse(a.updatedAt);
-        final dateB = DateTime.tryParse(b.updatedAt);
-
-        if (dateA == null && dateB == null) return 0;
-        if (dateA == null) return 1;
-        if (dateB == null) return -1;
-
-        return dateB.compareTo(dateA);
-      });
+      final loadedFiles = await MerchantVlogApi.fetchFiles();
 
       if (!mounted) return;
 
@@ -176,30 +114,19 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     );
   }
 
-  void playFile(_MerchantFile file) {
-    if (file.videoUrl.isEmpty) {
-      _showMessage('此檔案目前沒有影片網址');
-      return;
-    }
+  Future<void> openAllFiles() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MerchantFilesPage()),
+    );
 
-    _showMessage('播放：${file.title}');
+    if (mounted) _fetchFiles(silent: true);
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: paperColor),
-          ),
-          backgroundColor: red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  Future<void> openFile(MerchantFile file) async {
+    await openMerchantFile(context, file);
+
+    if (mounted) _fetchFiles(silent: true);
   }
 
   @override
@@ -281,7 +208,8 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                           files: recentFiles,
                           isLoading: isLoading,
                           error: filesError,
-                          onPlay: playFile,
+                          onOpen: openFile,
+                          onMore: openAllFiles,
                           onRetry: _fetchFiles,
                         ),
                       ),
@@ -671,17 +599,21 @@ class _GenerateVideoButtonState extends State<_GenerateVideoButton> {
 }
 
 class _RecentFilesCard extends StatelessWidget {
-  final List<_MerchantFile> files;
+  static const double itemGap = 5;
+
+  final List<MerchantFile> files;
   final bool isLoading;
   final String? error;
-  final ValueChanged<_MerchantFile> onPlay;
+  final ValueChanged<MerchantFile> onOpen;
+  final VoidCallback onMore;
   final VoidCallback onRetry;
 
   const _RecentFilesCard({
     required this.files,
     required this.isLoading,
     required this.error,
-    required this.onPlay,
+    required this.onOpen,
+    required this.onMore,
     required this.onRetry,
   });
 
@@ -703,9 +635,31 @@ class _RecentFilesCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '近期檔案',
-                style: AppTextStyles.titleMediumBold.copyWith(color: darkText),
+              Row(
+                children: [
+                  Text(
+                    '近期檔案',
+                    style: AppTextStyles.titleMediumBold.copyWith(
+                      color: darkText,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (files.isNotEmpty)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onMore,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Text(
+                          '查看更多 >',
+                          style: AppTextStyles.captionBold.copyWith(
+                            color: red,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Expanded(child: _buildFileContent()),
@@ -761,156 +715,16 @@ class _RecentFilesCard extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        for (int i = 0; i < files.length; i++) ...[
-          Expanded(
-            child: _RecentFileItem(
-              file: files[i],
-              onPlay: () => onPlay(files[i]),
-            ),
-          ),
-          if (i != files.length - 1) const SizedBox(height: 4),
-        ],
-      ],
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      physics: const BouncingScrollPhysics(),
+      itemCount: files.length,
+      separatorBuilder: (_, __) => const SizedBox(height: itemGap),
+      itemBuilder: (context, index) {
+        final file = files[index];
+
+        return MerchantFileItem(file: file, onTap: () => onOpen(file));
+      },
     );
   }
-}
-
-class _RecentFileItem extends StatefulWidget {
-  final _MerchantFile file;
-  final VoidCallback onPlay;
-
-  const _RecentFileItem({required this.file, required this.onPlay});
-
-  @override
-  State<_RecentFileItem> createState() => _RecentFileItemState();
-}
-
-class _RecentFileItemState extends State<_RecentFileItem> {
-  bool pressing = false;
-
-  String _formatDate(String value) {
-    final date = DateTime.tryParse(value);
-
-    if (date == null) {
-      return value.isEmpty ? '無更新日期' : value;
-    }
-
-    final year = date.year.toString().padLeft(4, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-
-    return '$year.$month.$day';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double scale = pressing ? 0.98 : 1;
-
-    return GestureDetector(
-      onTap: widget.onPlay,
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOut,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: itemColor,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: darkText, width: 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.file.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.captionBold.copyWith(
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _formatDate(widget.file.updatedAt),
-                style: AppTextStyles.captionBold.copyWith(
-                  color: Colors.black.withOpacity(0.8),
-                ),
-              ),
-              const SizedBox(width: 6),
-              _PlayButton(onTap: widget.onPlay),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlayButton extends StatefulWidget {
-  final VoidCallback onTap;
-
-  const _PlayButton({required this.onTap});
-
-  @override
-  State<_PlayButton> createState() => _PlayButtonState();
-}
-
-class _PlayButtonState extends State<_PlayButton> {
-  bool pressing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final double scale = pressing ? 0.90 : 1;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => pressing = true),
-      onTapUp: (_) => setState(() => pressing = false),
-      onTapCancel: () => setState(() => pressing = false),
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOutBack,
-        child: Container(
-          width: 29,
-          height: 29,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: red,
-            border: Border.all(color: darkText, width: 1.2),
-          ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            size: 19,
-            color: paperColor,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MerchantFile {
-  final dynamic id;
-  final String title;
-  final String videoUrl;
-  final dynamic status;
-  final String updatedAt;
-
-  const _MerchantFile({
-    required this.id,
-    required this.title,
-    required this.videoUrl,
-    required this.status,
-    required this.updatedAt,
-  });
 }

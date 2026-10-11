@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'merchant_video_page.dart';
+
+import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
@@ -11,7 +12,9 @@ const Color _progressColor = Color(0xFFC7381E);
 const Color _black = Colors.black;
 
 class VideoLoadingPage extends StatefulWidget {
-  const VideoLoadingPage({super.key});
+  final Future<VlogPreview> Function() task;
+
+  const VideoLoadingPage({super.key, required this.task});
 
   @override
   State<VideoLoadingPage> createState() => _VideoLoadingPageState();
@@ -21,6 +24,7 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
     with SingleTickerProviderStateMixin {
   static const double designWidth = 360;
   static const double designHeight = 640;
+  static const double _holdValue = 0.99;
 
   late final AnimationController _progressController;
 
@@ -38,19 +42,14 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
       ),
     );
 
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 5200),
-    )..forward();
+    _progressController = AnimationController(vsync: this)
+      ..animateTo(
+        _holdValue,
+        duration: const Duration(seconds: 20),
+        curve: Curves.easeInOut,
+      );
 
-    _progressController.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MerchantVideoPage()),
-        );
-      }
-    });
+    _run();
   }
 
   @override
@@ -58,92 +57,130 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
     _progressController.dispose();
     super.dispose();
   }
+
+  Future<void> _run() async {
+    Object result;
+
+    try {
+      result = await widget.task();
+    } catch (e) {
+      result = e;
+    }
+
+    if (!mounted) return;
+
+    if (result is VlogPreview) {
+      await _progressController.animateTo(
+        1,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeIn,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+
+    if (mounted) Navigator.pop(context, result);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Positioned.fill(
-                  child: ColoredBox(color: _backgroundColor),
-                ),
-                Positioned(
-                  top: 136,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 208,
-                      height: 208,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x807B6D69),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                        ],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: _backgroundColor,
+        body: Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: designWidth,
+              height: designHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Positioned.fill(
+                    child: ColoredBox(color: _backgroundColor),
+                  ),
+                  Positioned(
+                    top: 136,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: 208,
+                        height: 208,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x807B6D69),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'img/video_loading.png',
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
                       ),
-                      child: Image.asset(
-                        'img/video_loading.png',
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
+                    ),
+                  ),
+                  Positioned(
+                    top: 369,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: _OutlinedText(
+                        text: '檔案生成中...',
+                        style: AppTextStyles.heroTitle.copyWith(
+                          color: _lightText,
+                        ),
+                        strokeWidth: 3,
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 369,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _OutlinedText(
-                      text: '檔案生成中...',
-                      style: AppTextStyles.heroTitle.copyWith(color: _lightText),
-                      strokeWidth: 3,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 431,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _OutlinedText(
-                      text: 'Loading...',
-                      style: AppTextStyles.title.copyWith(color: _lightText),
-                      strokeWidth: 2.2,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 50,
-                  top: 488,
-                  width: 260,
-                  height: 16,
-                  child: AnimatedBuilder(
-                    animation: _progressController,
-                    builder: (_, __) {
-                      final double progress = Curves.easeInOut.transform(
-                        _progressController.value,
-                      );
+                  Positioned(
+                    top: 431,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _progressController,
+                        builder: (_, __) {
+                          final int percent = (_progressController.value * 100)
+                              .floor();
 
-                      return CustomPaint(
-                        painter: _ProgressBarPainter(progress: progress),
-                      );
-                    },
+                          return _OutlinedText(
+                            text: 'Loading... $percent%',
+                            style: AppTextStyles.title.copyWith(
+                              color: _lightText,
+                            ),
+                            strokeWidth: 2.2,
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    left: 50,
+                    top: 488,
+                    width: 260,
+                    height: 16,
+                    child: AnimatedBuilder(
+                      animation: _progressController,
+                      builder: (_, __) {
+                        return CustomPaint(
+                          painter: _ProgressBarPainter(
+                            progress: _progressController.value,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

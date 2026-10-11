@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'merchant_check_page.dart';
 import 'merchant_loading_page.dart';
+import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
@@ -15,8 +19,17 @@ const Color _buttonCenter = AppColors.primaryLight;
 const Color _buttonOuter = AppColors.primary;
 const Color _uploadBorder = AppColors.softBrown;
 
+class _UploadItem {
+  final String name;
+  final String? path;
+
+  const _UploadItem(this.name, this.path);
+}
+
 class MerchantInputPage extends StatefulWidget {
-  const MerchantInputPage({super.key});
+  final int? initialMmId;
+
+  const MerchantInputPage({super.key, this.initialMmId});
 
   @override
   State<MerchantInputPage> createState() => _MerchantInputPageState();
@@ -27,17 +40,28 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
   static const double designHeight = 640;
   static const int maxUploadFiles = 6;
 
-  final TextEditingController shopNameController = TextEditingController(
-    text: '日式復古串燒居酒屋',
-  );
+  final TextEditingController shopNameController = TextEditingController();
   final TextEditingController promotionController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
 
-  int selectedTone = 0;
-  final List<String> uploadedFiles = [];
+  List<VlogTone> tones = [];
+  bool tonesLoading = true;
+  String? tonesError;
+  int? selectedToneId;
+
+  final List<_UploadItem> uploadedFiles = [];
+  int? _mmId;
+  bool _generating = false;
 
   @override
   void initState() {
     super.initState();
+
+    _mmId = widget.initialMmId;
+
+    if (_mmId != null) {
+      uploadedFiles.add(const _UploadItem('沿用原有素材', null));
+    }
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -48,6 +72,8 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    _loadTones();
   }
 
   @override
@@ -57,7 +83,34 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
     super.dispose();
   }
 
+  Future<void> _loadTones() async {
+    setState(() {
+      tonesLoading = true;
+      tonesError = null;
+    });
+
+    try {
+      final result = await MerchantVlogApi.fetchTones();
+
+      if (!mounted) return;
+
+      setState(() {
+        tones = result;
+        tonesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        tonesLoading = false;
+        tonesError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
   void showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -74,43 +127,158 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
       );
   }
 
-  void uploadFile() {
-    if (uploadedFiles.length >= maxUploadFiles) {
+  Future<void> uploadFile() async {
+    final remaining = maxUploadFiles - uploadedFiles.length;
+
+    if (remaining <= 0) {
       showMessage('最多可以上傳 6 個素材');
       return;
     }
 
-    setState(() {
-      uploadedFiles.add('promotion_image_${uploadedFiles.length + 1}.jpg');
-    });
+    try {
+      final picked = await _picker.pickMultiImage(imageQuality: 85);
 
-    showMessage('已加入素材：${uploadedFiles.last}');
+      if (picked.isEmpty || !mounted) return;
+
+      if (picked.length > remaining) {
+        showMessage('最多可以上傳 6 個素材');
+      }
+
+      setState(() {
+        uploadedFiles.addAll(
+          picked.take(remaining).map((f) => _UploadItem(f.name, f.path)),
+        );
+      });
+    } catch (_) {
+      showMessage('無法選取照片，請確認相簿權限');
+    }
   }
 
   void removeFile(int index) {
-    final fileName = uploadedFiles[index];
-
-    setState(() {
-      uploadedFiles.removeAt(index);
-    });
-
-    showMessage('已移除：$fileName');
-  }
-
-  void generate() {
-    if (shopNameController.text.trim().isEmpty) {
-      showMessage('請輸入店家名稱');
+    if (uploadedFiles[index].path == null) {
+      showMessage('已上傳的照片無法移除');
       return;
     }
 
-    if (uploadedFiles.isEmpty) {
+    setState(() => uploadedFiles.removeAt(index));
+  }
+
+  Future<void> generate() async {
+    if (_generating) return;
+
+    final promoText = promotionController.text.trim();
+
+    if (promoText.isEmpty) {
+      showMessage('請輸入推廣資訊');
+      return;
+    }
+
+    if (selectedToneId == null) {
+      showMessage('請選擇敘事語氣');
+      return;
+    }
+
+    final newPaths = [
+      for (final f in uploadedFiles)
+        if (f.path != null) f.path!,
+    ];
+
+    if (_mmId == null && newPaths.isEmpty) {
       showMessage('請至少上傳一個素材');
       return;
     }
 
-    Navigator.push(
+    final storeName = shopNameController.text;
+    final toneId = selectedToneId;
+    final mmId = _mmId;
+
+    setState(() => _generating = true);
+
+    final result = await Navigator.push<Object>(
       context,
-      MaterialPageRoute(builder: (_) => const VideoLoadingPage()),
+      MaterialPageRoute(
+        builder: (_) => VideoLoadingPage(
+          task: () => MerchantVlogApi.preview(
+            mmId: mmId,
+            storeName: storeName,
+            ntId: toneId,
+            promoText: promoText,
+            imagePaths: newPaths,
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() => _generating = false);
+
+    if (result is VlogPreview) {
+      setState(() {
+        _mmId = result.mmId;
+        uploadedFiles
+          ..clear()
+          ..addAll([
+            for (int i = 0; i < result.imageUrls.length; i++)
+              _UploadItem('已上傳照片 ${i + 1}', null),
+          ]);
+      });
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MerchantCheckPage(preview: result)),
+      );
+    } else if (result != null) {
+      showMessage(result.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Widget _buildToneRow() {
+    if (tonesLoading) {
+      return const SizedBox(
+        height: 34,
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: _red),
+          ),
+        ),
+      );
+    }
+
+    if (tonesError != null || tones.isEmpty) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _loadTones,
+        child: SizedBox(
+          height: 34,
+          child: Center(
+            child: Text(
+              '語氣載入失敗，點擊重試',
+              style: AppTextStyles.captionBold.copyWith(
+                color: _red,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        for (int i = 0; i < tones.length; i++) ...[
+          if (i > 0) const SizedBox(width: 9),
+          Expanded(
+            child: _ToneButton(
+              text: tones[i].name,
+              selected: selectedToneId == tones[i].id,
+              onTap: () => setState(() => selectedToneId = tones[i].id),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -205,19 +373,22 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                     color: _darkText,
                                   ),
                                   cursorColor: _red,
-                                  decoration: const InputDecoration(
-                                    contentPadding: EdgeInsets.only(
+                                  decoration: InputDecoration(
+                                    hintText: '未填寫則使用商家資訊，請勿輸入無註冊的店家名稱',
+                                    hintStyle: AppTextStyles.captionSmall
+                                        .copyWith(color: _hintColor),
+                                    contentPadding: const EdgeInsets.only(
                                       left: 2,
                                       right: 2,
                                       bottom: 5,
                                     ),
-                                    enabledBorder: UnderlineInputBorder(
+                                    enabledBorder: const UnderlineInputBorder(
                                       borderSide: BorderSide(
                                         color: _lineColor,
                                         width: 1,
                                       ),
                                     ),
-                                    focusedBorder: UnderlineInputBorder(
+                                    focusedBorder: const UnderlineInputBorder(
                                       borderSide: BorderSide(
                                         color: _lineColor,
                                         width: 1.3,
@@ -234,36 +405,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                 ),
                               ),
                               const SizedBox(height: 5),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _ToneButton(
-                                      text: '幽默歡謔',
-                                      selected: selectedTone == 0,
-                                      onTap: () =>
-                                          setState(() => selectedTone = 0),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 9),
-                                  Expanded(
-                                    child: _ToneButton(
-                                      text: '質感專業',
-                                      selected: selectedTone == 1,
-                                      onTap: () =>
-                                          setState(() => selectedTone = 1),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 9),
-                                  Expanded(
-                                    child: _ToneButton(
-                                      text: '溫情走心',
-                                      selected: selectedTone == 2,
-                                      onTap: () =>
-                                          setState(() => selectedTone = 2),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              _buildToneRow(),
                               const SizedBox(height: 11),
                               Text(
                                 '推廣資訊',
@@ -322,7 +464,8 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                               const SizedBox(height: 12),
                               Center(
                                 child: _GenerateButton(
-                                  text: '生成推薦',
+                                  text: _mmId == null ? '生成推薦' : '重新生成',
+                                  busy: _generating,
                                   onTap: generate,
                                 ),
                               ),
@@ -482,10 +625,14 @@ class _ToneButtonState extends State<_ToneButton> {
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: _lineColor, width: 1.5),
             ),
-            child: Text(
-              widget.text,
-              style: AppTextStyles.labelWide.copyWith(
-                color: widget.selected ? _paperColor : _lineColor,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                widget.text,
+                maxLines: 1,
+                style: AppTextStyles.labelWide.copyWith(
+                  color: widget.selected ? _paperColor : _lineColor,
+                ),
               ),
             ),
           ),
@@ -495,108 +642,98 @@ class _ToneButtonState extends State<_ToneButton> {
   }
 }
 
-class _UploadArea extends StatefulWidget {
-  final List<String> files;
+class _UploadArea extends StatelessWidget {
+  final List<_UploadItem> files;
   final Function(int) onRemove;
   const _UploadArea({required this.files, required this.onRemove});
 
   @override
-  State<_UploadArea> createState() => _UploadAreaState();
-}
-
-class _UploadAreaState extends State<_UploadArea> {
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      child: AnimatedScale(
-        scale: 1.0,
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutBack,
-        child: Container(
-          width: double.infinity,
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: _uploadBorder),
-          ),
-          child: widget.files.isEmpty
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_upload_outlined,
-                      color: _uploadBorder,
-                      size: 29,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '尚未選擇素材',
-                      style: AppTextStyles.label.copyWith(color: _uploadBorder),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 5, 8, 2),
-                      child: Text(
-                        '已上傳 ${widget.files.length} 個素材',
-                        style: AppTextStyles.microLabel.copyWith(
-                          color: _darkText,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(
-                          left: 8,
-                          right: 5,
-                          bottom: 2,
-                        ),
-                        itemCount: widget.files.length,
-                        itemBuilder: (context, index) {
-                          return SizedBox(
-                            height: 22,
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.image_outlined,
-                                  color: _uploadBorder,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    widget.files[index],
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTextStyles.microTightBold
-                                        .copyWith(color: _darkText),
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => widget.onRemove(index),
-                                  child: const Padding(
-                                    padding: EdgeInsets.only(left: 6),
-                                    child: Icon(
-                                      Icons.close,
-                                      color: _uploadBorder,
-                                      size: 17,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-        ),
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _uploadBorder),
       ),
+      child: files.isEmpty
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.cloud_upload_outlined,
+                  color: _uploadBorder,
+                  size: 29,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '尚未選擇素材',
+                  style: AppTextStyles.label.copyWith(color: _uploadBorder),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 5, 8, 2),
+                  child: Text(
+                    '已上傳 ${files.length} 個素材',
+                    style: AppTextStyles.microLabel.copyWith(color: _darkText),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(
+                      left: 8,
+                      right: 5,
+                      bottom: 2,
+                    ),
+                    itemCount: files.length,
+                    itemBuilder: (context, index) {
+                      final item = files[index];
+
+                      return SizedBox(
+                        height: 22,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.image_outlined,
+                              color: _uploadBorder,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.microTightBold.copyWith(
+                                  color: _darkText,
+                                ),
+                              ),
+                            ),
+                            if (item.path != null)
+                              GestureDetector(
+                                onTap: () => onRemove(index),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 6),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: _uploadBorder,
+                                    size: 17,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -650,8 +787,13 @@ class _UploadButtonState extends State<_UploadButton> {
 
 class _GenerateButton extends StatefulWidget {
   final String text;
+  final bool busy;
   final VoidCallback onTap;
-  const _GenerateButton({required this.text, required this.onTap});
+  const _GenerateButton({
+    required this.text,
+    required this.busy,
+    required this.onTap,
+  });
 
   @override
   State<_GenerateButton> createState() => _GenerateButtonState();
@@ -666,7 +808,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
 
     return MouseRegion(
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: widget.busy ? null : widget.onTap,
         onTapDown: (_) => setState(() => pressing = true),
         onTapUp: (_) => setState(() => pressing = false),
         onTapCancel: () => setState(() => pressing = false),
@@ -695,10 +837,19 @@ class _GenerateButtonState extends State<_GenerateButton> {
                 ),
               ],
             ),
-            child: Text(
-              widget.text,
-              style: AppTextStyles.subtitle.copyWith(color: _paperColor),
-            ),
+            child: widget.busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _paperColor,
+                    ),
+                  )
+                : Text(
+                    widget.text,
+                    style: AppTextStyles.subtitle.copyWith(color: _paperColor),
+                  ),
           ),
         ),
       ),
