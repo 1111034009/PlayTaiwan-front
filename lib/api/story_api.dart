@@ -290,4 +290,125 @@ class StoryApi {
 
     return data;
   }
+
+  static String _requireToken() {
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('登入資訊已失效，請重新登入');
+    }
+
+    return token;
+  }
+
+  static String _cleanStoryId(String storyId) {
+    final String cleanStoryId = storyId.trim();
+
+    if (cleanStoryId.isEmpty) {
+      throw Exception('story_id 不能為空');
+    }
+
+    return Uri.encodeComponent(cleanStoryId);
+  }
+
+  static Future<Map<String, dynamic>> _storyRequest({
+    required String method,
+    required String path,
+    required String failMessage,
+    Map<String, dynamic>? body,
+  }) async {
+    final Uri uri = Uri.parse('$_baseUrl$path');
+
+    final Map<String, String> headers = {
+      'accept': 'text/plain',
+      'Authorization': 'Bearer ${_requireToken()}',
+      'Content-Type': 'application/json',
+    };
+
+    final response = method == 'GET'
+        ? await http.get(uri, headers: headers)
+        : await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('$failMessage：HTTP ${response.statusCode}');
+    }
+
+    final dynamic data = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (data is! Map<String, dynamic> || data['isSuccess'] != true) {
+      throw Exception(
+        data is Map
+            ? (data['message']?.toString() ?? failMessage)
+            : failMessage,
+      );
+    }
+
+    return data;
+  }
+
+  static Future<void> setFavorite({
+    required String storyId,
+    required bool isFavorite,
+  }) async {
+    await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Favorite',
+      failMessage: isFavorite ? '加入喜愛失敗' : '取消喜愛失敗',
+      body: {'is_favorite': isFavorite},
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getFavoriteStories() async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Story/Favorites',
+      failMessage: '取得喜愛劇本失敗',
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! List) return [];
+
+    return result
+        .whereType<Map>()
+        .map((story) => Map<String, dynamic>.from(story))
+        .toList();
+  }
+
+  static Future<String> createCalendarLink({required String storyId}) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Calendar',
+      failMessage: '產生行事曆連結失敗',
+    );
+
+    final dynamic result = data['Result'];
+    final String url = result is Map
+        ? (result['google_calendar_url']?.toString().trim() ?? '')
+        : '';
+
+    if (url.isEmpty) {
+      throw Exception('行事曆 API 沒有回傳連結');
+    }
+
+    return url;
+  }
+
+  static Future<Map<String, dynamic>> getStoryDetail({
+    required String storyId,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Detail',
+      failMessage: '取得劇本詳細內容失敗',
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception('取得劇本詳細內容失敗');
+    }
+
+    return Map<String, dynamic>.from(result);
+  }
 }

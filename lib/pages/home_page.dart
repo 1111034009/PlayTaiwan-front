@@ -13,9 +13,8 @@ import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
-
-// import 'wallet_page.dart';
-// import 'love_story_page.dart';
+import 'wallet_page.dart';
+import 'love_story_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -267,10 +266,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openLoveStory() {
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const LoveStoryPage()),
-    // );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LoveStoryPage()),
+    );
   }
 
   static const Color pageColor = AppColors.background;

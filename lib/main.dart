@@ -12,7 +12,6 @@ import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'core/auth_guard.dart';
 import 'block/app_shell.dart';
-import 'api/video_check.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

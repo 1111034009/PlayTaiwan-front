@@ -280,7 +280,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       });
 
       await _finishGeneratingProgress();
-    } catch (e, stackTrace) {
+    } catch (e) {
       _progressTimer?.cancel();
 
       if (!mounted) {

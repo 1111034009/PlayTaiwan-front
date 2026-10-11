@@ -29,6 +29,7 @@ class ScriptDetailPage extends StatefulWidget {
   final String cityName;
   final String townName;
   final List<String> transportation;
+  final String storyId;
 
   const ScriptDetailPage({
     super.key,
@@ -38,6 +39,7 @@ class ScriptDetailPage extends StatefulWidget {
     this.cityName = '',
     this.townName = '',
     this.transportation = const [],
+    this.storyId = '',
   });
 
   @override
@@ -56,6 +58,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   bool buttonPressing = false;
   bool isConfirming = false;
 
+  Map<String, dynamic>? _script;
+  late String _title;
+  bool _isLoadingDetail = false;
+  String? _loadError;
+
+  bool _isFavorite = false;
+  bool _isTogglingFavorite = false;
+
   static const List<String> photoAssets = [
     'img/home_trip.png',
     'img/home_gogo.png',
@@ -67,7 +77,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   // ============================================================
 
   Map<String, dynamic>? get _scriptData {
-    final dynamic data = widget.generatedScript?['data'];
+    final dynamic data = _script?['data'];
 
     if (data is Map<String, dynamic>) {
       return data;
@@ -77,7 +87,9 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   }
 
   String get _storyId {
-    return widget.generatedScript?['story_id']?.toString().trim() ?? '';
+    final String id = _script?['story_id']?.toString().trim() ?? '';
+
+    return id.isNotEmpty ? id : widget.storyId.trim();
   }
 
   String get _preface {
@@ -91,17 +103,18 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       return [];
     }
 
+    int orderOf(Map<String, dynamic> node) {
+      return int.tryParse(
+            (node['node_order'] ?? node['order'])?.toString() ?? '',
+          ) ??
+          0;
+    }
+
     return nodes
         .whereType<Map>()
         .map((node) => Map<String, dynamic>.from(node))
         .toList()
-      ..sort((a, b) {
-        final int orderA = int.tryParse(a['node_order']?.toString() ?? '') ?? 0;
-
-        final int orderB = int.tryParse(b['node_order']?.toString() ?? '') ?? 0;
-
-        return orderA.compareTo(orderB);
-      });
+      ..sort((a, b) => orderOf(a).compareTo(orderOf(b)));
   }
 
   String _nodeDisplayName(Map<String, dynamic> node, int index) {
@@ -120,6 +133,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   void initState() {
     super.initState();
 
+    _script = widget.generatedScript;
+    _title = widget.title;
+    _isFavorite = _scriptData?['is_favorite'] == true;
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: _pageColor,
@@ -129,6 +146,45 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    if (_script == null && widget.storyId.trim().isNotEmpty) {
+      _loadDetail();
+    }
+  }
+
+  Future<void> _loadDetail() async {
+    setState(() {
+      _isLoadingDetail = true;
+      _loadError = null;
+    });
+
+    try {
+      final Map<String, dynamic> result = await StoryApi.getStoryDetail(
+        storyId: widget.storyId,
+      );
+
+      if (!mounted) return;
+
+      final String title = result['title']?.toString().trim() ?? '';
+
+      setState(() {
+        _script = {'story_id': widget.storyId.trim(), 'data': result};
+        _isFavorite = result['is_favorite'] == true;
+
+        if (title.isNotEmpty) {
+          _title = title;
+        }
+
+        _isLoadingDetail = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _isLoadingDetail = false;
+      });
+    }
   }
 
   // ============================================================
@@ -136,6 +192,11 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   // ============================================================
 
   void backToChooseScript() {
+    if (widget.allGeneratedScripts == null) {
+      Navigator.pop(context);
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -149,13 +210,52 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     );
   }
 
+  Future<void> toggleFavorite() async {
+    if (_isTogglingFavorite || _storyId.isEmpty) {
+      if (_storyId.isEmpty) _showMessage('找不到劇本 ID');
+      return;
+    }
+
+    final bool nextValue = !_isFavorite;
+
+    setState(() {
+      _isTogglingFavorite = true;
+    });
+
+    try {
+      await StoryApi.setFavorite(storyId: _storyId, isFavorite: nextValue);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isFavorite = nextValue;
+      });
+
+      _showMessage(nextValue ? '已加入喜愛' : '已取消喜愛');
+    } catch (e) {
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTogglingFavorite = false;
+        });
+      }
+    }
+  }
+
   Future<void> confirmScript() async {
+    if (isConfirming) return;
+
     if (_storyId.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('找不到劇本 ID')));
       return;
     }
+
+    setState(() {
+      isConfirming = true;
+    });
 
     try {
       await StoryApi.confirmStory(storyId: _storyId);
@@ -186,6 +286,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     } catch (e) {
       if (!mounted) return;
 
+      setState(() {
+        isConfirming = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
@@ -193,6 +297,8 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -208,6 +314,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         ),
       );
   }
+
   // ============================================================
   // Build
   // ============================================================
@@ -258,15 +365,25 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                       // ====================================================
                       Positioned(
                         left: 34,
-                        right: 82,
+                        right: 100,
                         top: 63,
                         child: Text(
-                          widget.title,
+                          _title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.titleLarge.copyWith(
                             color: _darkText,
                           ),
+                        ),
+                      ),
+
+                      Positioned(
+                        right: 62,
+                        top: 57,
+                        child: _FavoriteButton(
+                          isFavorite: _isFavorite,
+                          loading: _isTogglingFavorite,
+                          onTap: toggleFavorite,
                         ),
                       ),
 
@@ -330,101 +447,94 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         right: 34,
                         top: 285,
                         bottom: 112,
-                        child: ScrollConfiguration(
-                          behavior: const _NoScrollbarScrollBehavior(),
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(
-                              right: 8,
-                              bottom: 14,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // ==================================================
-                                // 前傳
-                                // ==================================================
-
-                                Text(
-                                  '前傳',
-                                  style: AppTextStyles.sectionTitle.copyWith(
-                                    color: _sectionRed,
-                                  ),
+                        child: _isLoadingDetail
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: _sectionRed,
                                 ),
-
-                                const SizedBox(height: 5),
-
-                                Text(
-                                  _preface.isNotEmpty
-                                      ? _preface
-                                      : '目前尚未取得劇本前傳。',
-                                  style: AppTextStyles.captionWide.copyWith(
-                                    color: _darkText,
-                                    height: 1.42,
+                              )
+                            : ScrollConfiguration(
+                                behavior: const _NoScrollbarScrollBehavior(),
+                                child: SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  padding: const EdgeInsets.only(
+                                    right: 8,
+                                    bottom: 14,
                                   ),
-                                ),
-
-                                const SizedBox(height: 14),
-
-                                // ==================================================
-                                // 探索總覽標題
-                                // ==================================================
-                                Row(
-                                  children: [
-                                    Text(
-                                      '探索總覽',
-                                      style: AppTextStyles.sectionTitle
-                                          .copyWith(color: _sectionRed),
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      '往上滑動看更多',
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.microBold.copyWith(
-                                        color: _darkBrown.withValues(
-                                          alpha: 0.55,
-                                        ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '前傳',
+                                        style: AppTextStyles.sectionTitle
+                                            .copyWith(color: _sectionRed),
                                       ),
-                                    ),
-                                  ],
+
+                                      const SizedBox(height: 5),
+
+                                      Text(
+                                        _preface.isNotEmpty
+                                            ? _preface
+                                            : (_loadError ?? '目前尚未取得劇本前傳。'),
+                                        style: AppTextStyles.captionWide
+                                            .copyWith(
+                                              color: _darkText,
+                                              height: 1.42,
+                                            ),
+                                      ),
+
+                                      const SizedBox(height: 14),
+
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '探索總覽',
+                                            style: AppTextStyles.sectionTitle
+                                                .copyWith(color: _sectionRed),
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            '往上滑動看更多',
+                                            textAlign: TextAlign.center,
+                                            style: AppTextStyles.microBold
+                                                .copyWith(
+                                                  color: _darkBrown.withValues(
+                                                    alpha: 0.55,
+                                                  ),
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 6),
+                                      if (_nodes.isEmpty)
+                                        Text(
+                                          '目前尚未取得探索站點。',
+                                          style: AppTextStyles.captionWide
+                                              .copyWith(color: _darkText),
+                                        )
+                                      else
+                                        ...List.generate(_nodes.length, (
+                                          index,
+                                        ) {
+                                          final Map<String, dynamic> node =
+                                              _nodes[index];
+
+                                          return _ChapterItem(
+                                            number: '第${index + 1}站',
+                                            title: _nodeDisplayName(
+                                              node,
+                                              index,
+                                            ),
+                                          );
+                                        }),
+
+                                      const SizedBox(height: 10),
+                                    ],
+                                  ),
                                 ),
-
-                                const SizedBox(height: 6),
-
-                                // ==================================================
-                                // 動態探索站
-                                //
-                                // 第一站：
-                                //     place_name
-                                //
-                                // 第二站開始：
-                                //     location_codename
-                                //
-                                // 有幾個 nodes 就顯示幾站
-                                // ==================================================
-                                if (_nodes.isEmpty)
-                                  Text(
-                                    '目前尚未取得探索站點。',
-                                    style: AppTextStyles.captionWide.copyWith(
-                                      color: _darkText,
-                                    ),
-                                  )
-                                else
-                                  ...List.generate(_nodes.length, (index) {
-                                    final Map<String, dynamic> node =
-                                        _nodes[index];
-
-                                    return _ChapterItem(
-                                      number: '第${index + 1}站',
-                                      title: _nodeDisplayName(node, index),
-                                    );
-                                  }),
-
-                                const SizedBox(height: 10),
-                              ],
-                            ),
-                          ),
-                        ),
+                              ),
                       ),
 
                       // ====================================================
@@ -563,6 +673,57 @@ class _ChapterItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Favorite Button
+// ============================================================================
+
+class _FavoriteButton extends StatelessWidget {
+  final bool isFavorite;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _FavoriteButton({
+    required this.isFavorite,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: SizedBox(
+        width: 30,
+        height: 30,
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _sectionRed,
+                  ),
+                )
+              : AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) =>
+                      ScaleTransition(scale: animation, child: child),
+                  child: Icon(
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    key: ValueKey<bool>(isFavorite),
+                    size: 24,
+                    color: _sectionRed,
+                  ),
+                ),
+        ),
       ),
     );
   }
