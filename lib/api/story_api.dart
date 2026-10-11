@@ -411,4 +411,30 @@ class StoryApi {
 
     return Map<String, dynamic>.from(result);
   }
+
+  //遊你說了算 -一句話生成劇本
+  static Future<Map<String, dynamic>> generateByText({
+    required String userPrompt,
+  }) async {
+    final String prompt = userPrompt.trim();
+
+    if (prompt.isEmpty) {
+      throw Exception('請輸入想要的旅程描述');
+    }
+
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/GenerateByText',
+      failMessage: '劇本生成失敗',
+      body: {'user_prompt': prompt},
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception('劇本生成失敗');
+    }
+
+    return Map<String, dynamic>.from(result);
+  }
 }

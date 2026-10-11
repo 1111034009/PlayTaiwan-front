@@ -139,6 +139,7 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
       MaterialPageRoute(
         builder: (_) => ScriptDetailPage(
           title: script.title,
+          storyId: script.storyId,
           generatedScript: script.story,
           allGeneratedScripts: widget.generatedScript,
           cityName: widget.cityName,

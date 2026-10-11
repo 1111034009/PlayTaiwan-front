@@ -147,12 +147,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       ),
     );
 
-    if (_script == null && widget.storyId.trim().isNotEmpty) {
+    if (_storyId.isNotEmpty && (_scriptData == null || _nodes.isEmpty)) {
       _loadDetail();
     }
   }
 
   Future<void> _loadDetail() async {
+    final String id = _storyId;
+
     setState(() {
       _isLoadingDetail = true;
       _loadError = null;
@@ -160,7 +162,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
     try {
       final Map<String, dynamic> result = await StoryApi.getStoryDetail(
-        storyId: widget.storyId,
+        storyId: id,
       );
 
       if (!mounted) return;
@@ -168,7 +170,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       final String title = result['title']?.toString().trim() ?? '';
 
       setState(() {
-        _script = {'story_id': widget.storyId.trim(), 'data': result};
+        _script = {'story_id': id, 'data': result};
         _isFavorite = result['is_favorite'] == true;
 
         if (title.isNotEmpty) {
@@ -186,7 +188,6 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       });
     }
   }
-
   // ============================================================
   // 導航
   // ============================================================

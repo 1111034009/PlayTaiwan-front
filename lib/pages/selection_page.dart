@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,6 +11,11 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
+import '../block/script_generating_overlay.dart';
+
+import '../api/story_api.dart';
+
+import 'script_detail_page.dart';
 import 'home_page.dart';
 import 'play_idea_page.dart';
 import 'travel_info_page.dart';
@@ -43,7 +48,10 @@ class _SelectionPageState extends State<SelectionPage> {
 
   String fakeLocation = '';
   bool isLoadingLocation = false;
-
+  bool isGeneratingStory = false;
+  double generatingProgress = 0.0;
+  String generatingText = '正在整理旅程線索';
+  Timer? _progressTimer;
   // 地區輸入框
 
   final TextEditingController locationController = TextEditingController();
@@ -129,6 +137,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     locationController.dispose();
     ideaController.dispose();
     super.dispose();
@@ -346,7 +355,42 @@ class _SelectionPageState extends State<SelectionPage> {
   // ==================================================================
   // 遊你說了算
   // ==================================================================
-  void customAdventure() {
+  void _startGeneratingProgress() {
+    _progressTimer?.cancel();
+
+    setState(() {
+      isGeneratingStory = true;
+      generatingProgress = 0.01;
+      generatingText = '正在整理旅程線索';
+    });
+
+    const int totalTicks = 600;
+    int tick = 0;
+
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      tick++;
+
+      setState(() {
+        generatingProgress = (0.01 + 0.96 * (tick / totalTicks)).clamp(
+          0.01,
+          0.97,
+        );
+
+        if (tick == 50) generatingText = '正在分析你的旅程想法';
+      });
+
+      if (tick >= totalTicks) timer.cancel();
+    });
+  }
+
+  Future<void> customAdventure() async {
+    if (isGeneratingStory) return;
+
     final String idea = ideaController.text.trim();
 
     final String? error = _validateIdea(idea);
@@ -356,12 +400,66 @@ class _SelectionPageState extends State<SelectionPage> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TravelInfoPage(cityName: '', townName: ''),
-      ),
-    );
+    _startGeneratingProgress();
+
+    try {
+      final Map<String, dynamic> result = await StoryApi.generateByText(
+        userPrompt: idea,
+      );
+
+      _progressTimer?.cancel();
+
+      if (!mounted) return;
+
+      setState(() {
+        generatingProgress = 1.0;
+        generatingText = '劇本生成完成';
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      if (!mounted) return;
+
+      setState(() {
+        isGeneratingStory = false;
+      });
+
+      final dynamic data = result['data'];
+      final dynamic intent = result['parsed_intent'];
+
+      final String title = data is Map
+          ? (data['title']?.toString().trim() ?? '')
+          : '';
+
+      final List<String> transportation =
+          intent is Map && intent['transportation'] is List
+          ? (intent['transportation'] as List).map((e) => e.toString()).toList()
+          : const [];
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScriptDetailPage(
+            title: title.isEmpty ? '未命名劇本' : title,
+            generatedScript: result,
+            cityName: result['detected_city']?.toString() ?? '',
+            townName: result['detected_town']?.toString() ?? '',
+            transportation: transportation,
+          ),
+        ),
+      );
+    } catch (e) {
+      _progressTimer?.cancel();
+
+      if (!mounted) return;
+
+      setState(() {
+        isGeneratingStory = false;
+        generatingProgress = 0.0;
+      });
+
+      _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
   // ==================================================================
   // 回首頁
@@ -380,110 +478,123 @@ class _SelectionPageState extends State<SelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pageColor,
-      extendBody: true,
+    return Stack(
+      children: [
+        PopScope(
+          canPop: !isGeneratingStory,
+          child: Scaffold(
+            backgroundColor: pageColor,
+            extendBody: true,
+            // ================================================================
+            // Body
+            // ================================================================
+            body: Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: designWidth,
+                  height: designHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // ======================================================
+                      // 背景
+                      // ======================================================
 
-      // ================================================================
-      // Body
-      // ================================================================
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // ======================================================
-                // 背景
-                // ======================================================
+                      Positioned.fill(child: Container(color: pageColor)),
 
-                Positioned.fill(child: Container(color: pageColor)),
-
-                // ======================================================
-                // 第一張紙
-                //
-                // 遊你說了算
-                // ======================================================
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 180,
-                      child: _AdventurePaper(
-                        child: _CustomAdventureContent(
-                          ideaController: ideaController,
-                          onPressed: customAdventure,
+                      // ======================================================
+                      // 第一張紙
+                      //
+                      // 遊你說了算
+                      // ======================================================
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 180,
+                            child: _AdventurePaper(
+                              child: _CustomAdventureContent(
+                                ideaController: ideaController,
+                                onPressed: customAdventure,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
 
-                // ======================================================
-                // 第二張紙
-                //
-                // 現在揪出發
-                // ======================================================
-                Positioned(
-                  top: 190,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 210,
-                      child: _AdventurePaper(
-                        child: _StartAdventureContent(
-                          locationController: locationController,
-                          onLocationChanged: (value) {
-                            fakeLocation = value;
-                          },
-                          onLocationPressed: useCurrentLocation,
-                          onPressed: startAdventure,
-                          loading: isLoadingLocation,
+                      // ======================================================
+                      // 第二張紙
+                      //
+                      // 現在揪出發
+                      // ======================================================
+                      Positioned(
+                        top: 190,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 210,
+                            child: _AdventurePaper(
+                              child: _StartAdventureContent(
+                                locationController: locationController,
+                                onLocationChanged: (value) {
+                                  fakeLocation = value;
+                                },
+                                onLocationPressed: useCurrentLocation,
+                                onPressed: startAdventure,
+                                loading: isLoadingLocation,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
 
-                // ======================================================
-                // 第三張紙
-                //
-                // 來點遊意思
-                // ======================================================
-                Positioned(
-                  top: 410,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 180,
-                      child: _AdventurePaper(
-                        child: _RandomAdventureContent(
-                          onPressed: randomAdventure,
+                      // ======================================================
+                      // 第三張紙
+                      //
+                      // 來點遊意思
+                      // ======================================================
+                      Positioned(
+                        top: 410,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 180,
+                            child: _AdventurePaper(
+                              child: _RandomAdventureContent(
+                                onPressed: randomAdventure,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
+
+            // ================================================================
+            // Navigation Bar
+            // ================================================================
+            bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),
         ),
-      ),
-
-      // ================================================================
-      // Navigation Bar
-      // ================================================================
-      bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
+        if (isGeneratingStory)
+          Positioned.fill(
+            child: ScriptGeneratingOverlay(
+              message: generatingText,
+              progress: generatingProgress,
+            ),
+          ),
+      ],
     );
   }
 }

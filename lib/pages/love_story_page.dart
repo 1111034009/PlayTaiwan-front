@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:share_plus/share_plus.dart';
 import '../api/story_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -128,6 +128,46 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
       );
 
       if (!opened) throw Exception('無法開啟行事曆連結');
+    } catch (e) {
+      _showMessage(_errorText(e));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isWritingCalendar = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _shareCalendar(Map<String, dynamic> story) async {
+    final String id = _text(story['story_id']);
+
+    if (id.isEmpty) {
+      _showMessage('找不到劇本 ID');
+      return;
+    }
+
+    if (_isWritingCalendar) return;
+
+    setState(() {
+      _isWritingCalendar = true;
+    });
+
+    try {
+      final String url = await StoryApi.createCalendarLink(storyId: id);
+
+      if (!mounted) return;
+
+      // 開啟手機系統分享選單
+      await SharePlus.instance.share(
+        ShareParams(
+          title: '分享行事曆',
+          subject: '邀請你一起探索：${_text(story['title'])}',
+          text:
+              '邀請你一起探索「${_text(story['title'])}」！\n'
+              '點擊以下連結查看行事曆：\n$url',
+        ),
+      );
     } catch (e) {
       _showMessage(_errorText(e));
     } finally {
@@ -293,6 +333,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
 
   Widget _buildStoryCard(Map<String, dynamic> story) {
     final String id = _text(story['story_id']);
+    final bool isCompleted = story['is_completed'] == true;
     final String location = [
       _text(story['city_name']),
       _text(story['district_name']),
@@ -314,7 +355,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _openDetail(story),
+          onTap: isCompleted ? null : () => _openDetail(story),
           borderRadius: BorderRadius.circular(7),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -363,11 +404,40 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
                           height: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildCalendarButton(story),
-                      ),
+                      if (!isCompleted) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            // 分享行事曆
+                            OutlinedButton.icon(
+                              onPressed: _isWritingCalendar
+                                  ? null
+                                  : () => _shareCalendar(story),
+                              icon: const Icon(Icons.share_rounded, size: 16),
+                              label: Text(
+                                '分享行事曆',
+                                style: AppTextStyles.captionBold.copyWith(
+                                  fontSize: AppTextStyles.captionBold.fontSize,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.primaryDark,
+                                side: const BorderSide(
+                                  color: AppColors.primaryDark,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            _buildCalendarButton(story),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -485,7 +555,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
 
   Widget _buildCalendarButton(Map<String, dynamic> story) {
     return GestureDetector(
-      onTap: () => _addToCalendar(story),
+      onTap: _isWritingCalendar ? null : () => _addToCalendar(story),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
