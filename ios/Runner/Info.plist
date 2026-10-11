@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+<key>NSCameraUsageDescription</key>
+<string>需要使用相機掃描優惠券 QR Code，以便查詢或核銷優惠券。</string>
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>需要將優惠券 QR Code 儲存到相簿</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

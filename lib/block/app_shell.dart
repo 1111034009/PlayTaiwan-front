@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../pages/ai_talk_page.dart';
 import 'ai_talk_button.dart';
-import 'story_nfc_button.dart';
+import 'story_qrcode_button.dart';
 
 class AppShell extends StatelessWidget {
   final Widget child;

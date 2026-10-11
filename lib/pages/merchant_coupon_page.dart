@@ -1,8 +1,15 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
@@ -13,6 +20,40 @@ const Color _cardColor = AppColors.merchantPaper;
 const Color _textColor = AppColors.textPrimary;
 const Color _primaryColor = AppColors.primaryDark;
 const Color _accentColor = AppColors.primaryAccent;
+
+const Duration _timeout = Duration(seconds: 20);
+
+ButtonStyle _filledStyle([Color color = _primaryColor]) {
+  return FilledButton.styleFrom(
+    backgroundColor: color,
+    foregroundColor: Colors.white,
+  );
+}
+
+TextStyle get _whiteButtonText =>
+    AppTextStyles.button.copyWith(color: Colors.white);
+
+String _errorText(Object error) =>
+    error.toString().replaceFirst('Exception: ', '');
+
+String _numberText(double value) {
+  return value == value.truncateToDouble()
+      ? value.toInt().toString()
+      : value.toString();
+}
+
+String _two(int number) => number.toString().padLeft(2, '0');
+
+String _formatDay(DateTime date) {
+  return '${date.year}/${_two(date.month)}/${_two(date.day)}';
+}
+
+String _formatDateTime(String value) {
+  final date = DateTime.tryParse(value);
+  if (date == null) return value.isEmpty ? '未設定' : value;
+
+  return '${_formatDay(date)} ${_two(date.hour)}:${_two(date.minute)}';
+}
 
 class MerchantCouponPage extends StatefulWidget {
   const MerchantCouponPage({super.key});
@@ -29,15 +70,13 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
 
   List<_Coupon> _coupons = [];
   bool _isLoading = true;
-  bool _isSaving = false;
-  bool _isDeleting = false;
-  bool _isChangingStatus = false;
-  bool _isShowingLoadingDialog = false;
+  String? _busyLabel;
   String? _errorMessage;
 
-  bool get _isBusy => _isSaving || _isDeleting || _isChangingStatus;
+  bool get _isBusy => _busyLabel != null;
 
   String get _couponUrl => '$_apiBaseUrl/api/merchant/coupons';
+  String get _qrBindUrl => '$_apiBaseUrl/api/merchant/qrcode/bind';
 
   Map<String, String> get _headers {
     final token = AppSession.token;
@@ -59,55 +98,6 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
     _loadCoupons();
   }
 
-  /// 檢查已過期的優惠券，並透過既有 API 自動下架。
-  Future<List<_Coupon>> _deactivateExpiredCoupons(List<_Coupon> coupons) async {
-    final now = DateTime.now();
-    final updatedCoupons = <_Coupon>[];
-
-    for (final coupon in coupons) {
-      final endDate = DateTime.tryParse(coupon.validTo);
-
-      // 無法解析日期時，不擅自修改狀態。
-      if (endDate == null || !coupon.isActive) {
-        updatedCoupons.add(coupon);
-        continue;
-      }
-
-      // 若 API 回傳的日期只有年月日，視為當天結束時才到期。
-      final rawDate = coupon.validTo.trim();
-      final effectiveEndDate =
-          (!rawDate.contains('T') && !rawDate.contains(' '))
-          ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
-          : endDate;
-
-      if (effectiveEndDate.isAfter(now)) {
-        updatedCoupons.add(coupon);
-        continue;
-      }
-
-      try {
-        final response = await http
-            .patch(
-              Uri.parse('$_couponUrl/${coupon.id}/status'),
-              headers: _headers,
-              body: jsonEncode({'status': 'inactive'}),
-            )
-            .timeout(const Duration(seconds: 20));
-
-        _checkResponse(response);
-
-        // API 下架成功後，同步更新畫面資料。
-        updatedCoupons.add(coupon.copyWith(status: 'inactive'));
-      } catch (e) {
-        // API 失敗時保留原狀態，下次重新載入時再試。
-        updatedCoupons.add(coupon);
-        debugPrint('優惠券 ${coupon.id} 自動下架失敗：${_errorText(e)}');
-      }
-    }
-
-    return updatedCoupons;
-  }
-
   dynamic _decodeResponse(http.Response response) {
     if (response.body.trim().isEmpty) return null;
 
@@ -118,28 +108,117 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
     }
   }
 
+  dynamic _unwrap(dynamic body) {
+    if (body is! Map) return null;
+
+    return body['Result'] ?? body['result'] ?? body['data'] ?? body['Data'];
+  }
+
   void _checkResponse(http.Response response) {
-    final dynamic body = _decodeResponse(response);
+    final body = _decodeResponse(response);
+    final failed =
+        response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        (body is Map && body['isSuccess'] == false);
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      String message = '操作失敗（HTTP ${response.statusCode}）';
+    if (!failed) return;
 
-      if (body is Map) {
-        message =
-            body['message']?.toString() ??
-            body['Message']?.toString() ??
-            body['detail']?.toString() ??
-            message;
+    final message = body is Map
+        ? (body['message'] ?? body['Message'] ?? body['detail'])?.toString()
+        : null;
+
+    throw Exception(message ?? '操作失敗（HTTP ${response.statusCode}）');
+  }
+
+  Future<http.Response> _request(
+    String method,
+    String url, {
+    Object? body,
+  }) async {
+    final request = http.Request(method, Uri.parse(url))
+      ..headers.addAll(_headers);
+
+    if (body != null) request.body = jsonEncode(body);
+
+    final response = await http.Response.fromStream(
+      await request.send().timeout(_timeout),
+    );
+
+    _checkResponse(response);
+
+    return response;
+  }
+
+  Future<void> _patchStatus(int couponId, String status) async {
+    await _request(
+      'PATCH',
+      '$_couponUrl/$couponId/status',
+      body: {'status': status},
+    );
+  }
+
+  Future<String> _bindNewQr(int couponId) async {
+    final qrUid = const Uuid().v4();
+
+    await _request(
+      'POST',
+      _qrBindUrl,
+      body: {'qr_uid': qrUid, 'coupon_id': couponId},
+    );
+
+    return qrUid;
+  }
+
+  Future<int> _resolveCouponId(http.Response created, String code) async {
+    final body = _decodeResponse(created);
+    final data = _unwrap(body) ?? body;
+
+    if (data is Map) {
+      final id = int.tryParse('${data['coupon_id'] ?? data['id'] ?? ''}');
+      if (id != null) return id;
+    }
+
+    await _loadCoupons();
+
+    final ids = _coupons.where((c) => c.code == code).map((c) => c.id);
+    if (ids.isEmpty) throw Exception('找不到新優惠券的 ID');
+
+    return ids.reduce((a, b) => a > b ? a : b);
+  }
+
+  Future<List<_Coupon>> _deactivateExpiredCoupons(List<_Coupon> coupons) async {
+    final now = DateTime.now();
+    final updated = <_Coupon>[];
+
+    for (final coupon in coupons) {
+      final endDate = DateTime.tryParse(coupon.validTo);
+
+      if (endDate == null || !coupon.isActive) {
+        updated.add(coupon);
+        continue;
       }
 
-      throw Exception(message);
+      final rawDate = coupon.validTo.trim();
+      final effectiveEndDate =
+          (!rawDate.contains('T') && !rawDate.contains(' '))
+          ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
+          : endDate;
+
+      if (effectiveEndDate.isAfter(now)) {
+        updated.add(coupon);
+        continue;
+      }
+
+      try {
+        await _patchStatus(coupon.id, 'inactive');
+        updated.add(coupon.copyWith(status: 'inactive'));
+      } catch (e) {
+        updated.add(coupon);
+        debugPrint('優惠券 ${coupon.id} 自動下架失敗：${_errorText(e)}');
+      }
     }
 
-    if (body is Map && body['isSuccess'] == false) {
-      throw Exception(
-        body['message']?.toString() ?? body['Message']?.toString() ?? '操作失敗',
-      );
-    }
+    return updated;
   }
 
   Future<void> _loadCoupons() async {
@@ -151,47 +230,26 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
     });
 
     try {
-      final response = await http
-          .get(Uri.parse(_couponUrl), headers: _headers)
-          .timeout(const Duration(seconds: 20));
+      final response = await _request('GET', _couponUrl);
+      final decoded = _decodeResponse(response);
+      final result = decoded is List ? decoded : _unwrap(decoded);
 
-      _checkResponse(response);
+      if (result is! List) throw Exception('優惠券資料格式錯誤');
 
-      final dynamic decoded = _decodeResponse(response);
-      final dynamic result;
+      final coupons = await _deactivateExpiredCoupons(
+        result
+            .whereType<Map>()
+            .map((item) => _Coupon.fromJson(Map<String, dynamic>.from(item)))
+            .toList(),
+      );
 
-      if (decoded is List) {
-        result = decoded;
-      } else if (decoded is Map) {
-        result =
-            decoded['Result'] ??
-            decoded['result'] ??
-            decoded['data'] ??
-            decoded['Data'];
-
-        if (result == null && decoded['isSuccess'] == true) {
-          throw Exception('伺服器未回傳優惠券資料');
-        }
-      } else {
-        throw Exception('伺服器回傳格式錯誤');
-      }
-
-      if (result is! List) {
-        throw Exception('優惠券資料格式錯誤');
-      }
-
-      var coupons = result
-          .whereType<Map>()
-          .map((item) => _Coupon.fromJson(Map<String, dynamic>.from(item)))
-          .toList();
-      coupons = await _deactivateExpiredCoupons(coupons);
       coupons.sort((a, b) {
         final dateA = DateTime.tryParse(a.validFrom);
         final dateB = DateTime.tryParse(b.validFrom);
 
-        if (dateA == null && dateB == null) return 0;
-        if (dateA == null) return 1;
-        if (dateB == null) return -1;
+        if (dateA == null || dateB == null) {
+          return dateA == dateB ? 0 : (dateA == null ? 1 : -1);
+        }
 
         return dateB.compareTo(dateA);
       });
@@ -212,10 +270,6 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
     }
   }
 
-  String _errorText(Object error) {
-    return error.toString().replaceFirst('Exception: ', '');
-  }
-
   void _showMessage(String message) {
     if (!mounted) return;
 
@@ -233,56 +287,65 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
       );
   }
 
-  void _showSavingDialog() {
-    if (!mounted || _isShowingLoadingDialog) return;
-
-    _isShowingLoadingDialog = true;
-
-    showDialog<void>(
-      context: context,
-      useRootNavigator: true,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          backgroundColor: _cardColor,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Colors.black, width: 1),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 34,
-                height: 34,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: _primaryColor,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                '正在儲存優惠券…',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(color: _textColor),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _hideSavingDialog() {
-    if (!_isShowingLoadingDialog) return;
-
-    _isShowingLoadingDialog = false;
-
+  Future<void> _runAction(
+    String label,
+    Future<String?> Function() action,
+  ) async {
     if (!mounted) return;
 
-    Navigator.of(context, rootNavigator: true).pop();
+    setState(() {
+      _busyLabel = label;
+      _errorMessage = null;
+    });
+
+    String? message;
+
+    try {
+      message = await action();
+    } catch (e) {
+      message = _errorText(e);
+    } finally {
+      if (mounted) setState(() => _busyLabel = null);
+    }
+
+    if (message != null) _showMessage(message);
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    Color confirmColor = _primaryColor,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cardColor,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          title,
+          style: AppTextStyles.title.copyWith(color: _textColor),
+        ),
+        content: Text(
+          message,
+          style: AppTextStyles.body.copyWith(color: _textColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('取消', style: AppTextStyles.button),
+          ),
+          FilledButton(
+            style: _filledStyle(confirmColor),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel, style: _whiteButtonText),
+          ),
+        ],
+      ),
+    );
+
+    return result == true;
   }
 
   Future<void> _openCouponForm({_Coupon? coupon}) async {
@@ -302,99 +365,96 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
   Future<void> _saveCoupon(_CouponFormResult form, {_Coupon? coupon}) async {
     if (_isBusy) return;
 
-    setState(() {
-      _isSaving = true;
-      _errorMessage = null;
-    });
+    String? newQrUid;
 
-    _showSavingDialog();
+    await _runAction('正在儲存優惠券…', () async {
+      final created = await _request(
+        coupon == null ? 'POST' : 'PUT',
+        coupon == null ? _couponUrl : '$_couponUrl/${coupon.id}',
+        body: {
+          'coupon_code': form.code,
+          'coupon_name': form.name,
+          'discount_commodity': form.commodity,
+          'discount_type': form.discountType,
+          'discount_value': form.discountValue,
+          'valid_from': form.validFrom.toIso8601String(),
+          'valid_to': form.validTo.toIso8601String(),
+        },
+      );
 
-    try {
-      final body = jsonEncode({
-        'coupon_code': form.code,
-        'coupon_name': form.name,
-        'discount_commodity': form.commodity,
-        'discount_type': form.discountType,
-        'discount_value': form.discountValue,
-        'valid_from': form.validFrom.toIso8601String(),
-        'valid_to': form.validTo.toIso8601String(),
-      });
-
-      final http.Response response;
+      var message = coupon == null ? '優惠券新增成功' : '優惠券修改成功';
 
       if (coupon == null) {
-        response = await http
-            .post(Uri.parse(_couponUrl), headers: _headers, body: body)
-            .timeout(const Duration(seconds: 20));
-      } else {
-        response = await http
-            .put(
-              Uri.parse('$_couponUrl/${coupon.id}'),
-              headers: _headers,
-              body: body,
-            )
-            .timeout(const Duration(seconds: 20));
+        try {
+          final couponId = await _resolveCouponId(created, form.code);
+          newQrUid = await _bindNewQr(couponId);
+        } catch (e) {
+          message = '優惠券已建立，但 QR 綁定失敗：${_errorText(e)}';
+        }
       }
-
-      _checkResponse(response);
-
-      _hideSavingDialog();
-
-      if (!mounted) return;
-
-      _showMessage(coupon == null ? '優惠券新增成功' : '優惠券修改成功');
 
       await _loadCoupons();
-    } catch (e) {
-      _hideSavingDialog();
+      return message;
+    });
 
-      if (mounted) {
-        _showMessage(_errorText(e));
-      }
-    } finally {
-      _hideSavingDialog();
+    final qrUid = newQrUid;
+    if (qrUid != null && mounted) await _showQrDialog(form.name, qrUid);
+  }
 
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+  Future<void> _showQrDialog(String couponName, String qrUid) {
+    return showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      builder: (_) => _CouponQrDialog(couponName: couponName, qrUid: qrUid),
+    );
+  }
+
+  Future<void> _showCouponQr(_Coupon coupon) async {
+    if (_isBusy) return;
+
+    if (coupon.hasQr) {
+      await _showQrDialog(coupon.name, coupon.qrUid);
+      return;
     }
+
+    final confirmed = await _confirm(
+      title: '尚未綁定 QR',
+      message: '要為「${coupon.name}」產生並綁定 QR 嗎？',
+      confirmLabel: '產生並綁定',
+    );
+
+    if (!confirmed || !mounted) return;
+
+    String? newQrUid;
+
+    await _runAction('正在綁定 QR…', () async {
+      newQrUid = await _bindNewQr(coupon.id);
+      await _loadCoupons();
+      return 'QR 綁定成功';
+    });
+
+    final qrUid = newQrUid;
+    if (qrUid != null && mounted) await _showQrDialog(coupon.name, qrUid);
   }
 
   Future<void> _showCouponDetails(_Coupon coupon) async {
     if (_isBusy) return;
 
     try {
-      final response = await http
-          .get(Uri.parse('$_couponUrl/${coupon.id}'), headers: _headers)
-          .timeout(const Duration(seconds: 20));
+      final response = await _request('GET', '$_couponUrl/${coupon.id}');
+      final decoded = _decodeResponse(response);
+      final detailData = _unwrap(decoded) ?? decoded;
 
-      _checkResponse(response);
-
-      final dynamic result = _decodeResponse(response);
-      final dynamic detailData;
-
-      if (result is Map) {
-        detailData =
-            result['Result'] ??
-            result['result'] ??
-            result['data'] ??
-            result['Data'] ??
-            result;
-      } else {
-        detailData = null;
-      }
-
-      if (detailData is! Map) {
-        throw Exception('優惠券詳細資料格式錯誤');
-      }
+      if (detailData is! Map) throw Exception('優惠券詳細資料格式錯誤');
 
       final detail = _Coupon.fromJson(Map<String, dynamic>.from(detailData));
+      final qrUid = detail.hasQr ? detail.qrUid : coupon.qrUid;
 
       if (!mounted) return;
 
       await showDialog<void>(
         context: context,
-        barrierDismissible: true,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: _cardColor,
           surfaceTintColor: Colors.transparent,
@@ -410,11 +470,20 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
                 _detailLine('優惠券編號', '${detail.id}'),
                 _detailLine('優惠代碼', detail.code),
                 _detailLine('適用商品', detail.commodity),
-                _detailLine('優惠類型', detail.discountType),
-                _detailLine('優惠數值', _discountText(detail)),
-                _detailLine('開始日期', _formatDate(detail.validFrom)),
-                _detailLine('結束日期', _formatDate(detail.validTo)),
-                _detailLine('目前狀態', detail.status),
+                _detailLine('優惠類型', detail.typeLabel),
+                _detailLine('優惠數值', detail.discountText),
+                _detailLine('開始日期', _formatDateTime(detail.validFrom)),
+                _detailLine('結束日期', _formatDateTime(detail.validTo)),
+                _detailLine('目前狀態', detail.isActive ? '已上架' : '未上架'),
+                if (qrUid.isEmpty)
+                  _detailLine('QR Code', '尚未綁定')
+                else
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: _QrBox(data: qrUid, size: 160),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -458,157 +527,41 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
   Future<void> _toggleCouponStatus(_Coupon coupon) async {
     if (_isBusy) return;
 
-    final currentlyActive = coupon.isActive;
-    final nextStatus = currentlyActive ? 'inactive' : 'active';
+    final activate = !coupon.isActive;
+    final actionText = activate ? '上架' : '下架';
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _cardColor,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          currentlyActive ? '下架優惠券' : '上架優惠券',
-          style: AppTextStyles.title.copyWith(color: _textColor),
-        ),
-        content: Text(
-          '確定要${currentlyActive ? '下架' : '上架'}「${coupon.name}」嗎？',
-          style: AppTextStyles.body.copyWith(color: _textColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('取消', style: AppTextStyles.button),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              '確定',
-              style: AppTextStyles.button.copyWith(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await _confirm(
+      title: '$actionText優惠券',
+      message: '確定要$actionText「${coupon.name}」嗎？',
+      confirmLabel: '確定',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
-    setState(() => _isChangingStatus = true);
-
-    try {
-      final response = await http
-          .patch(
-            Uri.parse('$_couponUrl/${coupon.id}/status'),
-            headers: _headers,
-            body: jsonEncode({'status': nextStatus}),
-          )
-          .timeout(const Duration(seconds: 20));
-
-      _checkResponse(response);
-
-      if (!mounted) return;
-
-      _showMessage(currentlyActive ? '優惠券已下架' : '優惠券已上架');
+    await _runAction('正在更新優惠券狀態…', () async {
+      await _patchStatus(coupon.id, activate ? 'active' : 'inactive');
       await _loadCoupons();
-    } catch (e) {
-      _showMessage(_errorText(e));
-    } finally {
-      if (mounted) {
-        setState(() => _isChangingStatus = false);
-      }
-    }
+      return '優惠券已$actionText';
+    });
   }
 
   Future<void> _deleteCoupon(_Coupon coupon) async {
     if (_isBusy) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _cardColor,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          '刪除優惠券',
-          style: AppTextStyles.title.copyWith(color: _textColor),
-        ),
-        content: Text(
-          '確定要刪除「${coupon.name}」嗎？此操作無法復原。',
-          style: AppTextStyles.body.copyWith(color: _textColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('取消', style: AppTextStyles.button),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              '刪除',
-              style: AppTextStyles.button.copyWith(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await _confirm(
+      title: '刪除優惠券',
+      message: '確定要刪除「${coupon.name}」嗎？此操作無法復原。',
+      confirmLabel: '刪除',
+      confirmColor: Colors.red.shade700,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
-    setState(() {
-      _isDeleting = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final response = await http
-          .delete(Uri.parse('$_couponUrl/${coupon.id}'), headers: _headers)
-          .timeout(const Duration(seconds: 20));
-
-      _checkResponse(response);
-
-      if (!mounted) return;
-
-      _showMessage('優惠券刪除成功');
+    await _runAction('正在刪除優惠券…', () async {
+      await _request('DELETE', '$_couponUrl/${coupon.id}');
       await _loadCoupons();
-    } catch (e) {
-      _showMessage(_errorText(e));
-    } finally {
-      if (mounted) {
-        setState(() => _isDeleting = false);
-      }
-    }
-  }
-
-  String _formatDate(String value) {
-    final date = DateTime.tryParse(value);
-    if (date == null) return value.isEmpty ? '未設定' : value;
-
-    String twoDigits(int number) => number.toString().padLeft(2, '0');
-
-    return '${date.year}/${twoDigits(date.month)}/${twoDigits(date.day)} '
-        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
-  }
-
-  String _discountText(_Coupon coupon) {
-    if (coupon.discountType.toLowerCase() == 'percent') {
-      return '${_numberText(coupon.discountValue)}%';
-    }
-
-    return '\$${_numberText(coupon.discountValue)}';
-  }
-
-  String _numberText(double value) {
-    return value == value.truncateToDouble()
-        ? value.toInt().toString()
-        : value.toString();
+      return '優惠券刪除成功';
+    });
   }
 
   @override
@@ -638,10 +591,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
             backgroundColor: _primaryColor,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.add),
-            label: Text(
-              '新增優惠券',
-              style: AppTextStyles.button.copyWith(color: Colors.white),
-            ),
+            label: Text('新增優惠券', style: _whiteButtonText),
           ),
           body: SafeArea(
             child: Column(
@@ -675,46 +625,8 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
             ),
           ),
         ),
-        if (_isDeleting || _isChangingStatus)
-          Positioned.fill(
-            child: AbsorbPointer(
-              absorbing: true,
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 20,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _cardColor,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.black),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            color: _primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          _isDeleting ? '正在刪除優惠券…' : '正在更新優惠券狀態…',
-                          style: AppTextStyles.body.copyWith(color: _textColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+        if (_busyLabel != null)
+          Positioned.fill(child: _BusyOverlay(label: _busyLabel!)),
       ],
     );
   }
@@ -799,12 +711,11 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
 
           return _CouponCard(
             coupon: coupon,
-            dateFormatter: _formatDate,
-            discountText: _discountText(coupon),
             onTap: () => _showCouponDetails(coupon),
             onEdit: () => _openCouponForm(coupon: coupon),
             onToggle: () => _toggleCouponStatus(coupon),
             onDelete: () => _deleteCoupon(coupon),
+            onQr: () => _showCouponQr(coupon),
             enabled: !_isBusy,
           );
         },
@@ -815,7 +726,6 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
 
 class _Coupon {
   final int id;
-  final int storeId;
   final String code;
   final String name;
   final String commodity;
@@ -824,10 +734,10 @@ class _Coupon {
   final String validFrom;
   final String validTo;
   final String status;
+  final String qrUid;
 
   const _Coupon({
     required this.id,
-    required this.storeId,
     required this.code,
     required this.name,
     required this.commodity,
@@ -836,12 +746,12 @@ class _Coupon {
     required this.validFrom,
     required this.validTo,
     required this.status,
+    this.qrUid = '',
   });
 
   factory _Coupon.fromJson(Map<String, dynamic> json) {
     return _Coupon(
       id: int.tryParse('${json['coupon_id'] ?? 0}') ?? 0,
-      storeId: int.tryParse('${json['s_id'] ?? 0}') ?? 0,
       code: json['coupon_code']?.toString() ?? '',
       name: json['coupon_name']?.toString() ?? '未命名優惠券',
       commodity: json['discount_commodity']?.toString() ?? '',
@@ -850,12 +760,13 @@ class _Coupon {
       validFrom: json['valid_from']?.toString() ?? '',
       validTo: json['valid_to']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
+      qrUid: json['qr_uid']?.toString() ?? '',
     );
   }
+
   _Coupon copyWith({String? status}) {
     return _Coupon(
       id: id,
-      storeId: storeId,
       code: code,
       name: name,
       commodity: commodity,
@@ -864,8 +775,22 @@ class _Coupon {
       validFrom: validFrom,
       validTo: validTo,
       status: status ?? this.status,
+      qrUid: qrUid,
     );
   }
+
+  bool get hasQr => qrUid.isNotEmpty;
+
+  bool get isAmount {
+    final type = discountType.toLowerCase();
+    return type == 'amount' || type == 'fixed';
+  }
+
+  String get typeLabel => isAmount ? '固定金額折抵' : '百分比折扣';
+
+  String get discountText => isAmount
+      ? '\$${_numberText(discountValue)}'
+      : '${_numberText(discountValue)}%';
 
   bool get isActive {
     final value = status.trim().toLowerCase();
@@ -921,6 +846,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
   late String _discountType;
   late DateTime _validFrom;
   late DateTime _validTo;
+  String? _dateError;
 
   @override
   void initState() {
@@ -935,8 +861,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
       text: coupon == null ? '' : _numberText(coupon.discountValue),
     );
 
-    final type = coupon?.discountType.toLowerCase() ?? '';
-    _discountType = type == 'amount' || type == 'fixed' ? 'amount' : 'percent';
+    _discountType = (coupon?.isAmount ?? false) ? 'amount' : 'percent';
 
     final now = DateTime.now();
     _validFrom =
@@ -945,12 +870,6 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
     _validTo =
         DateTime.tryParse(coupon?.validTo ?? '') ??
         DateTime(now.year, now.month, now.day, 23, 59, 59);
-  }
-
-  String _numberText(double value) {
-    return value == value.truncateToDouble()
-        ? value.toInt().toString()
-        : value.toString();
   }
 
   @override
@@ -963,11 +882,9 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
   }
 
   Future<void> _chooseDate({required bool isStart}) async {
-    final initial = isStart ? _validFrom : _validTo;
-
     final date = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: isStart ? _validFrom : _validTo,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
       helpText: isStart ? '選擇優惠券開始日期' : '選擇優惠券結束日期',
@@ -989,6 +906,8 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
     if (date == null || !mounted) return;
 
     setState(() {
+      _dateError = null;
+
       if (isStart) {
         _validFrom = DateTime(date.year, date.month, date.day);
 
@@ -1005,25 +924,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_validTo.isBefore(_validFrom)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('結束日期不能早於開始日期')));
-      return;
-    }
-
-    final value = double.tryParse(_valueController.text.trim());
-
-    if (value == null || value < 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('請輸入有效的優惠數值')));
-      return;
-    }
-
-    if (_discountType == 'percent' && value > 100) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('百分比不可大於 100')));
+      setState(() => _dateError = '結束日期不能早於開始日期');
       return;
     }
 
@@ -1034,10 +935,17 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
         name: _nameController.text.trim(),
         commodity: _commodityController.text.trim(),
         discountType: _discountType,
-        discountValue: value,
+        discountValue: double.parse(_valueController.text.trim()),
         validFrom: _validFrom,
         validTo: _validTo,
       ),
+    );
+  }
+
+  OutlineInputBorder _border(Color color, [double width = 1]) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: color, width: width),
     );
   }
 
@@ -1049,34 +957,30 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
       hintStyle: AppTextStyles.caption.copyWith(color: Colors.black45),
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.black26),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.black26),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _primaryColor, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.red),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
+      border: _border(Colors.black26),
+      enabledBorder: _border(Colors.black26),
+      focusedBorder: _border(_primaryColor, 1.5),
+      errorBorder: _border(Colors.red),
+      focusedErrorBorder: _border(Colors.red, 1.5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
     );
   }
 
-  String _formatDate(DateTime date) {
-    String twoDigits(int value) => value.toString().padLeft(2, '0');
-
-    return '${date.year}/${twoDigits(date.month)}/${twoDigits(date.day)}';
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String emptyMessage,
+    TextCapitalization capitalization = TextCapitalization.none,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: AppTextStyles.body.copyWith(color: _textColor),
+      decoration: _decoration(label, hint: hint),
+      textCapitalization: capitalization,
+      validator: (value) =>
+          value == null || value.trim().isEmpty ? emptyMessage : null,
+    );
   }
 
   Widget _dateButton({
@@ -1089,7 +993,9 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
       style: OutlinedButton.styleFrom(
         foregroundColor: _textColor,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-        side: const BorderSide(color: Colors.black26),
+        side: BorderSide(
+          color: _dateError == null ? Colors.black26 : Colors.red,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Column(
@@ -1106,7 +1012,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
               const SizedBox(width: 5),
               Flexible(
                 child: Text(
-                  _formatDate(date),
+                  _formatDay(date),
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption.copyWith(color: _textColor),
                 ),
@@ -1137,41 +1043,26 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
+                _textField(
                   controller: _codeController,
-                  style: AppTextStyles.body.copyWith(color: _textColor),
-                  decoration: _decoration('優惠代碼', hint: '例如 SUMMER10'),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return '請輸入優惠代碼';
-                    }
-                    return null;
-                  },
+                  label: '優惠代碼',
+                  hint: '例如 SUMMER10',
+                  emptyMessage: '請輸入優惠代碼',
+                  capitalization: TextCapitalization.characters,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                _textField(
                   controller: _nameController,
-                  style: AppTextStyles.body.copyWith(color: _textColor),
-                  decoration: _decoration('優惠券名稱', hint: '例如 夏日九折'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return '請輸入優惠券名稱';
-                    }
-                    return null;
-                  },
+                  label: '優惠券名稱',
+                  hint: '例如 夏日九折',
+                  emptyMessage: '請輸入優惠券名稱',
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                _textField(
                   controller: _commodityController,
-                  style: AppTextStyles.body.copyWith(color: _textColor),
-                  decoration: _decoration('適用商品', hint: '例如 全品項'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return '請輸入適用商品';
-                    }
-                    return null;
-                  },
+                  label: '適用商品',
+                  hint: '例如 全品項',
+                  emptyMessage: '請輸入適用商品',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -1183,9 +1074,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                     DropdownMenuItem(value: 'amount', child: Text('固定金額折抵')),
                   ],
                   onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _discountType = value);
-                    }
+                    if (value != null) setState(() => _discountType = value);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -1204,9 +1093,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                   validator: (value) {
                     final number = double.tryParse(value?.trim() ?? '');
 
-                    if (number == null || number < 0) {
-                      return '請輸入有效的數值';
-                    }
+                    if (number == null || number < 0) return '請輸入有效的數值';
 
                     if (_discountType == 'percent' && number > 100) {
                       return '百分比不可大於 100';
@@ -1235,6 +1122,19 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                     ),
                   ],
                 ),
+                if (_dateError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _dateError!,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1246,17 +1146,57 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
           child: Text('取消', style: AppTextStyles.button),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: _primaryColor,
-            foregroundColor: Colors.white,
-          ),
+          style: _filledStyle(),
           onPressed: _submit,
-          child: Text(
-            isEditing ? '儲存' : '建立',
-            style: AppTextStyles.button.copyWith(color: Colors.white),
-          ),
+          child: Text(isEditing ? '儲存' : '建立', style: _whiteButtonText),
         ),
       ],
+    );
+  }
+}
+
+class _BusyOverlay extends StatelessWidget {
+  final String label;
+
+  const _BusyOverlay({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return AbsorbPointer(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.25),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: _primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Material(
+                  type: MaterialType.transparency,
+                  child: Text(
+                    label,
+                    style: AppTextStyles.body.copyWith(color: _textColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1325,26 +1265,72 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+class _QrBox extends StatelessWidget {
+  final String data;
+  final double size;
+  final double padding;
+  final double radius;
+
+  const _QrBox({
+    required this.data,
+    required this.size,
+    this.padding = 10,
+    this.radius = 12,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: Colors.black26),
+      ),
+      child: QrImageView(
+        data: data,
+        size: size,
+        padding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+      ),
+    );
+  }
+}
+
 class _CouponCard extends StatelessWidget {
   final _Coupon coupon;
-  final String Function(String) dateFormatter;
-  final String discountText;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onQr;
   final bool enabled;
 
   const _CouponCard({
     required this.coupon,
-    required this.dateFormatter,
-    required this.discountText,
     required this.onTap,
     required this.onEdit,
     required this.onToggle,
     required this.onDelete,
+    required this.onQr,
     this.enabled = true,
   });
+
+  Widget _action(
+    IconData icon,
+    String label,
+    VoidCallback onPressed, {
+    Color? color,
+  }) {
+    return TextButton.icon(
+      onPressed: enabled ? onPressed : null,
+      style: color == null
+          ? null
+          : TextButton.styleFrom(foregroundColor: color),
+      icon: Icon(icon, size: 17),
+      label: Text(label, style: AppTextStyles.captionBold),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1375,18 +1361,28 @@ class _CouponCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _accentColor.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.confirmation_number_outlined,
-                      color: _primaryColor,
-                      size: 26,
-                    ),
+                  GestureDetector(
+                    onTap: enabled && coupon.hasQr ? onQr : null,
+                    child: coupon.hasQr
+                        ? _QrBox(
+                            data: coupon.qrUid,
+                            size: 34,
+                            padding: 4,
+                            radius: 10,
+                          )
+                        : Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _accentColor.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.confirmation_number_outlined,
+                              color: _primaryColor,
+                              size: 26,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1449,7 +1445,6 @@ class _CouponCard extends StatelessWidget {
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-
                     Expanded(
                       child: Text(
                         coupon.commodity.isEmpty ? '未設定適用商品' : coupon.commodity,
@@ -1460,12 +1455,10 @@ class _CouponCard extends StatelessWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 8),
-
                     Flexible(
                       child: Text(
-                        discountText,
+                        coupon.discountText,
                         maxLines: 1,
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
@@ -1489,7 +1482,7 @@ class _CouponCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '${dateFormatter(coupon.validFrom)} - ${dateFormatter(coupon.validTo)}',
+                      '${_formatDateTime(coupon.validFrom)} - ${_formatDateTime(coupon.validTo)}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.caption.copyWith(
@@ -1505,31 +1498,226 @@ class _CouponCard extends StatelessWidget {
                 spacing: 4,
                 runSpacing: 4,
                 children: [
-                  TextButton.icon(
-                    onPressed: enabled ? onEdit : null,
-                    icon: const Icon(Icons.edit_outlined, size: 17),
-                    label: Text('修改', style: AppTextStyles.captionBold),
+                  _action(Icons.qr_code_2, coupon.hasQr ? 'QR' : '綁定 QR', onQr),
+                  _action(Icons.edit_outlined, '修改', onEdit),
+                  _action(
+                    active
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    active ? '下架' : '上架',
+                    onToggle,
                   ),
-                  TextButton.icon(
-                    onPressed: enabled ? onToggle : null,
-                    icon: Icon(
-                      active
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 17,
-                    ),
-                    label: Text(
-                      active ? '下架' : '上架',
-                      style: AppTextStyles.captionBold,
-                    ),
+                  _action(
+                    Icons.delete_outline,
+                    '刪除',
+                    onDelete,
+                    color: Colors.red.shade700,
                   ),
-                  TextButton.icon(
-                    onPressed: enabled ? onDelete : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CouponQrDialog extends StatefulWidget {
+  final String couponName;
+  final String qrUid;
+
+  const _CouponQrDialog({required this.couponName, required this.qrUid});
+
+  @override
+  State<_CouponQrDialog> createState() => _CouponQrDialogState();
+}
+
+class _CouponQrDialogState extends State<_CouponQrDialog> {
+  final _boundaryKey = GlobalKey();
+  bool _isSaving = false;
+  String? _status;
+  bool _statusIsError = false;
+
+  Future<Uint8List?> _capturePng() async {
+    final boundary =
+        _boundaryKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+
+    if (boundary == null) return null;
+
+    final image = await boundary.toImage(pixelRatio: 3);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    return data?.buffer.asUint8List();
+  }
+
+  Future<void> _download() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+      _status = null;
+    });
+
+    var message = 'QR Code 已儲存到相簿';
+    var isError = false;
+
+    try {
+      final bytes = await _capturePng();
+      if (bytes == null) throw Exception('產生圖片失敗');
+
+      await Gal.putImageBytes(
+        bytes,
+        name: 'coupon_qr_${DateTime.now().millisecondsSinceEpoch}',
+      );
+    } on GalException catch (e) {
+      isError = true;
+      message = e.type == GalExceptionType.accessDenied
+          ? '沒有相簿權限，請到系統設定開啟後再試'
+          : '儲存失敗：${e.type.message}';
+    } catch (e) {
+      isError = true;
+      message = '儲存失敗：${_errorText(e)}';
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSaving = false;
+      _status = message;
+      _statusIsError = isError;
+    });
+  }
+
+  Future<void> _share() async {
+    final box = context.findRenderObject() as RenderBox?;
+    final bytes = await _capturePng();
+
+    if (bytes == null) return;
+
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile.fromData(bytes, name: 'coupon_qr.png', mimeType: 'image/png'),
+        ],
+        text: '${widget.couponName} 優惠券 QR Code',
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusIsError
+        ? Colors.red.shade700
+        : Colors.green.shade800;
+
+    return Dialog(
+      backgroundColor: _cardColor,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '優惠券 QR Code',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.title.copyWith(color: _textColor),
+              ),
+              const SizedBox(height: 16),
+              RepaintBoundary(
+                key: _boundaryKey,
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.couponName,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyBold.copyWith(
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _QrBox(data: widget.qrUid, size: 200),
+                    ],
+                  ),
+                ),
+              ),
+              if (_status != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _statusIsError
+                          ? Icons.error_outline
+                          : Icons.check_circle_outline,
+                      size: 16,
+                      color: statusColor,
                     ),
-                    icon: const Icon(Icons.delete_outline, size: 17),
-                    label: Text('刪除', style: AppTextStyles.captionBold),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _status!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.caption.copyWith(
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: '分享',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: _textColor,
+                    ),
+                    onPressed: _isSaving ? null : _share,
+                    icon: const Icon(Icons.share_outlined),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: '下載',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: _textColor,
+                    ),
+                    onPressed: _isSaving ? null : _download,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _primaryColor,
+                            ),
+                          )
+                        : const Icon(Icons.download_outlined),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: '關閉',
+                    style: _filledStyle(),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
                   ),
                 ],
               ),

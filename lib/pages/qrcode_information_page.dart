@@ -1,20 +1,45 @@
+import 'dart:ui' as ui;
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
-class NfcInformationPage extends StatefulWidget {
-  const NfcInformationPage({
-    super.key,
-    this.locationName = '做咖啡 hecho cafe & wine',
-    this.sealName = 'NFC 御印',
-    this.rewardText = '臺中做咖啡 hecho cafe & wine 專屬優惠券',
-  });
+Map<String, dynamic> _asMap(dynamic value) {
+  return value is Map ? Map<String, dynamic>.from(value) : {};
+}
 
-  final String locationName;
-  final String sealName;
-  final String rewardText;
+List<dynamic> _asList(dynamic value) {
+  return value is List ? value : const [];
+}
+
+String _str(dynamic value) {
+  return value == null ? '' : value.toString().trim();
+}
+
+String _firstNonEmpty(List<dynamic> values) {
+  for (final value in values) {
+    final text = _str(value);
+    if (text.isNotEmpty) return text;
+  }
+  return '';
+}
+
+String _formatDate(dynamic value) {
+  final date = DateTime.tryParse(_str(value));
+  if (date == null) return '';
+
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year} / $month / $day';
+}
+
+class NfcInformationPage extends StatefulWidget {
+  const NfcInformationPage({super.key, required this.result});
+
+  final Map<String, dynamic> result;
 
   @override
   State<NfcInformationPage> createState() => _NfcInformationPageState();
@@ -22,6 +47,16 @@ class NfcInformationPage extends StatefulWidget {
 
 class _NfcInformationPageState extends State<NfcInformationPage> {
   bool _savedCoupon = false;
+
+  final GlobalKey _couponKey = GlobalKey();
+
+  late final Map<String, dynamic> _coupon = _asMap(widget.result['coupon']);
+  late final Map<String, dynamic> _place = _asMap(
+    widget.result['merchant_place'],
+  );
+  late final Map<String, dynamic> _override = _asMap(
+    _place['merchant_override'],
+  );
 
   static const Color paperBg = AppColors.warmPaper;
   static const Color paperLight = AppColors.merchantPaper;
@@ -36,10 +71,77 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   static const double _dialogBorderWidth = 2;
   static const double _dialogRadius = 22;
 
-  static const String couponCode = 'TN-CONF-8588';
-  static const String couponTitle = '商圈專屬優惠券';
-  static const String couponSubtitle = '★憑券享指定店家 85 折優惠★';
-  static const String couponScope = '適用店家：勤美周邊合作店家 (恕不與其他優惠併用)';
+  bool get _hasCoupon => _coupon.isNotEmpty;
+
+  String get _placeName {
+    final name = _firstNonEmpty([_override['name'], _place['gov_name']]);
+    return name.isEmpty ? '店家資訊' : name;
+  }
+
+  String get _placeArea => '${_str(_place['city'])}${_str(_place['town'])}';
+
+  String get _description =>
+      _firstNonEmpty([_override['description'], _place['gov_description']]);
+
+  String get _address =>
+      _firstNonEmpty([_override['address'], _place['gov_address']]);
+
+  String get _phone => _str(_place['gov_phone']);
+
+  String get _categories => _joinList(_place['categories'], '  ·  ');
+
+  String get _hours => _joinList(_place['operating_hours'], '\n');
+
+  String get _imageUrl {
+    for (final item in _asList(_place['images'])) {
+      final url = item is Map ? _str(item['url']) : _str(item);
+      if (url.startsWith('http')) return url;
+    }
+    return '';
+  }
+
+  String get _couponCode {
+    final code = _str(_coupon['coupon_code']);
+    return code.isEmpty ? '—' : code;
+  }
+
+  String get _couponId => _str(_coupon['coupon_id']);
+  String get _couponTitle {
+    final name = _str(_coupon['coupon_name']);
+    return name.isEmpty ? '商圈專屬優惠券' : name;
+  }
+
+  String get _discountText {
+    final value = _coupon['discount_value'];
+    if (value is! num) return '';
+
+    final shown = value == value.truncate() ? value.toInt() : value;
+    return _str(_coupon['discount_type']) == 'percent'
+        ? '$shown% 折扣'
+        : '折抵 $shown 元';
+  }
+
+  String get _couponSubtitle =>
+      _discountText.isEmpty ? '★專屬優惠★' : '★憑券享 $_discountText★';
+
+  String get _couponScope {
+    final commodity = _str(_coupon['discount_commodity']);
+    return commodity.isEmpty ? '恕不與其他優惠併用' : '適用商品：$commodity (恕不與其他優惠併用)';
+  }
+
+  String get _couponValidity {
+    final from = _formatDate(_coupon['valid_from']);
+    final to = _formatDate(_coupon['valid_to']);
+
+    if (to.isEmpty) return '';
+    return from.isEmpty || from == to ? '有效期限：$to 止' : '有效期限：$from ~ $to';
+  }
+
+  String _joinList(dynamic value, String separator) {
+    return _asList(
+      value,
+    ).map(_str).where((text) => text.isNotEmpty).join(separator);
+  }
 
   @override
   void initState() {
@@ -52,6 +154,8 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   Future<void> _showCouponDialog() async {
+    if (!_hasCoupon) return;
+
     await Future<void>.delayed(const Duration(milliseconds: 180));
 
     if (!mounted) return;
@@ -74,8 +178,8 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     Navigator.of(context).pop();
   }
 
-  void _copyCouponCode() {
-    Clipboard.setData(const ClipboardData(text: couponCode));
+  void _showSnack(IconData icon, String message) {
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -84,11 +188,11 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         content: Row(
           children: [
-            const Icon(Icons.copy_rounded, color: accentGold, size: 18),
+            Icon(icon, color: accentGold, size: 19),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '已複製優惠碼：$couponCode',
+                message,
                 style: AppTextStyles.captionBold.copyWith(color: paperLight),
               ),
             ),
@@ -98,6 +202,44 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     );
   }
 
+  Future<void> _downloadCoupon() async {
+    try {
+      final context = _couponKey.currentContext;
+
+      if (context == null) {
+        _showSnack(Icons.error_outline_rounded, '優惠券尚未準備完成');
+        return;
+      }
+
+      final renderObject = context.findRenderObject();
+
+      if (renderObject is! RenderRepaintBoundary) {
+        _showSnack(Icons.error_outline_rounded, '無法取得優惠券畫面');
+        return;
+      }
+
+      final image = await renderObject.toImage(pixelRatio: 3);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (data == null) {
+        throw StateError('無法產生優惠券圖片');
+      }
+
+      if (!await Gal.hasAccess()) {
+        await Gal.requestAccess();
+      }
+
+      await Gal.putImageBytes(
+        data.buffer.asUint8List(),
+        name: 'coupon_$_couponCode',
+      );
+
+      _showSnack(Icons.download_done_rounded, '優惠券完整圖片已下載');
+    } catch (_) {
+      _showSnack(Icons.error_outline_rounded, '下載失敗，請確認相簿權限');
+    }
+  }
+
   void _saveCoupon() {
     setState(() {
       _savedCoupon = true;
@@ -105,29 +247,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: textDark,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: Row(
-          children: [
-            const Icon(
-              Icons.confirmation_number_rounded,
-              color: accentGold,
-              size: 19,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '專屬優惠券已存入優惠包',
-                style: AppTextStyles.captionBold.copyWith(color: paperLight),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    _showSnack(Icons.confirmation_number_rounded, '專屬優惠券已存入優惠包');
   }
 
   @override
@@ -190,8 +310,10 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
           _buildInfoSection(),
           const SizedBox(height: 16),
           _buildDescriptionSection(),
-          const SizedBox(height: 16),
-          _buildCouponReminder(),
+          if (_hasCoupon) ...[
+            const SizedBox(height: 16),
+            _buildCouponReminder(),
+          ],
         ],
       ),
     );
@@ -231,27 +353,42 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '做咖啡',
+            _placeName,
             textAlign: TextAlign.center,
             style: AppTextStyles.title.copyWith(
               color: textDark,
               letterSpacing: 2.5,
             ),
           ),
-          Text(
-            'hecho cafe & wine',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.caption.copyWith(
-              color: textLight,
-              letterSpacing: 1.6,
+          if (_placeArea.isNotEmpty)
+            Text(
+              _placeArea,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                color: textLight,
+                letterSpacing: 1.6,
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
+  Widget _buildImageFallback() {
+    return Container(
+      color: paperDark,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_not_supported_outlined,
+        color: textLight,
+        size: 34,
+      ),
+    );
+  }
+
   Widget _buildPhotoSection() {
+    final imageUrl = _imageUrl;
+
     return Container(
       decoration: BoxDecoration(
         color: paperLight,
@@ -271,31 +408,14 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
             borderRadius: BorderRadius.circular(2),
             child: AspectRatio(
               aspectRatio: 16 / 10,
-              child: Image.asset(
-                'img/nfc_test.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: paperDark,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: textLight,
-                          size: 34,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'img/ngc_test.png',
-                          style: AppTextStyles.micro.copyWith(color: textLight),
-                        ),
-                      ],
+              child: imageUrl.isEmpty
+                  ? _buildImageFallback()
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildImageFallback(),
                     ),
-                  );
-                },
-              ),
             ),
           ),
           const SizedBox(height: 7),
@@ -321,6 +441,15 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   Widget _buildInfoSection() {
+    final rows = [
+      (Icons.category_rounded, '類型', _categories),
+      (Icons.location_on_rounded, '地址', _address),
+      (Icons.phone_rounded, '電話', _phone),
+      (Icons.schedule_rounded, '營業時間', _hours),
+    ].where((row) => row.$3.isNotEmpty).toList();
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
@@ -329,13 +458,10 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
       ),
       child: Column(
         children: [
-          _buildInfoRow(Icons.category_rounded, '類型', '飲食  ·  早午餐'),
-          _buildDashedDivider(),
-          _buildInfoRow(Icons.location_on_rounded, '地址', '台中市西區美村路一段149巷12號'),
-          _buildDashedDivider(),
-          _buildInfoRow(Icons.phone_rounded, '電話', '04-2326-1649'),
-          _buildDashedDivider(),
-          _buildInfoRow(Icons.schedule_rounded, '營業時間', '每日 10:00–22:30'),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) _buildDashedDivider(),
+            _buildInfoRow(rows[i].$1, rows[i].$2, rows[i].$3),
+          ],
         ],
       ),
     );
@@ -431,12 +557,12 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            '做咖啡 hecho cafe & wine',
+            _placeName,
             style: AppTextStyles.captionBold.copyWith(color: stampRed),
           ),
           const SizedBox(height: 6),
           Text(
-            '一處以咖啡與餐飲為主的生活空間，適合在城市漫遊途中稍作停留。',
+            _description.isEmpty ? '暫無店家介紹' : _description,
             style: AppTextStyles.caption.copyWith(
               color: textDark,
               height: 1.75,
@@ -514,37 +640,43 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildCouponHeader(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+              RepaintBoundary(
+                key: _couponKey,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildCouponCard(),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildCouponButton(
-                            icon: Icons.copy_rounded,
-                            label: '複製優惠碼',
-                            backgroundColor: paperDark,
-                            foregroundColor: textDark,
-                            onTap: _copyCouponCode,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildCouponButton(
-                            icon: _savedCoupon
-                                ? Icons.check_circle_rounded
-                                : Icons.wallet_rounded,
-                            label: _savedCoupon ? '已存入優惠包' : '存入優惠包',
-                            backgroundColor: stampRed,
-                            foregroundColor: paperLight,
-                            onTap: _savedCoupon ? _closeCoupon : _saveCoupon,
-                          ),
-                        ),
-                      ],
+                    _buildCouponHeader(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                      child: _buildCouponCard(),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCouponButton(
+                        icon: Icons.download_rounded,
+                        label: '下載優惠券',
+                        backgroundColor: paperDark,
+                        foregroundColor: textDark,
+                        onTap: _downloadCoupon,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildCouponButton(
+                        icon: _savedCoupon
+                            ? Icons.check_circle_rounded
+                            : Icons.wallet_rounded,
+                        label: _savedCoupon ? '已存入優惠包' : '存入優惠包',
+                        backgroundColor: stampRed,
+                        foregroundColor: paperLight,
+                        onTap: _savedCoupon ? _closeCoupon : _saveCoupon,
+                      ),
                     ),
                   ],
                 ),
@@ -568,7 +700,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            couponSubtitle,
+            _couponSubtitle,
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySmallMedium.copyWith(
               color: const Color(0xFFFFE3A2),
@@ -577,7 +709,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            couponTitle,
+            _couponTitle,
             textAlign: TextAlign.center,
             style: AppTextStyles.titleMedium.copyWith(
               color: paperLight,
@@ -590,89 +722,95 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   Widget _buildCouponCard() {
-    return CustomPaint(
-      foregroundPainter: _DashedRectPainter(color: borderBrass, radius: 16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
-        decoration: BoxDecoration(
-          color: paperBg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '專屬折扣碼',
-              style: AppTextStyles.bodySmallBold.copyWith(color: textLight),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              couponCode,
-              style: AppTextStyles.displayMedium.copyWith(
-                color: stampRed,
-                letterSpacing: 2,
+    return Container(
+      color: paperLight,
+      padding: const EdgeInsets.all(12),
+      child: CustomPaint(
+        foregroundPainter: _DashedRectPainter(color: borderBrass, radius: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
+          decoration: BoxDecoration(
+            color: paperBg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '專屬折扣碼',
+                style: AppTextStyles.bodySmallBold.copyWith(color: textLight),
               ),
-            ),
-            const SizedBox(height: 14),
-            _buildBarcode(),
-            const SizedBox(height: 12),
-            Text(
-              couponScope,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.microLabelWide.copyWith(
-                color: textLight,
-                height: 1.5,
+              const SizedBox(height: 4),
+              Text(
+                _couponCode,
+                style: AppTextStyles.displayMedium.copyWith(
+                  color: stampRed,
+                  letterSpacing: 2,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              '有效期限：2026 / 10 / 08 止',
-              style: AppTextStyles.microLabelWide.copyWith(color: textLight),
-            ),
-          ],
+              const SizedBox(height: 14),
+              _buildBarcode(),
+              const SizedBox(height: 12),
+              Text(
+                _couponScope,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.microLabelWide.copyWith(
+                  color: textLight,
+                  height: 1.5,
+                ),
+              ),
+              if (_couponValidity.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  _couponValidity,
+                  style: AppTextStyles.microLabelWide.copyWith(
+                    color: textLight,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildBarcode() {
-    const bars = <double>[
-      1,
-      2,
-      0.5,
-      3,
-      1,
-      2,
-      1.5,
-      0.5,
-      2,
-      1,
-      2.5,
-      1,
-      0.5,
-      2,
-      1,
-    ];
+    if (_couponId.isEmpty) {
+      return Container(
+        width: 160,
+        height: 160,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: borderBrass),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: Text(
+            '缺少 coupon_id\n無法產生 QR Code',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.red, fontSize: 13),
+          ),
+        ),
+      );
+    }
 
     return Container(
-      height: 44,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 15),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: paperLight,
-        borderRadius: BorderRadius.circular(6),
+        color: Colors.white,
         border: Border.all(color: borderBrass.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: bars.map((width) {
-          return Container(
-            width: width,
-            height: 28,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            color: textDark,
-          );
-        }).toList(),
+      child: QrImageView(
+        data: _couponId,
+        version: QrVersions.auto,
+        size: 160,
+        backgroundColor: Colors.white,
+        errorCorrectionLevel: QrErrorCorrectLevel.M,
+        gapless: true,
       ),
     );
   }

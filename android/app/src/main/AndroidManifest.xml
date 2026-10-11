@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+     <!-- 網路請求 API -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 掃描 QR Code 才需要 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission
+    android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
     <application
         android:label="playtaiwan"
         android:name="${applicationName}"
