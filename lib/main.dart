@@ -11,6 +11,7 @@ import 'pages/change_password_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'pages/visitor_dashboard_page.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -43,7 +44,8 @@ class PlayTaiwanApp extends StatelessWidget {
           labelMedium: AppTextStyles.label,
         ),
       ),
-      initialRoute: '/login',
+      // initialRoute: '/login',
+      initialRoute: '/visitor-dashboard',
       routes: {
         '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
@@ -53,6 +55,7 @@ class PlayTaiwanApp extends StatelessWidget {
         '/past': (context) => const PastPage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
+        '/visitor-dashboard': (context) => const AudienceDashboardPage(),
         '/change-password': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
 
