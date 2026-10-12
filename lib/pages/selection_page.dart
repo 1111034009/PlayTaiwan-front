@@ -19,6 +19,7 @@ import 'script_detail_page.dart';
 import 'home_page.dart';
 import 'play_idea_page.dart';
 import 'travel_info_page.dart';
+import 'pair_join_page.dart';
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -353,6 +354,16 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   // ==================================================================
+  // 加入團隊
+  // ==================================================================
+  void joinTeam() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PairJoinPage()),
+    );
+  }
+
+  // ==================================================================
   // 遊你說了算
   // ==================================================================
   void _startGeneratingProgress() {
@@ -435,7 +446,9 @@ class _SelectionPageState extends State<SelectionPage> {
           intent is Map && intent['transportation'] is List
           ? (intent['transportation'] as List).map((e) => e.toString()).toList()
           : const [];
-
+      final int partySize = intent is Map
+          ? (int.tryParse(intent['traveler_count']?.toString() ?? '') ?? 1)
+          : 1;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -445,6 +458,7 @@ class _SelectionPageState extends State<SelectionPage> {
             cityName: result['detected_city']?.toString() ?? '',
             townName: result['detected_town']?.toString() ?? '',
             transportation: transportation,
+            partySize: partySize,
           ),
         ),
       );
@@ -525,7 +539,12 @@ class _SelectionPageState extends State<SelectionPage> {
                           ),
                         ),
                       ),
-
+                      //配對
+                      Positioned(
+                        top: -5,
+                        right: 5,
+                        child: _JoinTeamBadge(onTap: joinTeam),
+                      ),
                       // ======================================================
                       // 第二張紙
                       //
@@ -891,7 +910,6 @@ class _LocationButtonState extends State<_LocationButton> {
 // ======================================================================
 // 來點遊意思
 // ======================================================================
-
 class _RandomAdventureContent extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -904,10 +922,6 @@ class _RandomAdventureContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ============================================================
-          // 標題
-          // ============================================================
-
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -917,9 +931,7 @@ class _RandomAdventureContent extends StatelessWidget {
                 height: 28,
                 fit: BoxFit.contain,
               ),
-
               const SizedBox(width: 7),
-
               Text(
                 '來點遊意思',
                 textAlign: TextAlign.left,
@@ -929,12 +941,7 @@ class _RandomAdventureContent extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 13),
-
-          // ============================================================
-          // 說明
-          // ============================================================
           Text(
             '轉動命運的轉盤，來點遊意思',
             textAlign: TextAlign.left,
@@ -942,12 +949,7 @@ class _RandomAdventureContent extends StatelessWidget {
               color: AppColors.mutedText,
             ),
           ),
-
           const Spacer(),
-
-          // ============================================================
-          // 開始
-          // ============================================================
           Align(
             alignment: Alignment.centerRight,
             child: _RedStartButton(text: '開始', onPressed: onPressed),
@@ -957,7 +959,6 @@ class _RandomAdventureContent extends StatelessWidget {
     );
   }
 }
-
 // ======================================================================
 // 遊你說了算
 // ======================================================================
@@ -1039,7 +1040,7 @@ class _CustomAdventureContent extends StatelessWidget {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                hintText: '例如：想來一趟美食之旅',
+                hintText: '例如：四人想去看櫻花(建議輸入人數，預設為1人)',
                 hintStyle: AppTextStyles.bodyCompact.copyWith(
                   color: AppColors.mutedText,
                 ),
@@ -1161,6 +1162,69 @@ class _RedStartButtonState extends State<_RedStartButton> {
               widget.text,
               textAlign: TextAlign.center,
               style: AppTextStyles.button.copyWith(color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JoinTeamBadge extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _JoinTeamBadge({required this.onTap});
+
+  @override
+  State<_JoinTeamBadge> createState() => _JoinTeamBadgeState();
+}
+
+class _JoinTeamBadgeState extends State<_JoinTeamBadge> {
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Transform.rotate(
+          angle: 0.05,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primaryDark, width: 2),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryLight, AppColors.primary],
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x70000000),
+                  blurRadius: 5,
+                  offset: Offset(1, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.groups_rounded, size: 18, color: Colors.white),
+                const SizedBox(width: 5),
+                Text(
+                  '配對隊友劇本',
+                  style: AppTextStyles.captionBold.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

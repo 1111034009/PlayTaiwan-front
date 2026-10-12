@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
-
+import '../api/story_api.dart';
 import '../../block/navigationbar.dart';
 import '../../block/story_location_popup.dart';
 import '../../block/story_task_popup.dart';
@@ -49,66 +49,17 @@ class _StoryMapPageState extends State<StoryMapPage> {
   bool showLocationPopup = false;
   bool showTaskPopup = false;
 
-  String selectedLocation = '臺南孔廟';
+  String selectedLocation = '';
 
-  String selectedDescription = '臺南孔廟座落於府城歷史文化核心，建於1665年，是臺灣歷史上第一所官學。';
+  String selectedDescription = '';
 
-  final List<MapLocation> locations = const [
-    MapLocation(
-      id: 'location_1',
-      order: 1,
-      name: '臺南孔廟',
-      description: '臺南孔廟座落於府城歷史文化核心，建於1665年，是臺灣歷史上第一所官學。',
-      imagePath: 'img/mapok.png',
-      unlocked: true,
-      current: true,
-    ),
-    MapLocation(
-      id: 'location_2',
-      order: 2,
-      name: '赤崁樓',
-      description: '赤崁樓是臺南重要歷史古蹟，見證府城悠久的城市發展與歷史變遷。',
-      imagePath: 'img/mapok.png',
-      unlocked: true,
-      current: false,
-    ),
-    MapLocation(
-      id: 'location_3',
-      order: 3,
-      name: '神農街',
-      description: '神農街保留臺南老街的歷史風貌，街區中可以感受到傳統府城生活的痕跡。',
-      imagePath: 'img/mapok.png',
-      unlocked: true,
-      current: false,
-    ),
-    MapLocation(
-      id: 'location_4',
-      order: 4,
-      name: '安平古堡',
-      description: '安平古堡擁有深厚的歷史背景，是臺南最具代表性的歷史遺跡之一。',
-      imagePath: 'img/mapno.png',
-      unlocked: false,
-      current: false,
-    ),
-    MapLocation(
-      id: 'location_5',
-      order: 5,
-      name: '安平樹屋',
-      description: '安平樹屋充滿特殊的歷史氛圍，老榕樹與古老建築交織出獨特景觀。',
-      imagePath: 'img/mapno.png',
-      unlocked: false,
-      current: false,
-    ),
-    MapLocation(
-      id: 'location_6',
-      order: 6,
-      name: '漁光島',
-      description: '漁光島擁有自然海岸景觀，是這段旅程最後可以抵達的目的地。',
-      imagePath: 'img/mapno.png',
-      unlocked: false,
-      current: false,
-    ),
-  ];
+  List<MapLocation> locations = [];
+
+  Map<String, dynamic>? _script;
+
+  bool isLoadingMap = true;
+
+  double explorationProgress = 0.0;
 
   @override
   void initState() {
@@ -123,6 +74,88 @@ class _StoryMapPageState extends State<StoryMapPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+
+    _loadMap();
+  }
+
+  Future<void> _loadMap() async {
+    try {
+      final Map<String, dynamic> playing = await StoryApi.getCurrentPlaying();
+
+      final String storyId = playing['story_id']?.toString() ?? '';
+
+      final int currentOrder =
+          int.tryParse(playing['current_order']?.toString() ?? '') ?? 1;
+
+      final Map<String, dynamic> detail = await StoryApi.getStoryDetail(
+        storyId: storyId,
+      );
+
+      final dynamic rawNodes = detail['nodes'];
+
+      final List<Map<String, dynamic>> nodes = rawNodes is List
+          ? rawNodes
+                .whereType<Map>()
+                .map((node) => Map<String, dynamic>.from(node))
+                .toList()
+          : [];
+
+      int orderOf(Map<String, dynamic> node, int fallback) {
+        return int.tryParse(
+              (node['order'] ?? node['node_order'])?.toString() ?? '',
+            ) ??
+            fallback;
+      }
+
+      nodes.sort((a, b) => orderOf(a, 0).compareTo(orderOf(b, 0)));
+
+      final List<MapLocation> loaded = [];
+
+      for (int i = 0; i < nodes.length; i++) {
+        final Map<String, dynamic> node = nodes[i];
+        final int order = orderOf(node, i + 1);
+        final bool unlocked = order <= currentOrder;
+
+        final String placeName = node['place_name']?.toString() ?? '';
+        final String codename = node['location_codename']?.toString() ?? '';
+
+        loaded.add(
+          MapLocation(
+            id: 'location_$order',
+            order: order,
+            name: unlocked
+                ? placeName
+                : (codename.isNotEmpty ? codename : placeName),
+            description: node['opening']?.toString() ?? '',
+            imagePath: unlocked ? 'img/mapok.png' : 'img/mapno.png',
+            unlocked: unlocked,
+            current: order == currentOrder,
+          ),
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _script = {'story_id': storyId, 'data': detail};
+        locations = loaded;
+        locationCurrent = currentOrder.clamp(0, loaded.length);
+        locationTotal = loaded.length;
+        explorationProgress = ((currentOrder + 1) / (loaded.length + 1)).clamp(
+          0.0,
+          1.0,
+        );
+        isLoadingMap = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoadingMap = false;
+      });
+
+      showMessage(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   double _getScale(double width, double height) {
@@ -133,15 +166,6 @@ class _StoryMapPageState extends State<StoryMapPage> {
       designHeight: designHeight,
       max: maxScale,
     );
-  }
-
-  void openConfuciusTemple() {
-    setState(() {
-      selectedLocation = '臺南孔廟';
-      selectedDescription = '臺南孔廟座落於府城歷史文化核心，建於1665年，是臺灣歷史上第一所官學。';
-      showLocationPopup = true;
-      showTaskPopup = false;
-    });
   }
 
   void openLocation(MapLocation location) {
@@ -180,7 +204,7 @@ class _StoryMapPageState extends State<StoryMapPage> {
   void reviewStory() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const StoryPage()),
+      MaterialPageRoute(builder: (_) => StoryPage(generatedScript: _script)),
     );
   }
 
@@ -340,11 +364,13 @@ class _StoryMapPageState extends State<StoryMapPage> {
                   right: 0,
                   top: topOffset + actualTopBarHeight + 2,
                   bottom: 0,
-                  child: _MapViewport(
-                    locations: locations,
-                    explorationProgress: 0.43,
-                    onLocationTap: openLocation,
-                  ),
+                  child: isLoadingMap
+                      ? const Center(child: CircularProgressIndicator())
+                      : _MapViewport(
+                          locations: locations,
+                          explorationProgress: explorationProgress,
+                          onLocationTap: openLocation,
+                        ),
                 ),
                 if (showLocationPopup)
                   Positioned.fill(

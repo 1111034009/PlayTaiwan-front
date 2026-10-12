@@ -236,7 +236,7 @@ class _RegisterPageState extends State<RegisterPage> {
           Navigator.pop(context);
         });
       } else {
-        showMessage('註冊失敗');
+        showMessage('註冊失敗，請確認資訊填寫正確或已註冊過');
       }
     } catch (e) {
       if (!mounted) return;

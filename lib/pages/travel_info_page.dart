@@ -51,6 +51,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
   Map<String, dynamic>? generatedScript;
+  int partySize = 1;
   void _startGeneratingProgress() {
     _progressTimer?.cancel();
 
@@ -245,7 +246,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     }
 
     setState(() {
+      partySize = peopleCount;
       isGenerating = true;
+      generatingProgress = 0.01;
       generatingProgress = 0.01;
       generatingText = '正在整理旅程線索';
       _generationCompleted = false;
@@ -363,6 +366,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                             cityName: widget.cityName,
                             townName: widget.townName,
                             transportation: selectedTransports.toList(),
+                            partySize: partySize,
                           ),
                         ),
                       );

@@ -4,10 +4,12 @@ import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../api/story_api.dart';
+import '../api/pair_api.dart';
 
 import '../block/navigationbar.dart';
 import 'choose_script_page.dart';
 import 'story_play_page.dart';
+import 'pair_lobby_page.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
@@ -30,16 +32,17 @@ class ScriptDetailPage extends StatefulWidget {
   final String townName;
   final List<String> transportation;
   final String storyId;
-
+  final int partySize;
   const ScriptDetailPage({
     super.key,
-    this.title = '府城儒生失落卷',
+    this.title = '',
     this.generatedScript,
     this.allGeneratedScripts,
     this.cityName = '',
     this.townName = '',
     this.transportation = const [],
     this.storyId = '',
+    this.partySize = 1,
   });
 
   @override
@@ -93,7 +96,11 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   }
 
   String get _preface {
-    return _scriptData?['preface']?.toString() ?? '';
+    final String preface = _scriptData?['preface']?.toString().trim() ?? '';
+
+    final String synopsis = _scriptData?['synopsis']?.toString().trim() ?? '';
+
+    return '$preface$synopsis';
   }
 
   List<Map<String, dynamic>> get _nodes {
@@ -119,10 +126,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
   String _nodeDisplayName(Map<String, dynamic> node, int index) {
     if (index == 0) {
-      return node['place_name']?.toString() ?? '';
+      return node['location_codename']?.toString() ?? '';
     }
 
-    return node['location_codename']?.toString() ?? '';
+    return node['place_name']?.toString() ?? '';
   }
 
   // ============================================================
@@ -206,6 +213,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
           cityName: widget.cityName,
           townName: widget.townName,
           transportation: widget.transportation,
+          partySize: widget.partySize,
         ),
       ),
     );
@@ -259,15 +267,13 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     });
 
     try {
-      await StoryApi.confirmStory(storyId: _storyId);
-
-      final fullDetailResponse = await StoryApi.getStoryFullDetail(
+      final Map<String, dynamic> confirmResponse = await StoryApi.confirmStory(
         storyId: _storyId,
       );
 
-      final result = fullDetailResponse['Result'];
+      final result = confirmResponse['Result'];
 
-      if (result is! Map<String, dynamic>) {
+      if (result is! Map) {
         throw Exception('取得完整劇本內容失敗');
       }
 
@@ -276,13 +282,19 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         'data': Map<String, dynamic>.from(result),
       };
 
+      final Map<String, dynamic>? pair = widget.partySize > 1
+          ? await PairApi.createCode(storyId: _storyId)
+          : null;
+
       if (!mounted) return;
+
+      final Widget next = pair == null
+          ? StoryPage(generatedScript: storyForStoryPage)
+          : PairLobbyPage(pair: pair, story: storyForStoryPage);
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => StoryPage(generatedScript: storyForStoryPage),
-        ),
+        MaterialPageRoute(builder: (_) => next),
       );
     } catch (e) {
       if (!mounted) return;
@@ -547,7 +559,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         bottom: 55,
                         child: Center(
                           child: _ConfirmButton(
-                            text: '確認此卷',
+                            text: '遊玩此卷',
                             hovering: buttonHovering,
                             pressing: buttonPressing,
                             loading: isConfirming,

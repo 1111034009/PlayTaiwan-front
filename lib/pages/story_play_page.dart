@@ -99,12 +99,25 @@ class _StoryPageState extends State<StoryPage> {
         .map((node) => Map<String, dynamic>.from(node))
         .toList()
       ..sort((a, b) {
-        final int orderA = int.tryParse(a['node_order']?.toString() ?? '') ?? 0;
+        final int orderA =
+            int.tryParse((a['node_order'] ?? a['order'])?.toString() ?? '') ??
+            0;
 
-        final int orderB = int.tryParse(b['node_order']?.toString() ?? '') ?? 0;
+        final int orderB =
+            int.tryParse((b['node_order'] ?? b['order'])?.toString() ?? '') ??
+            0;
 
         return orderA.compareTo(orderB);
       });
+  }
+
+  String get _storyId {
+    final String id =
+        widget.generatedScript?['story_id']?.toString().trim() ?? '';
+
+    return id.isNotEmpty
+        ? id
+        : _scriptData?['story_id']?.toString().trim() ?? '';
   }
 
   String get _npcName {
@@ -299,12 +312,7 @@ class _StoryPageState extends State<StoryPage> {
     final String preface = _scriptData?['preface']?.toString().trim() ?? '';
 
     if (preface.isNotEmpty) {
-      _addTextAsSentences(
-        target: lines,
-        speaker: '旁白',
-        text: preface,
-        nodeIndex: -1,
-      );
+      lines.add(StoryLine(nodeIndex: -1, name: '旁白', text: preface));
     }
 
     final List<Map<String, dynamic>> nodes = _nodes;
@@ -312,8 +320,7 @@ class _StoryPageState extends State<StoryPage> {
     for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
       final Map<String, dynamic> node = nodes[nodeIndex];
 
-      final dynamic dialogues = node['dialogues'];
-
+      final dynamic dialogues = node['dialogues'] ?? node['opening'];
       if (dialogues is Map) {
         final Map<String, dynamic> dialogueMap = Map<String, dynamic>.from(
           dialogues,
@@ -375,9 +382,17 @@ class _StoryPageState extends State<StoryPage> {
 
         final StoryLine line = lines[i];
 
-        final String localPath = await StoryApi.prepareNpcVoice(
-          text: line.text,
-        );
+        String localPath;
+
+        if (line.nodeIndex == -1 && _storyId.isNotEmpty) {
+          try {
+            localPath = await StoryApi.preparePrologueVoice(storyId: _storyId);
+          } catch (_) {
+            localPath = await StoryApi.prepareNpcVoice(text: line.text);
+          }
+        } else {
+          localPath = await StoryApi.prepareNpcVoice(text: line.text);
+        }
 
         preparedLines.add(line.copyWith(audioPath: localPath));
         if (mounted) {

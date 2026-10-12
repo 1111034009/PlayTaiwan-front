@@ -168,12 +168,11 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
       builder: (context) {
         return Dialog(
           backgroundColor: Colors.transparent,
+          elevation: 0,
           insetPadding: const EdgeInsets.all(18),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
-              child: _buildCouponDialog(),
-            ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
+            child: _buildCouponDialog(),
           ),
         );
       },
