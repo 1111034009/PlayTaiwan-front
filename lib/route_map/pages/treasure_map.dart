@@ -23,7 +23,7 @@ import '../widgets/place_ticket.dart';
 /// - 景點照片也是到了現場才有：還沒抵達的關卡（包含目前這一關）卡片上放的是迷霧圖
 /// - 路線只規劃目前這一關（我現在的位置 → 這一關的景點），破關後才出現下一關
 /// - 路線跟著我的位置走：走過的部分調淡，亮的部分往景點縮短；偏離路線太遠就從現在的位置重新規劃
-///   （計算在 route_follow.dart）。示範模式可以模擬行走，坐在電腦前也能示範
+///   （計算在 route_follow.dart）。打開展示工具（demoTools）可以模擬行走，坐在電腦前也能示範
 /// - 破關：到現場確認抵達，再把這一關的任務做完（在正式 App）；後端有開示範模式時可以直接破關
 /// - 周邊好去跟著我的位置更新
 class TreasureMap extends StatefulWidget {
@@ -32,8 +32,12 @@ class TreasureMap extends StatefulWidget {
     required this.story,
     this.embedded = false,
     this.onProgress,
+    this.onPostcards,
     this.npcAvatar,
     this.isActive,
+    this.demoTools = false,
+    this.onDoTasks,
+    this.onStageCleared,
   });
 
   final RouteStory story;
@@ -44,12 +48,28 @@ class TreasureMap extends StatefulWidget {
   /// 進度變了（載入、破關、重來）：破了幾關、總共幾關。給外面的上列顯示用
   final void Function(int cleared, int total)? onProgress;
 
+  /// 這份劇本的明信片：拿到幾張、總共可以拿幾張（後端跟著進度一起給）。給外面的上列顯示用
+  final void Function(int have, int total)? onPostcards;
+
   /// 地圖上的 NPC 用這個當頭像（正式 App 右下角那隻貓，點了是它自己的功能），放在右下角，提醒的泡泡從它旁邊跳出來。
   /// 沒給就用這份劇本的 NPC 頭像，點了問天氣
   final Widget? npcAvatar;
 
   /// 這一頁現在是不是在畫面上（例如分頁切走了就不是）；不是的話不去問後端進度。沒給就當成一直都在
   final bool Function()? isActive;
+
+  /// 展示工具：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，不用後端開示範模式，坐在電腦前也能展示。
+  /// 打開時模擬的位置會被當成真的定位（確認抵達、作答、回報給隊友的都是它），所以預設關閉，正式上線前不要開
+  final bool demoTools;
+
+  /// 「做任務」（正式 App 才有）：抵達目前這一關之後，面板上多一顆「做任務」，按了由這裡打開那一關的答題頁。
+  /// 送出答案時後端要檢查人在現場，位置用 [myLocation] 跟地圖拿（地圖一直在追蹤的那一個，拿不到是 null）。
+  /// 答題頁關掉之後地圖會再問一次後端進度。沒給就沒有這顆按鈕
+  final Future<void> Function(MapNode node, Future<PlacePoint?> Function() myLocation)? onDoTasks;
+
+  /// 破了一關：後端的進度說這一關過了才算，不管是自己做完任務、隊友做完，還是示範模式直接破關。[node] 是剛破的那一關。
+  /// 正式 App 用來在破關的時候自動跳出這一關的明信片。答題頁開著的時候不會叫，等它關掉、地圖重新問過進度才叫
+  final void Function(MapNode node)? onStageCleared;
 
   @override
   State<TreasureMap> createState() => _TreasureMapState();
@@ -103,7 +123,7 @@ class _TreasureMapState extends State<TreasureMap> {
   /// 判斷有沒有偏離路線、要不要重新規劃
   final _offRoute = OffRouteDetector();
 
-  /// 模擬行走（示範模式）：定時器在跑表示正在走；_simulated 表示現在的位置是模擬出來的，不是真的定位
+  /// 模擬行走（展示工具）：定時器在跑表示正在走；_simulated 表示現在的位置是模擬出來的，不是真的定位
   Timer? _simTimer;
   bool _simulated = false;
 
@@ -111,6 +131,20 @@ class _TreasureMapState extends State<TreasureMap> {
   double _simMeters = 0;
   double _simDrift = 0;
   bool _simAstray = false;
+
+  /// 模擬隊友（展示工具）：定時器在跑表示打開了。假的隊友沿著打開時這一關的路線（_matePath）走，
+  /// 我之後重新規劃他們也不會跳來跳去；進到下一關、新的路線出來才換過去。_mateSteps 是他們走了幾步
+  Timer? _mateTimer;
+  RouteOption? _matePath;
+  int _mateStage = -1;
+  int _mateSteps = 0;
+
+  /// 假的隊友：從路線的哪裡出發（0 是起點、1 是景點）、一步走我的幾倍遠、站在路線旁邊幾公尺
+  static const _mates = [
+    (name: '小安', from: 0.45, pace: 0.8, side: 0.0), // 走在前面
+    (name: '阿哲', from: 0.0, pace: 0.6, side: 12.0), // 落在後面
+    (name: '小美', from: 1.0, pace: 0.0, side: 35.0), // 已經在景點等
+  ];
 
   /// 每一關規劃好的路線，破關後留著（地圖上調淡），key 是關卡索引
   final Map<int, RoutePlan> _plans = {};
@@ -183,6 +217,9 @@ class _TreasureMapState extends State<TreasureMap> {
 
   /// 正在確認抵達／破關／重來
   bool _advancing = false;
+
+  /// 答題頁開著（按了「做任務」還沒關掉）
+  bool _inTasks = false;
   List<MetroLine> _metroLines = [];
   Timer? _progressTimer;
 
@@ -206,6 +243,7 @@ class _TreasureMapState extends State<TreasureMap> {
     _replanTimer?.cancel();
     _fixWait?.cancel();
     _simTimer?.cancel();
+    _mateTimer?.cancel();
     _positionSub?.cancel();
     super.dispose();
   }
@@ -239,7 +277,10 @@ class _TreasureMapState extends State<TreasureMap> {
     _mapError = null;
     // 這裡常常是在 setState 裡面被呼叫，等這一幀畫完再告訴外面，外面才能放心 setState
     final cleared = _stage, total = _nodes.length;
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onProgress?.call(cleared, total));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onProgress?.call(cleared, total);
+      widget.onPostcards?.call(data.postcardCount, data.postcardTotal);
+    });
   }
 
   /// 後端回來新的進度：破關了就進下一關；只是抵達，提示還要完成任務。
@@ -265,6 +306,7 @@ class _TreasureMapState extends State<TreasureMap> {
         Pal.moss,
       );
       _enterStage();
+      widget.onStageCleared?.call(cleared);
     } else if (after < before) {
       // 進度被重設（示範模式的重來）
       _stopSim();
@@ -285,9 +327,10 @@ class _TreasureMapState extends State<TreasureMap> {
     }
   }
 
-  /// 定時檢查進度（不出聲）：正式 App 那邊抵達或破關了，這裡跟著更新
+  /// 定時檢查進度（不出聲）：正式 App 那邊抵達或破關了，這裡跟著更新。
+  /// 答題頁開著的時候不檢查：破關要等它關掉才處理，不然破關的明信片會跳在答題頁上面
   Future<void> _pollProgress() async {
-    if (!mounted || _nodes.isEmpty || _finished || _advancing || !(widget.isActive?.call() ?? true)) return;
+    if (!mounted || _nodes.isEmpty || _finished || _advancing || _inTasks || !(widget.isActive?.call() ?? true)) return;
     try {
       final result = await Api.instance.get('/api/Map/${_story.storyId}') as Map<String, dynamic>;
       if (mounted && !_advancing) _onProgress(TreasureMapData.fromJson(result));
@@ -314,6 +357,33 @@ class _TreasureMapState extends State<TreasureMap> {
         result = await Api.instance.get('/api/Map/${_story.storyId}');
       }
       if (mounted) _onProgress(TreasureMapData.fromJson(result as Map<String, dynamic>), asked: true);
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _advancing = false);
+    }
+  }
+
+  /// 「做任務」：打開正式 App 的答題頁（[TreasureMap.onDoTasks]）。回來之後問一次後端進度，這一關的任務全部通過了就開下一關
+  Future<void> _doTasks() async {
+    final node = _currentNode;
+    final open = widget.onDoTasks;
+    if (node == null || open == null || _advancing || _inTasks) return;
+    _inTasks = true;
+    try {
+      await open(node, () async {
+        // 地圖還沒定到位（剛開、定位很慢）就再定一次
+        if (_myLocation == null && mounted) await _locate();
+        return _myLocation;
+      });
+    } finally {
+      _inTasks = false;
+    }
+    if (!mounted || _advancing) return;
+    setState(() => _advancing = true);
+    try {
+      final result = await Api.instance.get('/api/Map/${_story.storyId}');
+      if (mounted) _onProgress(TreasureMapData.fromJson(result as Map<String, dynamic>));
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -550,7 +620,7 @@ class _TreasureMapState extends State<TreasureMap> {
     }
   }
 
-  // ─────────────────────────── 模擬行走（示範模式） ───────────────────────────
+  // ─────────────────────────── 模擬行走、模擬隊友（展示工具） ───────────────────────────
 
   /// 開始／暫停模擬行走：每 0.6 秒沿著目前這一關的路線往前走一步，把位置當成定位送進 _onFix，
   /// 走的是跟真的定位一樣的流程（路線縮短、偏離重新規劃）
@@ -590,10 +660,12 @@ class _TreasureMapState extends State<TreasureMap> {
 
     if (_simMeters >= total && !_simAstray && _simTimer != null) {
       _stopSim();
+      // 我的位置已經在景點了：示範模式可以直接破關，不然就用這個位置確認抵達
+      final next = _demo ? '，可以破關' : ((_currentNode?.arrived ?? true) ? '' : '，按「我到了」確認抵達');
       _snack(
         _activeKey == _detourKey
             ? '模擬走到「${_detour?.name ?? '順路的地點'}」了'
-            : '模擬走到「${_currentNode?.label ?? '這一關'}」了，可以破關',
+            : '模擬走到「${_currentNode?.label ?? '這一關'}」了$next',
         Pal.moss,
       );
     }
@@ -605,10 +677,45 @@ class _TreasureMapState extends State<TreasureMap> {
     _startSim();
   }
 
-  /// 關掉示範模式：模擬的位置不能拿去當真的定位確認抵達，換回真的定位
-  void _endSimulation() {
-    _stopSim();
-    if (_simulated) _relocate();
+  /// 開／關模擬隊友
+  void _toggleMates() {
+    if (_mateTimer != null) {
+      _mateTimer!.cancel();
+      setState(() {
+        _mateTimer = null;
+        _matePath = null;
+      });
+      return;
+    }
+    setState(() => _mateTimer = Timer.periodic(const Duration(milliseconds: 600), (_) => _mateStep()));
+    _mateStep();
+  }
+
+  /// 假的隊友往前走一步。剛打開、或進到新的一關而且路線出來了：換成這一關的路線，從頭走
+  void _mateStep() {
+    if (!mounted) return;
+    final option = _optionOf(_stage) ?? _optionOf(_activeKey);
+    setState(() {
+      if (option != null && (_matePath == null || _mateStage != _stage)) {
+        _matePath = option;
+        _mateStage = _stage;
+        _mateSteps = 0;
+      } else {
+        _mateSteps++;
+      }
+    });
+  }
+
+  /// 假的隊友現在的位置；沒打開、或路線還沒出來時是空的
+  List<({String name, LatLng point})> get _fakeTeam {
+    final path = _matePath;
+    if (path == null) return const [];
+    final total = routeMeters(path);
+    final step = math.max(15.0, total / 60); // 跟我模擬行走的一步一樣遠
+    return [
+      for (final m in _mates)
+        (name: m.name, point: pointOnRoute(path, math.min(total, total * m.from + _mateSteps * step * m.pace), drift: m.side)),
+    ];
   }
 
   // ─────────────────────────── 資料 ───────────────────────────
@@ -1041,7 +1148,7 @@ class _TreasureMapState extends State<TreasureMap> {
   // ─────────────────────────── 隊友的位置 ───────────────────────────
 
   /// 回報自己的位置並拿回隊友各自最後的位置（POST /api/Pair/Story/{story_id}/Location）。
-  /// 沒有定位、或位置是模擬行走的假位置時只看不回報（GET …/Locations），免得隊友看到假的位置。
+  /// 沒有定位時只看不回報（GET …/Locations）。模擬行走的位置照樣回報：展示時隊友才看得到我在走。
   /// 自己和還沒回報過位置的隊友不畫
   Future<void> _pollTeam() async {
     if (!mounted || _teamBusy) return;
@@ -1051,7 +1158,7 @@ class _TreasureMapState extends State<TreasureMap> {
     }
     _teamBusy = true;
     try {
-      final me = _simulated ? null : _myLocation;
+      final me = _myLocation;
       final path = '/api/Pair/Story/${_story.storyId}/Location';
       final r = (me == null ? await Api.instance.get('${path}s') : await Api.instance.post(path, {'lat': me.lat, 'lng': me.lng}))
           as Map<String, dynamic>;
@@ -1354,6 +1461,9 @@ class _TreasureMapState extends State<TreasureMap> {
                 color: Pal.plum,
                 faded: !mate.online,
               ),
+            // 展示工具的模擬隊友：跟真的隊友同一種印章
+            for (final mate in _fakeTeam)
+              sealMarker(mate.point, mate.name.characters.first, label: mate.name, color: Pal.plum),
             // 在路線上時「我」貼在路線上（定位會飄，貼上去才不會跟亮的路線之間有空隙）；偏離時畫在真正的位置
             if (myLocation != null)
               sealMarker(_onRoute ? _progress!.point : myLocation.latLng, '我', label: myLocation.name, color: Pal.ink),
@@ -1612,44 +1722,34 @@ class _TreasureMapState extends State<TreasureMap> {
         ],
         const SizedBox(height: 12),
         // 關卡：破關過的和目前這一關可以選，地圖移過去並打開卡片；還沒輪到的鎖著
-        Row(children: [
-          Expanded(
-            child: DropdownButtonFormField<int>(
-              initialValue: total == 0 ? null : (_selectedStop ?? _stage).clamp(0, total - 1),
-              key: ValueKey('stage-$_stage-$_selectedStop'),
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: '關卡', border: OutlineInputBorder(), isDense: true),
-              items: [
-                for (var i = 0; i < total; i++)
-                  DropdownMenuItem(
-                    value: i,
-                    enabled: _nodes[i].unlocked,
-                    child: Row(children: [
-                      Icon(
-                        _nodes[i].current ? Icons.flag : (_nodes[i].unlocked ? Icons.check_circle : Icons.lock_outline),
-                        size: 16,
-                        color: _nodes[i].current ? Pal.cinnabar : (_nodes[i].unlocked ? Pal.moss : Pal.disabled),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text('${i + 1}. ${_nodes[i].label}',
-                            overflow: TextOverflow.ellipsis, style: TextStyle(color: _nodes[i].unlocked ? null : Pal.disabled)),
-                      ),
-                    ]),
+        DropdownButtonFormField<int>(
+          initialValue: total == 0 ? null : (_selectedStop ?? _stage).clamp(0, total - 1),
+          key: ValueKey('stage-$_stage-$_selectedStop'),
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: '關卡', border: OutlineInputBorder(), isDense: true),
+          items: [
+            for (var i = 0; i < total; i++)
+              DropdownMenuItem(
+                value: i,
+                enabled: _nodes[i].unlocked,
+                child: Row(children: [
+                  Icon(
+                    _nodes[i].current ? Icons.flag : (_nodes[i].unlocked ? Icons.check_circle : Icons.lock_outline),
+                    size: 16,
+                    color: _nodes[i].current ? Pal.cinnabar : (_nodes[i].unlocked ? Pal.moss : Pal.disabled),
                   ),
-              ],
-              onChanged: (v) {
-                if (v != null) _showStop(v, zoom: 16);
-              },
-            ),
-          ),
-          const SizedBox(width: 6),
-          IconButton.outlined(
-            tooltip: '地圖回到這一關',
-            icon: const Icon(Icons.center_focus_strong),
-            onPressed: _fitStage,
-          ),
-        ]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text('${i + 1}. ${_nodes[i].label}',
+                        overflow: TextOverflow.ellipsis, style: TextStyle(color: _nodes[i].unlocked ? null : Pal.disabled)),
+                  ),
+                ]),
+              ),
+          ],
+          onChanged: (v) {
+            if (v != null) _showStop(v, zoom: 16);
+          },
+        ),
         const SizedBox(height: 14),
         if (_finished) ..._finishedPanel() else ..._stagePanel(),
       ],
@@ -1661,6 +1761,8 @@ class _TreasureMapState extends State<TreasureMap> {
     final node = _nodes[_stage];
     final plan = _plans[_stage];
     final busy = _entering || _checking || _planning;
+    // 正式 App、已經抵達：可以按「做任務」開答題頁
+    final canDoTasks = !_demo && node.arrived && widget.onDoTasks != null;
     return [
       _sectionTitle('這一關的路線'),
       if (!node.hasPoint)
@@ -1691,31 +1793,48 @@ class _TreasureMapState extends State<TreasureMap> {
           value: _demo,
           onChanged: _advancing
               ? null
-              : (v) {
-                  setState(() => _demo = v);
-                  if (!v) _endSimulation();
-                },
+              : (v) => setState(() => _demo = v),
         ),
       if (!_demo)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
             node.arrived
-                ? '已抵達「${node.label}」。把這一關的任務做完，下一關才會解鎖（每 20 秒自動檢查一次）。'
+                ? (canDoTasks
+                    ? '已抵達「${node.label}」。按「做任務」把這一關的任務做完，下一關才會解鎖。'
+                    : '已抵達「${node.label}」。把這一關的任務做完，下一關才會解鎖（每 20 秒自動檢查一次）。')
                 : '走到景點 200 公尺內按「我到了」；抵達後把這一關的任務做完，下一關才會解鎖。',
             style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
           ),
         ),
-      FilledButton.icon(
-        onPressed: _advancing ? null : _advance,
-        icon: _advancing
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Icon(_demo ? Icons.emoji_events : (node.arrived ? Icons.refresh : Icons.flag)),
-        label: Text(_demo
-            ? '示範：破第 ${_stage + 1} 關'
-            : (node.arrived ? '任務做完了，檢查進度' : '我到了「${node.label}」')),
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-      ),
+      // 可以做任務時「做任務」是主要的按鈕，檢查進度退到下面（隊友做完的時候用；自己做完回來會自動檢查）
+      if (canDoTasks) ...[
+        FilledButton.icon(
+          onPressed: _advancing ? null : _doTasks,
+          icon: const Icon(Icons.edit_note),
+          label: const Text('做任務'),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        ),
+        const SizedBox(height: 6),
+        OutlinedButton.icon(
+          onPressed: _advancing ? null : _advance,
+          icon: _advancing
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.refresh),
+          label: const Text('任務做完了，檢查進度'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+        ),
+      ] else
+        FilledButton.icon(
+          onPressed: _advancing ? null : _advance,
+          icon: _advancing
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Icon(_demo ? Icons.emoji_events : (node.arrived ? Icons.refresh : Icons.flag)),
+          label: Text(_demo
+              ? '示範：破第 ${_stage + 1} 關'
+              : (node.arrived ? '任務做完了，檢查進度' : '我到了「${node.label}」')),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        ),
       if (_demo && _stage > 0)
         Align(
           alignment: Alignment.centerRight,
@@ -1780,7 +1899,7 @@ class _TreasureMapState extends State<TreasureMap> {
     ];
   }
 
-  /// 路線卡片下面：現在跟著走的那一條顯示進度（示範模式多了模擬行走）；另一條顯示「改走這條路線」
+  /// 路線卡片下面：現在跟著走的那一條顯示進度（展示工具打開時多了模擬行走）；另一條顯示「改走這條路線」
   List<Widget> _followOrSwitch(int key) {
     final option = _optionOf(key);
     if (option == null) return const [];
@@ -1798,7 +1917,7 @@ class _TreasureMapState extends State<TreasureMap> {
     }
     return [
       if (_progress != null) _followStatus(option, _progress!),
-      if (_demo) _simControls(),
+      if (widget.demoTools) _simControls(),
     ];
   }
 
@@ -1955,12 +2074,13 @@ class _TreasureMapState extends State<TreasureMap> {
     );
   }
 
-  /// 示範模式的模擬行走：沿路線走、故意走偏
+  /// 展示工具：模擬沿路線走、故意走偏、模擬隊友
   Widget _simControls() {
     final walking = _simTimer != null;
+    final mates = _mateTimer != null;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(
             child: OutlinedButton.icon(
@@ -1978,10 +2098,18 @@ class _TreasureMapState extends State<TreasureMap> {
             ),
           ),
         ]),
-        const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Text('示範用：模擬的位置會當成定位，路線縮短和偏離重新規劃走的是跟真的定位一樣的流程。',
-              style: TextStyle(fontSize: 11, color: Pal.inkSoft)),
+        OutlinedButton.icon(
+          onPressed: _toggleMates,
+          icon: Icon(mates ? Icons.group_off : Icons.groups, size: 18),
+          label: Text(mates ? '收起模擬隊友' : '模擬隊友'),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+              _simulated
+                  ? '現在的位置是模擬的，確認抵達用的也是它。按地圖右上的「重新定位」換回真的定位。'
+                  : '展示用：模擬的位置會當成我的定位，路線縮短、偏離重新規劃、確認抵達走的是跟真的定位一樣的流程。',
+              style: const TextStyle(fontSize: 11, color: Pal.inkSoft)),
         ),
       ]),
     );

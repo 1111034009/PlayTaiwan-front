@@ -151,7 +151,9 @@ class TreasureMapData {
   TreasureMapData.fromJson(Map<String, dynamic> j)
       : nodes = (_list(j['nodes']).map(MapNode.fromJson).toList()..sort((a, b) => a.order.compareTo(b.order))),
         revealRadius = _d(j['reveal_radius_m']) > 0 ? _d(j['reveal_radius_m']) : 300,
-        demoMode = j['demo_mode'] == true;
+        demoMode = j['demo_mode'] == true,
+        postcardCount = _i(j['postcard_unlocked_count']),
+        postcardTotal = _i(j['postcard_total_count']);
 
   final List<MapNode> nodes;
 
@@ -160,6 +162,10 @@ class TreasureMapData {
 
   /// 後端有沒有開示範模式（可以不到現場、不作答就破關）
   final bool demoMode;
+
+  /// 這份劇本我拿到幾張明信片、總共可以拿幾張
+  final int postcardCount;
+  final int postcardTotal;
 }
 
 class RouteSegment {

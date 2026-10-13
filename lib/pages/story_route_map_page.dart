@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../block/ai_talk_button.dart';
 import '../block/navigationbar.dart';
@@ -11,6 +12,8 @@ import '../route_map/api.dart';
 import '../route_map/models.dart';
 import '../route_map/pages/treasure_map.dart';
 import '../route_map/theme.dart';
+import 'story_postcard_page.dart';
+import 'story_task_page.dart';
 
 /// 地圖頁（真的地圖）：正在玩的劇本的藏寶圖，一關一關解開。
 /// 上列和下面的導覽列是這個 App 自己的；中間的地圖和功能（迷霧、路線、景點卡片、順路、提醒、隊友位置）在 lib/route_map，
@@ -31,9 +34,9 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   static const double _maxScale = 1.15;
   static const double _topSpacePercent = 0.05;
 
-  // 明信片的數字跟原本的地圖頁一樣先放固定的：後端還沒有「這個劇本收集了幾張」的 API
-  static const int _postcardCurrent = 1;
-  static const int _postcardTotal = 10;
+  /// 上列的「明信片收集」：這份劇本拿到幾張、總共可以拿幾張，後端跟著地圖進度一起給
+  int _postcardCurrent = 0;
+  int _postcardTotal = 0;
 
   RouteStory? _story;
   bool _loading = true;
@@ -42,6 +45,12 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   /// 上列的「地點探索度」：破了幾關、總共幾關，地圖載入和破關時會更新
   int _cleared = 0;
   int _total = 0;
+
+  /// 做任務時在拍照任務交的照片，key 是節點代號：那一關破關時拿來做明信片
+  final Map<int, XFile> _taskPhotos = {};
+
+  /// 破關的明信片一張一張來：上一張還開著時又破一關（例如隊友做完的），等它關掉再跳下一張
+  Future<void> _postcards = Future.value();
 
   @override
   void initState() {
@@ -147,8 +156,41 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                           key: ValueKey(story.storyId),
                           story: story,
                           embedded: true,
+                          // 比賽展示用：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，模擬的位置會當成真的定位送給後端。
+                          // 正式上線前把這一行拿掉
+                          demoTools: true,
                           // 右下角那隻貓當地圖上的 NPC：提醒的泡泡從牠旁邊跳出來，點牠一樣是開 AI 對話
                           npcAvatar: const AiTalkButton(),
+                          // 「做任務」：開這一關的答題頁（配色跟地圖頁同一套），破關了它會自己關掉。
+                          // 關掉回來之後地圖會自己更新進度；這一次在拍照任務交的照片先留著，破關的明信片要用
+                          onDoTasks: (node, myLocation) async {
+                            final result = await Navigator.of(context).push(MaterialPageRoute<StoryTaskResult>(
+                              builder: (_) => Theme(
+                                data: buildTheme(fontFamily: AppTextStyles.body.fontFamily),
+                                child: StoryTaskPage(node: node, myLocation: myLocation),
+                              ),
+                            ));
+                            final photo = result?.photo;
+                            if (photo != null) _taskPhotos[node.nodeId] = photo;
+                          },
+                          // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，自動跳出這一關的明信片
+                          onStageCleared: (node) {
+                            _postcards = _postcards.then((_) async {
+                              try {
+                                if (mounted) await _makePostcard(story, node, _taskPhotos.remove(node.nodeId));
+                              } catch (_) {
+                                // 這一張沒做成不影響之後的
+                              }
+                            });
+                          },
+                          onPostcards: (have, total) {
+                            if (mounted && (have != _postcardCurrent || total != _postcardTotal)) {
+                              setState(() {
+                                _postcardCurrent = have;
+                                _postcardTotal = total;
+                              });
+                            }
+                          },
                           onProgress: (cleared, total) {
                             if (mounted && (cleared != _cleared || total != _total)) {
                               setState(() {
@@ -166,6 +208,65 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
         bottomNavigationBar: const AppNavigationBar(currentIndex: 1),
       ),
     );
+  }
+
+  /// 破關時自動跳出來的明信片：用這一關拍照任務交的照片；沒有的話請玩家拍一張或從相簿選（也可以先不要）。
+  /// 照片和這一關的景點名稱、劇本、節點交給明信片頁去做（POST /api/PostcardCatalog/GenerateAi），
+  /// 做好之後後端算的明信片張數會加一
+  Future<void> _makePostcard(RouteStory story, MapNode node, XFile? photo) async {
+    photo ??= await _pickPostcardPhoto(node);
+    if (photo == null || !mounted) return;
+
+    final Uint8List bytes;
+    try {
+      bytes = await photo.readAsBytes();
+    } catch (e) {
+      if (mounted) _snack('讀不到照片：$e');
+      return;
+    }
+    if (!mounted) return;
+
+    // 後端看副檔名認圖片，有些瀏覽器給的檔名沒有副檔名
+    final name = photo.name.contains('.') ? photo.name : '${photo.name.isEmpty ? 'photo' : photo.name}.jpg';
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (page) => StoryPostcardPage(
+        imageBytes: bytes,
+        imageName: name,
+        spotName: node.label,
+        storyId: story.storyId,
+        nodeId: node.nodeId,
+        onNext: () => Navigator.of(page).pop(),
+      ),
+    ));
+  }
+
+  /// 這一關沒有拍照任務的照片可以用：請玩家現場拍一張，或從相簿選；按「先不要」就不做明信片
+  Future<XFile?> _pickPostcardPhoto(MapNode node) async {
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('做一張這一關的明信片'),
+        content: Text('拍一張「${node.label}」的照片，或從相簿選一張，做成這一關的專屬明信片。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialog).pop(), child: const Text('先不要')),
+          TextButton(onPressed: () => Navigator.of(dialog).pop(ImageSource.gallery), child: const Text('從相簿選')),
+          FilledButton(onPressed: () => Navigator.of(dialog).pop(ImageSource.camera), child: const Text('拍照')),
+        ],
+      ),
+    );
+    if (source == null) return null;
+    try {
+      return await ImagePicker().pickImage(source: source, maxWidth: 1920, imageQuality: 85);
+    } catch (e) {
+      if (mounted) _snack('開不了相機或相簿：$e');
+      return null;
+    }
+  }
+
+  void _snack(String text) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   /// 還在找劇本，或沒有劇本、連不到後端

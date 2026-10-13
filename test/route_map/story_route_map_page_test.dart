@@ -70,6 +70,8 @@ void main() {
         return _ok({
           'demo_mode': true,
           'reveal_radius_m': 300,
+          'postcard_unlocked_count': 1,
+          'postcard_total_count': 2,
           'nodes': [
             {
               'node_id': 101, 'node_order': 1, 'location_name': '第一章', 'codename': '白牆藍瓦', 'place_name': '臺中州廳',
@@ -149,6 +151,7 @@ void main() {
       expect(find.textContaining('已破'), findsNothing);
       final topBar = tester.widget<TopBar>(find.byType(TopBar));
       expect((topBar.locationCurrent, topBar.locationTotal), (1, 2)); // 破了 1 關、總共 2 關
+      expect((topBar.postcardCurrent, topBar.postcardTotal), (1, 2)); // 明信片張數也是後端給的
 
       // 右下角的貓當地圖上的 NPC，提醒的泡泡在牠左邊
       expect(find.byType(AiTalkButton), findsOneWidget);
@@ -171,6 +174,13 @@ void main() {
           File(out).writeAsBytesSync(bytes!.buffer.asUint8List());
         });
       }
+
+      // 比賽展示用的工具有開：面板往上拉有模擬行走、故意走偏、模擬隊友，這個寬度排得下
+      await tester.scrollUntilVisible(find.text('模擬隊友'), 150,
+          scrollable: find.descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable)).first);
+      expect(find.text('模擬沿路線走'), findsOneWidget);
+      expect(find.text('故意走偏'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox());
     }, () => backend);

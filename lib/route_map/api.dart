@@ -33,6 +33,18 @@ class Api {
   Future<dynamic> post(String path, Object body, {Map<String, Object?>? query}) =>
       _send(() => http.post(_uri(path, query), headers: _headers(), body: jsonEncode(body)));
 
+  /// 上傳檔案（POST /api/Upload，欄位名稱 file），回傳檔案的網址。作答要交照片、影片時先傳到這裡。
+  /// [bytes] 是檔案內容、[length] 是大小；影片比較大，最多等 5 分鐘
+  Future<String> upload(String filename, Stream<List<int>> bytes, int length) async {
+    final result = await _send(() async {
+      final request = http.MultipartRequest('POST', _uri('/api/Upload', null))
+        ..headers.addAll({if (AppSession.token != null) 'Authorization': 'Bearer ${AppSession.token}'})
+        ..files.add(http.MultipartFile('file', bytes, length, filename: filename));
+      return http.Response.fromStream(await request.send());
+    }, timeout: const Duration(minutes: 5));
+    return result as String;
+  }
+
   Uri _uri(String path, Map<String, Object?>? query) {
     final params = <String, String>{
       for (final e in (query ?? {}).entries)
@@ -46,10 +58,10 @@ class Api {
         if (AppSession.token != null) 'Authorization': 'Bearer ${AppSession.token}',
       };
 
-  Future<dynamic> _send(Future<http.Response> Function() request) async {
+  Future<dynamic> _send(Future<http.Response> Function() request, {Duration timeout = const Duration(seconds: 90)}) async {
     http.Response response;
     try {
-      response = await request().timeout(const Duration(seconds: 90));
+      response = await request().timeout(timeout);
     } catch (e) {
       throw ApiException('連不到後端（$baseUrl）：$e');
     }

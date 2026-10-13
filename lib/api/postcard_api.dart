@@ -25,10 +25,17 @@ class AiPostcardResult {
       throw Exception('AI 明信片 API 缺少 Result');
     }
 
+    // 後端現在回的欄位是 p_id、p_summary、p_imag_url（明信片的顯示網址）；舊的欄位名稱也認
     return AiPostcardResult(
-      taskId: resultData['PostcardId']?.toString() ?? '',
-      postcardIntroduction: resultData['Summary']?.toString() ?? '',
-      downloadUrl: resultData['ImageUrl']?.toString() ?? '',
+      taskId: (resultData['PostcardId'] ?? resultData['p_id'])?.toString() ?? '',
+      postcardIntroduction:
+          (resultData['Summary'] ?? resultData['p_summary'])?.toString() ?? '',
+      downloadUrl:
+          (resultData['ImageUrl'] ??
+                  resultData['p_imag_url'] ??
+                  resultData['download_url'])
+              ?.toString() ??
+          '',
     );
   }
 }
@@ -40,11 +47,16 @@ class PostcardApi {
   static String get _printUrl =>
       '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/Print';
 
+  /// 照片可以給檔案路徑 [imagePath]，或直接給內容 [imageBytes]（玩家剛拍的照片、網頁版沒有檔案路徑時用）。
+  /// [nodeId] 是拿到這張明信片的劇本節點，有給後端才知道是哪一關的
   Future<AiPostcardResult> createAiPostcard({
-    required String imagePath,
+    String imagePath = '',
+    Uint8List? imageBytes,
+    String imageName = 'photo.jpg',
     required String spotName,
     String userPrompt = '',
     required String storyId,
+    String nodeId = '',
     required bool isNightEdition,
   }) async {
     final String? token = AppSession.token;
@@ -53,13 +65,22 @@ class PostcardApi {
       throw Exception('尚未取得登入 Token');
     }
 
-    final File imageFile = File(imagePath);
+    final Uint8List userImage;
+    final String userImageName;
 
-    if (!await imageFile.exists()) {
-      throw Exception('找不到圖片檔案：$imagePath');
+    if (imageBytes != null) {
+      userImage = imageBytes;
+      userImageName = imageName;
+    } else {
+      final File imageFile = File(imagePath);
+
+      if (!await imageFile.exists()) {
+        throw Exception('找不到圖片檔案：$imagePath');
+      }
+
+      userImage = await imageFile.readAsBytes();
+      userImageName = imageFile.uri.pathSegments.last;
     }
-
-    final Uint8List imageBytes = await imageFile.readAsBytes();
 
     final http.MultipartRequest request = http.MultipartRequest(
       'POST',
@@ -74,11 +95,15 @@ class PostcardApi {
     request.fields['story_id'] = storyId;
     request.fields['is_night_edition'] = isNightEdition.toString();
 
+    if (nodeId.isNotEmpty) {
+      request.fields['node_id'] = nodeId;
+    }
+
     request.files.add(
       http.MultipartFile.fromBytes(
         'user_image',
-        imageBytes,
-        filename: imageFile.uri.pathSegments.last,
+        userImage,
+        filename: userImageName,
       ),
     );
 

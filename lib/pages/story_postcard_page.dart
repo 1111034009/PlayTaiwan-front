@@ -26,7 +26,23 @@ const Color _primaryOuter = AppColors.primary;
 class StoryPostcardPage extends StatefulWidget {
   final VoidCallback? onNext;
 
-  const StoryPostcardPage({super.key, this.onNext});
+  /// 地圖頁破關後帶進來的：要做成明信片的照片（玩家在拍照任務交的，或當場拍的）、這一關的景點名稱、劇本和節點代號。
+  /// 沒給照片就用下面原本寫死的測試資料
+  final Uint8List? imageBytes;
+  final String imageName;
+  final String? spotName;
+  final int? storyId;
+  final int? nodeId;
+
+  const StoryPostcardPage({
+    super.key,
+    this.onNext,
+    this.imageBytes,
+    this.imageName = 'photo.jpg',
+    this.spotName,
+    this.storyId,
+    this.nodeId,
+  });
 
   @override
   State<StoryPostcardPage> createState() => _StoryPostcardPageState();
@@ -113,9 +129,12 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
 
       final AiPostcardResult result = await _postcardApi.createAiPostcard(
         imagePath: imagePath,
-        spotName: spotName,
+        imageBytes: widget.imageBytes,
+        imageName: widget.imageName,
+        spotName: widget.spotName ?? spotName,
         userPrompt: userPrompt,
-        storyId: storyId,
+        storyId: widget.storyId?.toString() ?? storyId,
+        nodeId: widget.nodeId?.toString() ?? '',
         isNightEdition: isNightEdition,
       );
 
