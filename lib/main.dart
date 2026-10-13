@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/story_play_page.dart';
@@ -11,7 +12,6 @@ import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'core/auth_guard.dart';
 import 'block/app_shell.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

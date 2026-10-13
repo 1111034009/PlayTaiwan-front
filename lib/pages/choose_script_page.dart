@@ -17,13 +17,14 @@ class ChooseScriptPage extends StatefulWidget {
   final String cityName;
   final String townName;
   final List<String> transportation;
-
+  final int partySize;
   const ChooseScriptPage({
     super.key,
     this.generatedScript,
     this.cityName = '',
     this.townName = '',
     this.transportation = const [],
+    this.partySize = 1,
   });
 
   @override
@@ -139,11 +140,13 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
       MaterialPageRoute(
         builder: (_) => ScriptDetailPage(
           title: script.title,
+          storyId: script.storyId,
           generatedScript: script.story,
           allGeneratedScripts: widget.generatedScript,
           cityName: widget.cityName,
           townName: widget.townName,
           transportation: widget.transportation,
+          partySize: widget.partySize,
         ),
       ),
     );

@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,9 +11,15 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
 import '../block/navigationbar.dart';
+import '../block/script_generating_overlay.dart';
+
+import '../api/story_api.dart';
+
+import 'script_detail_page.dart';
 import 'home_page.dart';
 import 'play_idea_page.dart';
 import 'travel_info_page.dart';
+import 'pair_join_page.dart';
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -43,7 +49,10 @@ class _SelectionPageState extends State<SelectionPage> {
 
   String fakeLocation = '';
   bool isLoadingLocation = false;
-
+  bool isGeneratingStory = false;
+  double generatingProgress = 0.0;
+  String generatingText = '正在整理旅程線索';
+  Timer? _progressTimer;
   // 地區輸入框
 
   final TextEditingController locationController = TextEditingController();
@@ -129,6 +138,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     locationController.dispose();
     ideaController.dispose();
     super.dispose();
@@ -344,9 +354,54 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   // ==================================================================
+  // 加入團隊
+  // ==================================================================
+  void joinTeam() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PairJoinPage()),
+    );
+  }
+
+  // ==================================================================
   // 遊你說了算
   // ==================================================================
-  void customAdventure() {
+  void _startGeneratingProgress() {
+    _progressTimer?.cancel();
+
+    setState(() {
+      isGeneratingStory = true;
+      generatingProgress = 0.01;
+      generatingText = '正在整理旅程線索';
+    });
+
+    const int totalTicks = 600;
+    int tick = 0;
+
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      tick++;
+
+      setState(() {
+        generatingProgress = (0.01 + 0.96 * (tick / totalTicks)).clamp(
+          0.01,
+          0.97,
+        );
+
+        if (tick == 50) generatingText = '正在分析你的旅程想法';
+      });
+
+      if (tick >= totalTicks) timer.cancel();
+    });
+  }
+
+  Future<void> customAdventure() async {
+    if (isGeneratingStory) return;
+
     final String idea = ideaController.text.trim();
 
     final String? error = _validateIdea(idea);
@@ -356,12 +411,69 @@ class _SelectionPageState extends State<SelectionPage> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TravelInfoPage(cityName: '', townName: ''),
-      ),
-    );
+    _startGeneratingProgress();
+
+    try {
+      final Map<String, dynamic> result = await StoryApi.generateByText(
+        userPrompt: idea,
+      );
+
+      _progressTimer?.cancel();
+
+      if (!mounted) return;
+
+      setState(() {
+        generatingProgress = 1.0;
+        generatingText = '劇本生成完成';
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      if (!mounted) return;
+
+      setState(() {
+        isGeneratingStory = false;
+      });
+
+      final dynamic data = result['data'];
+      final dynamic intent = result['parsed_intent'];
+
+      final String title = data is Map
+          ? (data['title']?.toString().trim() ?? '')
+          : '';
+
+      final List<String> transportation =
+          intent is Map && intent['transportation'] is List
+          ? (intent['transportation'] as List).map((e) => e.toString()).toList()
+          : const [];
+      final int partySize = intent is Map
+          ? (int.tryParse(intent['traveler_count']?.toString() ?? '') ?? 1)
+          : 1;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScriptDetailPage(
+            title: title.isEmpty ? '未命名劇本' : title,
+            generatedScript: result,
+            cityName: result['detected_city']?.toString() ?? '',
+            townName: result['detected_town']?.toString() ?? '',
+            transportation: transportation,
+            partySize: partySize,
+          ),
+        ),
+      );
+    } catch (e) {
+      _progressTimer?.cancel();
+
+      if (!mounted) return;
+
+      setState(() {
+        isGeneratingStory = false;
+        generatingProgress = 0.0;
+      });
+
+      _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
   // ==================================================================
   // 回首頁
@@ -380,110 +492,128 @@ class _SelectionPageState extends State<SelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pageColor,
-      extendBody: true,
+    return Stack(
+      children: [
+        PopScope(
+          canPop: !isGeneratingStory,
+          child: Scaffold(
+            backgroundColor: pageColor,
+            extendBody: true,
+            // ================================================================
+            // Body
+            // ================================================================
+            body: Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: designWidth,
+                  height: designHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // ======================================================
+                      // 背景
+                      // ======================================================
 
-      // ================================================================
-      // Body
-      // ================================================================
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // ======================================================
-                // 背景
-                // ======================================================
+                      Positioned.fill(child: Container(color: pageColor)),
 
-                Positioned.fill(child: Container(color: pageColor)),
-
-                // ======================================================
-                // 第一張紙
-                //
-                // 遊你說了算
-                // ======================================================
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 180,
-                      child: _AdventurePaper(
-                        child: _CustomAdventureContent(
-                          ideaController: ideaController,
-                          onPressed: customAdventure,
+                      // ======================================================
+                      // 第一張紙
+                      //
+                      // 遊你說了算
+                      // ======================================================
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 180,
+                            child: _AdventurePaper(
+                              child: _CustomAdventureContent(
+                                ideaController: ideaController,
+                                onPressed: customAdventure,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-
-                // ======================================================
-                // 第二張紙
-                //
-                // 現在揪出發
-                // ======================================================
-                Positioned(
-                  top: 190,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 210,
-                      child: _AdventurePaper(
-                        child: _StartAdventureContent(
-                          locationController: locationController,
-                          onLocationChanged: (value) {
-                            fakeLocation = value;
-                          },
-                          onLocationPressed: useCurrentLocation,
-                          onPressed: startAdventure,
-                          loading: isLoadingLocation,
+                      //配對
+                      Positioned(
+                        top: -5,
+                        right: 5,
+                        child: _JoinTeamBadge(onTap: joinTeam),
+                      ),
+                      // ======================================================
+                      // 第二張紙
+                      //
+                      // 現在揪出發
+                      // ======================================================
+                      Positioned(
+                        top: 190,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 210,
+                            child: _AdventurePaper(
+                              child: _StartAdventureContent(
+                                locationController: locationController,
+                                onLocationChanged: (value) {
+                                  fakeLocation = value;
+                                },
+                                onLocationPressed: useCurrentLocation,
+                                onPressed: startAdventure,
+                                loading: isLoadingLocation,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
 
-                // ======================================================
-                // 第三張紙
-                //
-                // 來點遊意思
-                // ======================================================
-                Positioned(
-                  top: 410,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 324,
-                      height: 180,
-                      child: _AdventurePaper(
-                        child: _RandomAdventureContent(
-                          onPressed: randomAdventure,
+                      // ======================================================
+                      // 第三張紙
+                      //
+                      // 來點遊意思
+                      // ======================================================
+                      Positioned(
+                        top: 410,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SizedBox(
+                            width: 324,
+                            height: 180,
+                            child: _AdventurePaper(
+                              child: _RandomAdventureContent(
+                                onPressed: randomAdventure,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
+
+            // ================================================================
+            // Navigation Bar
+            // ================================================================
+            bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),
         ),
-      ),
-
-      // ================================================================
-      // Navigation Bar
-      // ================================================================
-      bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
+        if (isGeneratingStory)
+          Positioned.fill(
+            child: ScriptGeneratingOverlay(
+              message: generatingText,
+              progress: generatingProgress,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -780,7 +910,6 @@ class _LocationButtonState extends State<_LocationButton> {
 // ======================================================================
 // 來點遊意思
 // ======================================================================
-
 class _RandomAdventureContent extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -793,10 +922,6 @@ class _RandomAdventureContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ============================================================
-          // 標題
-          // ============================================================
-
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -806,9 +931,7 @@ class _RandomAdventureContent extends StatelessWidget {
                 height: 28,
                 fit: BoxFit.contain,
               ),
-
               const SizedBox(width: 7),
-
               Text(
                 '來點遊意思',
                 textAlign: TextAlign.left,
@@ -818,12 +941,7 @@ class _RandomAdventureContent extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 13),
-
-          // ============================================================
-          // 說明
-          // ============================================================
           Text(
             '轉動命運的轉盤，來點遊意思',
             textAlign: TextAlign.left,
@@ -831,12 +949,7 @@ class _RandomAdventureContent extends StatelessWidget {
               color: AppColors.mutedText,
             ),
           ),
-
           const Spacer(),
-
-          // ============================================================
-          // 開始
-          // ============================================================
           Align(
             alignment: Alignment.centerRight,
             child: _RedStartButton(text: '開始', onPressed: onPressed),
@@ -846,7 +959,6 @@ class _RandomAdventureContent extends StatelessWidget {
     );
   }
 }
-
 // ======================================================================
 // 遊你說了算
 // ======================================================================
@@ -928,7 +1040,7 @@ class _CustomAdventureContent extends StatelessWidget {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                hintText: '例如：想來一趟美食之旅',
+                hintText: '例如：四人想去看櫻花(建議輸入人數，預設為1人)',
                 hintStyle: AppTextStyles.bodyCompact.copyWith(
                   color: AppColors.mutedText,
                 ),
@@ -1050,6 +1162,69 @@ class _RedStartButtonState extends State<_RedStartButton> {
               widget.text,
               textAlign: TextAlign.center,
               style: AppTextStyles.button.copyWith(color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JoinTeamBadge extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _JoinTeamBadge({required this.onTap});
+
+  @override
+  State<_JoinTeamBadge> createState() => _JoinTeamBadgeState();
+}
+
+class _JoinTeamBadgeState extends State<_JoinTeamBadge> {
+  bool pressing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => pressing = true),
+      onTapUp: (_) => setState(() => pressing = false),
+      onTapCancel: () => setState(() => pressing = false),
+      child: AnimatedScale(
+        scale: pressing ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutBack,
+        child: Transform.rotate(
+          angle: 0.05,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primaryDark, width: 2),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryLight, AppColors.primary],
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x70000000),
+                  blurRadius: 5,
+                  offset: Offset(1, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.groups_rounded, size: 18, color: Colors.white),
+                const SizedBox(width: 5),
+                Text(
+                  '配對隊友劇本',
+                  style: AppTextStyles.captionBold.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

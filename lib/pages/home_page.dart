@@ -13,6 +13,8 @@ import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
+import 'wallet_page.dart';
+import 'love_story_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -256,6 +258,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _openWallet() {
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(builder: (context) => const WalletPage()),
+    // );
+  }
+
+  void _openLoveStory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LoveStoryPage()),
+    );
+  }
+
   static const Color pageColor = AppColors.background;
   static const Color darkText = AppColors.textPrimary;
   static const Color postcardColor = AppColors.postcard;
@@ -316,7 +332,24 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned.fill(
                         child: IgnorePointer(
-                          child: CustomPaint(painter: _HomeRoutePainter()),
+                          child: CustomPaint(painter: _ClueStringPainter()),
+                        ),
+                      ),
+                      Positioned(
+                        left: 20,
+                        top: 54,
+                        width: 210,
+                        height: 170,
+                        child: _OverviewCard(),
+                      ),
+                      Positioned(
+                        left: 240,
+                        top: 40,
+                        width: 108,
+                        height: 76,
+                        child: _SimpleCard(
+                          onTap: _openLoveStory,
+                          child: _LoveStoryTicket(),
                         ),
                       ),
                       Positioned(
@@ -370,7 +403,6 @@ class _HomePageState extends State<HomePage> {
                           child: _GoPolaroid(),
                         ),
                       ),
-
                       Positioned(
                         left: 48,
                         top: 261,
@@ -393,15 +425,17 @@ class _HomePageState extends State<HomePage> {
                         child: _Tape(rotation: -0.025),
                       ),
                       Positioned(
-                        left: 20,
-                        top: 54,
-                        width: 210,
-                        height: 170,
-                        child: _OverviewCard(),
+                        left: 190,
+                        top: 522,
+                        width: 105,
+                        height: 43,
+                        child: _WalletButton(onTap: _openWallet),
                       ),
                       const Positioned(left: 116, top: 43, child: _PushPin()),
+                      const Positioned(left: 283, top: 30, child: _PushPin()),
                       const Positioned(left: 320, top: 165, child: _PushPin()),
                       const Positioned(left: 264, top: 284, child: _PushPin()),
+                      const Positioned(left: 232, top: 512, child: _PushPin()),
                     ],
                   ),
                 ),
@@ -577,102 +611,105 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _OverviewCard() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 6,
-            offset: Offset(2, 3),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(7),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset('img/all_look.png', fit: BoxFit.fill),
+    return Transform.rotate(
+      angle: -0.012,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 6,
+              offset: Offset(2, 3),
             ),
-            Positioned(
-              top: 10,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Text(
-                  '目前總覽',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.heading.copyWith(
-                    color: const Color(0xFF3D342E),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset('img/all_look.png', fit: BoxFit.fill),
+              ),
+              Positioned(
+                top: 10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    '目前總覽',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.heading.copyWith(
+                      color: const Color(0xFF3D342E),
+                    ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 17,
-              right: 17,
-              top: 45,
-              child: Container(height: 1, color: const Color(0xFF51473F)),
-            ),
-            Positioned(
-              top: 56,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '已完成探險',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.captionBold.copyWith(
-                        color: darkText,
+              Positioned(
+                left: 17,
+                right: 17,
+                top: 45,
+                child: Container(height: 1, color: const Color(0xFF51473F)),
+              ),
+              Positioned(
+                top: 56,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '已完成探險',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.captionBold.copyWith(
+                          color: darkText,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      completedStoryCount.toString(),
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.heroTitle.copyWith(
-                        color: const Color(0xFF8C1D13),
+                      const SizedBox(width: 10),
+                      Text(
+                        completedStoryCount.toString(),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.heroTitle.copyWith(
+                          color: const Color(0xFF8C1D13),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 14,
-              top: 94,
-              width: 60,
-              child: _OverviewNumber(
-                title: '明信片',
-                number: postcardCount.toString(),
-                titleColor: postcardLine,
+              Positioned(
+                left: 14,
+                top: 94,
+                width: 60,
+                child: _OverviewNumber(
+                  title: '明信片',
+                  number: postcardCount.toString(),
+                  titleColor: postcardLine,
+                ),
               ),
-            ),
-            Positioned(
-              left: 74,
-              top: 94,
-              width: 60,
-              child: _OverviewNumber(
-                title: '徽章',
-                number: badgeCount.toString(),
-                titleColor: postcardLine,
+              Positioned(
+                left: 74,
+                top: 94,
+                width: 60,
+                child: _OverviewNumber(
+                  title: '徽章',
+                  number: badgeCount.toString(),
+                  titleColor: postcardLine,
+                ),
               ),
-            ),
-            Positioned(
-              left: 134,
-              top: 94,
-              width: 60,
-              child: _OverviewNumber(
-                title: 'VLOG',
-                number: vlogCount.toString(),
-                titleColor: postcardLine,
+              Positioned(
+                left: 134,
+                top: 94,
+                width: 60,
+                child: _OverviewNumber(
+                  title: 'VLOG',
+                  number: vlogCount.toString(),
+                  titleColor: postcardLine,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -734,6 +771,52 @@ class _HomePageState extends State<HomePage> {
                     textAlign: TextAlign.center,
                     style: AppTextStyles.captionBold.copyWith(color: darkText),
                   ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _LoveStoryTicket() {
+    return Transform.rotate(
+      angle: -0.04,
+      child: Container(
+        decoration: const BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x45000000),
+              blurRadius: 5,
+              offset: Offset(2, 3),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset('img/set_papper.png', fit: BoxFit.fill),
+            ),
+            Positioned.fill(
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.favorite,
+                      size: 15,
+                      color: Color(0xFF8C1D13),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '喜愛劇本',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.captionBold.copyWith(
+                        color: darkText,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -841,7 +924,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _AgentInfo({required VoidCallback onTap}) {
+  Widget _IconLabelButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -863,10 +950,10 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.settings, size: 20, color: darkText),
+              Icon(icon, size: 20, color: darkText),
               const SizedBox(width: 4),
               Text(
-                '探員資訊',
+                label,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.captionBold.copyWith(color: darkText),
               ),
@@ -874,6 +961,18 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _AgentInfo({required VoidCallback onTap}) {
+    return _IconLabelButton(icon: Icons.settings, label: '探員資訊', onTap: onTap);
+  }
+
+  Widget _WalletButton({required VoidCallback onTap}) {
+    return _IconLabelButton(
+      icon: Icons.account_balance_wallet_outlined,
+      label: '錢包',
+      onTap: onTap,
     );
   }
 }
@@ -1161,23 +1260,71 @@ class _PopupButton extends StatelessWidget {
   }
 }
 
-class _HomeRoutePainter extends CustomPainter {
+class _StringLink {
+  final Offset from;
+  final Offset to;
+  final double sag;
+
+  const _StringLink(this.from, this.to, this.sag);
+}
+
+class _ClueStringPainter extends CustomPainter {
+  static const List<_StringLink> _links = [
+    _StringLink(Offset(127, 54), Offset(294, 41), 10),
+    _StringLink(Offset(294, 41), Offset(331, 176), 6),
+    _StringLink(Offset(331, 176), Offset(275, 295), 8),
+    _StringLink(Offset(275, 295), Offset(86, 276), 18),
+    _StringLink(Offset(243, 523), Offset(90, 508), 22),
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint redLine = Paint()
-      ..color = AppColors.primaryAccent
-      ..strokeWidth = 2.4
+    final Paint shadow = Paint()
+      ..color = const Color(0x55000000)
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6);
 
-    final Path path = Path();
+    final Paint string = Paint()
+      ..color = AppColors.primaryAccent
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    path.moveTo(126, 54);
-    path.lineTo(329, 174);
-    path.lineTo(273, 293);
+    final Paint highlight = Paint()
+      ..color = const Color(0x40FFFFFF)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    canvas.drawPath(path, redLine);
+    for (final link in _links) {
+      final Offset mid = Offset(
+        (link.from.dx + link.to.dx) / 2,
+        (link.from.dy + link.to.dy) / 2 + link.sag,
+      );
+
+      final Path path = Path()
+        ..moveTo(link.from.dx, link.from.dy)
+        ..quadraticBezierTo(mid.dx, mid.dy, link.to.dx, link.to.dy);
+
+      canvas.save();
+      canvas.translate(2, 3);
+      canvas.drawPath(path, shadow);
+      canvas.restore();
+
+      canvas.drawPath(path, string);
+
+      canvas.save();
+      canvas.translate(-0.5, -0.5);
+      canvas.drawPath(path, highlight);
+      canvas.restore();
+    }
+
+    final Paint knot = Paint()..color = const Color(0xFF8D1D12);
+
+    canvas.drawCircle(const Offset(86, 276), 2.6, knot);
+    canvas.drawCircle(const Offset(90, 508), 2.6, knot);
   }
 
   @override
@@ -1206,13 +1353,6 @@ class _HomeDashedPainter extends CustomPainter {
       canvas,
       const Offset(79, 466),
       const Offset(103, 511),
-      whiteDash,
-    );
-
-    _drawDashedLine(
-      canvas,
-      const Offset(153, 529),
-      const Offset(211, 500),
       whiteDash,
     );
   }

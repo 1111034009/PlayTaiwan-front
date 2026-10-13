@@ -4,6 +4,10 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>用你的位置規劃到景點的路線、確認抵達，並顯示附近的地點。</string>
+<key>NSCameraUsageDescription</key>
+<string>需要使用相機掃描優惠券 QR Code，以便查詢或核銷優惠券。</string>
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>需要將優惠券 QR Code 儲存到相簿</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -26,8 +30,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+<key>LSRequiresIPhoneOS</key>
+<true/>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>需要存取您的相簿，以便選取影片或照片。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

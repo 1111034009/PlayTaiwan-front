@@ -110,7 +110,7 @@ class StoryApi {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('劇本生成失敗：HTTP ${response.statusCode}\n${response.body}');
+      throw Exception('劇本生成失敗，請稍後再試');
     }
 
     final Map<String, dynamic> data =
@@ -123,68 +123,34 @@ class StoryApi {
     return data;
   }
 
-  static Future<Map<String, dynamic>> speakNpc({required String text}) async {
-    final String cleanText = text.trim();
+  static Future<String> _downloadAudio(String audioUrl) async {
+    final Uri uri = Uri.parse(audioUrl);
 
-    if (cleanText.isEmpty) {
-      throw Exception('NPC 語音文字不能為空');
-    }
+    final String fileName = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last
+        : 'npc_${audioUrl.hashCode}.mp3';
 
-    final response = await http.post(
-      Uri.parse('$Vlog_baseUrl/api/npc/speak'),
-      headers: {
-        'accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {'text': cleanText, 'voice': 'zh-TW-HsiaoChenNeural'},
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'NPC 語音生成失敗：HTTP ${response.statusCode}\n${response.body}',
-      );
-    }
-
-    final Map<String, dynamic> data =
-        jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (data['status'] != 'success') {
-      throw Exception(data['message']?.toString() ?? 'NPC 語音生成失敗');
-    }
-
-    return data;
-  }
-
-  static Future<String> downloadNpcVoice({
-    required String downloadUrl,
-    required String taskId,
-  }) async {
-    final Directory directory = await getApplicationDocumentsDirectory();
-
+    final Directory directory = await getTemporaryDirectory();
     final Directory voiceDirectory = Directory('${directory.path}/npc_voice');
 
     if (!await voiceDirectory.exists()) {
       await voiceDirectory.create(recursive: true);
     }
 
-    final File file = File('${voiceDirectory.path}/npc_$taskId.mp3');
+    final File file = File('${voiceDirectory.path}/$fileName');
 
-    if (await file.exists()) {
-      final int fileSize = await file.length();
-
-      if (fileSize > 0) {
-        return file.path;
-      }
+    if (await file.exists() && await file.length() > 0) {
+      return file.path;
     }
 
-    final response = await http.get(Uri.parse(downloadUrl));
+    final response = await http.get(uri);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('NPC 語音下載失敗：HTTP ${response.statusCode}');
+      throw Exception('語音下載失敗：HTTP ${response.statusCode}');
     }
 
     if (response.bodyBytes.isEmpty) {
-      throw Exception('NPC 語音下載失敗：檔案為空');
+      throw Exception('語音下載失敗：檔案為空');
     }
 
     await file.writeAsBytes(response.bodyBytes, flush: true);
@@ -192,28 +158,66 @@ class StoryApi {
     return file.path;
   }
 
-  static Future<String> prepareNpcVoice({required String text}) async {
+  static Future<String> _downloadResultAudio(
+    Map<String, dynamic> data,
+    String failMessage,
+  ) {
+    final dynamic result = data['Result'];
+    final String audioUrl = result is Map
+        ? (result['audio_url']?.toString().trim() ?? '')
+        : '';
+
+    if (audioUrl.isEmpty) {
+      throw Exception('$failMessage：沒有回傳 audio_url');
+    }
+
+    return _downloadAudio(audioUrl);
+  }
+
+  static Future<String> preparePrologueVoice({required String storyId}) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Npc/Prologue/${_cleanStoryId(storyId)}',
+      failMessage: '前傳語音產生失敗',
+    );
+
+    return _downloadResultAudio(data, '前傳語音產生失敗');
+  }
+
+  static Future<String> prepareNpcVoice({
+    required String text,
+    String voice = 'zh-TW-HsiaoChenNeural',
+  }) async {
     final String cleanText = text.trim();
 
     if (cleanText.isEmpty) {
       throw Exception('NPC 語音文字不能為空');
     }
 
-    final Map<String, dynamic> result = await speakNpc(text: cleanText);
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Npc/Speak',
+      failMessage: 'NPC 語音產生失敗',
+      body: {'text': cleanText, 'voice': voice},
+    );
 
-    final String downloadUrl = result['download_url']?.toString().trim() ?? '';
+    return _downloadResultAudio(data, 'NPC 語音產生失敗');
+  }
 
-    final String taskId = result['task_id']?.toString().trim() ?? '';
+  static Future<Map<String, dynamic>> getCurrentPlaying() async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Story/CurrentPlaying',
+      failMessage: '取得目前進行劇本失敗',
+    );
 
-    if (downloadUrl.isEmpty) {
-      throw Exception('NPC 語音 API 沒有回傳 download_url');
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception('目前沒有進行中的劇本');
     }
 
-    if (taskId.isEmpty) {
-      throw Exception('NPC 語音 API 沒有回傳 task_id');
-    }
-
-    return downloadNpcVoice(downloadUrl: downloadUrl, taskId: taskId);
+    return Map<String, dynamic>.from(result);
   }
 
   static Future<Map<String, dynamic>> getStoryFullDetail({
@@ -289,5 +293,152 @@ class StoryApi {
     }
 
     return data;
+  }
+
+  static String _requireToken() {
+    final String? token = AppSession.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('登入資訊已失效，請重新登入');
+    }
+
+    return token;
+  }
+
+  static String _cleanStoryId(String storyId) {
+    final String cleanStoryId = storyId.trim();
+
+    if (cleanStoryId.isEmpty) {
+      throw Exception('story_id 不能為空');
+    }
+
+    return Uri.encodeComponent(cleanStoryId);
+  }
+
+  static Future<Map<String, dynamic>> _storyRequest({
+    required String method,
+    required String path,
+    required String failMessage,
+    Map<String, dynamic>? body,
+  }) async {
+    final Uri uri = Uri.parse('$_baseUrl$path');
+
+    final Map<String, String> headers = {
+      'accept': 'text/plain',
+      'Authorization': 'Bearer ${_requireToken()}',
+      'Content-Type': 'application/json',
+    };
+
+    final response = method == 'GET'
+        ? await http.get(uri, headers: headers)
+        : await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('$failMessage：HTTP ${response.statusCode}');
+    }
+
+    final dynamic data = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (data is! Map<String, dynamic> || data['isSuccess'] != true) {
+      throw Exception(
+        data is Map
+            ? (data['message']?.toString() ?? failMessage)
+            : failMessage,
+      );
+    }
+
+    return data;
+  }
+
+  static Future<void> setFavorite({
+    required String storyId,
+    required bool isFavorite,
+  }) async {
+    await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Favorite',
+      failMessage: isFavorite ? '加入喜愛失敗' : '取消喜愛失敗',
+      body: {'is_favorite': isFavorite},
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getFavoriteStories() async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Story/Favorites',
+      failMessage: '取得喜愛劇本失敗',
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! List) return [];
+
+    return result
+        .whereType<Map>()
+        .map((story) => Map<String, dynamic>.from(story))
+        .toList();
+  }
+
+  static Future<String> createCalendarLink({required String storyId}) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Calendar',
+      failMessage: '產生行事曆連結失敗',
+    );
+
+    final dynamic result = data['Result'];
+    final String url = result is Map
+        ? (result['google_calendar_url']?.toString().trim() ?? '')
+        : '';
+
+    if (url.isEmpty) {
+      throw Exception('行事曆 API 沒有回傳連結');
+    }
+
+    return url;
+  }
+
+  static Future<Map<String, dynamic>> getStoryDetail({
+    required String storyId,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Story/${_cleanStoryId(storyId)}/Detail',
+      failMessage: '取得劇本詳細內容失敗',
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception('取得劇本詳細內容失敗');
+    }
+
+    return Map<String, dynamic>.from(result);
+  }
+
+  //遊你說了算 -一句話生成劇本
+  static Future<Map<String, dynamic>> generateByText({
+    required String userPrompt,
+  }) async {
+    final String prompt = userPrompt.trim();
+
+    if (prompt.isEmpty) {
+      throw Exception('請輸入想要的旅程描述');
+    }
+
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/GenerateByText',
+      failMessage: '劇本生成失敗，稍後嘗試',
+      body: {'user_prompt': prompt},
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception('劇本生成失敗，稍後嘗試 ');
+    }
+
+    return Map<String, dynamic>.from(result);
   }
 }
