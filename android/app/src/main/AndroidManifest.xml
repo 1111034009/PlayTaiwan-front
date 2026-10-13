@@ -1,8 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 正式版（release）要有這一行才連得到網路：地圖底圖和後端 API 都要用 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-     <!-- 網路請求 API -->
-    <uses-permission android:name="android.permission.INTERNET" />
     <!-- 掃描 QR Code 才需要 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission
@@ -50,8 +50,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-    </queries>
-    <queries>
+        <!-- 開網頁連結（地圖頁照片的出處） -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>

@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/story_play_page.dart';
-import 'pages/story_map_page.dart';
+import 'pages/story_route_map_page.dart';
 import 'pages/collection_page.dart';
 import 'pages/past_page.dart';
 import 'pages/register_page.dart';
@@ -53,7 +53,8 @@ class PlayTaiwanApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/home': (context) => AppShell(child: HomePage()),
         '/story': (context) => const StoryPage(),
-        '/story-map': (context) => const StoryMapPage(),
+        // 真的地圖（lib/route_map）。原本手繪的那一頁還留在 pages/story_map_page.dart，沒有刪
+        '/story-map': (context) => const StoryRouteMapPage(),
         '/collection': (context) => const CollectionPage(),
         '/past': (context) => const PastPage(),
         '/merchant-home': (context) => const MerchantHomePage(),
