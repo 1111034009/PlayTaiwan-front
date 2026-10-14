@@ -261,4 +261,44 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     }, () => backend);
   });
+
+  testWidgets('明信片頁：明信片做好了但圖片內容下載不了（瀏覽器擋跨網域），改用網址顯示，不算失敗', (tester) async {
+    await _phone(tester);
+    AppSession.token = 'test-token';
+    addTearDown(() => AppSession.token = null);
+
+    // 線上的後端回的圖片網址是 AI 服務的檔案連結，網頁版去下載會被瀏覽器擋掉
+    const imageUrl = 'https://aiservice.test/api/download/ai_postcard_456a0731.png';
+    var downloads = 0;
+    final backend = MockClient((request) async {
+      if (request.url.path == '/api/PostcardCatalog/GenerateAi') {
+        return _ok({'p_id': 40, 'p_name': '第二市場 專屬明信片', 'p_summary': '市場的午後', 'p_imag_url': imageUrl});
+      }
+      if (request.url.host == 'aiservice.test') {
+        downloads++;
+        throw http.ClientException('Failed to fetch', request.url);
+      }
+      return http.Response('not found', 404);
+    });
+
+    await http.runWithClient(() async {
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(fontFamily: 'KaiseiHarunoUmi'),
+        home: StoryPostcardPage(imageBytes: _png, imageName: 'me.jpg', spotName: '第二市場', storyId: 165, nodeId: 1045, onNext: () {}),
+      ));
+      // 還在做的時候寫的是這一關的景點，不是寫死的「臺南孔廟」
+      expect(find.text('第二市場'), findsOneWidget);
+      expect(find.text('臺南孔廟'), findsNothing);
+      await _wait(tester, 3);
+
+      // 下載只試一次就改用網址顯示，畫面上沒有那個下載錯誤
+      expect(downloads, 1);
+      expect(find.byWidgetPredicate((w) => w is Image && w.image is NetworkImage && (w.image as NetworkImage).url == imageUrl), findsOneWidget);
+      expect(find.textContaining('Failed to fetch'), findsNothing);
+      expect(find.textContaining('ClientException'), findsNothing);
+
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }, () => backend);
+  });
 }
