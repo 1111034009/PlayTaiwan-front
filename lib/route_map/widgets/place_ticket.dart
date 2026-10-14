@@ -145,7 +145,6 @@ class PlaceTicket extends StatelessWidget {
       if (note != null)
         TextSpan(text: hours == null ? note : '・$note', style: TextStyle(fontSize: hours == null ? 12 : 11, color: Pal.inkSoft)),
     ]));
-    final credit = photos.any(_isCommons) ? _commonsCredit(context, photos.firstWhere(_isCommons)) : null;
     final actions = Row(children: [
       Expanded(
         child: Wrap(spacing: 6, runSpacing: 4, children: [
@@ -179,7 +178,6 @@ class PlaceTicket extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [title, const SizedBox(height: 2), info]),
           ),
         ]),
-        ?credit,
         const SizedBox(height: 6),
         actions,
         ?more,
@@ -208,31 +206,11 @@ class PlaceTicket extends StatelessWidget {
             _photo(photos[i]),
           ],
       ]),
-      ?credit,
       const SizedBox(height: 8),
       actions,
       ?more,
     ]);
   }
-
-  static bool _isCommons(String url) => url.contains('wikimedia.org/wikipedia/commons/');
-
-  /// Commons 縮圖網址 …/commons/thumb/a/ab/檔名/960px-檔名 → 檔案頁（上面有作者與授權）
-  static String _commonsFilePage(String url) {
-    final segments = Uri.parse(url).pathSegments;
-    final i = segments.indexOf('thumb');
-    final file = i >= 0 && segments.length > i + 3 ? segments[i + 3] : segments.last;
-    return 'https://commons.wikimedia.org/wiki/File:$file';
-  }
-
-  /// 照片來自 Wikimedia Commons（CC 授權需要標示出處），點了開檔案頁看作者與授權
-  Widget _commonsCredit(BuildContext context, String url) => InkWell(
-        onTap: () => launchUrl(Uri.parse(_commonsFilePage(url)), mode: LaunchMode.externalApplication),
-        child: const Padding(
-          padding: EdgeInsets.only(top: 3),
-          child: Text('照片：Wikimedia Commons（點此看作者與授權）', style: TextStyle(fontSize: 10, color: Pal.inkSoft)),
-        ),
-      );
 
   Widget _photo(String? url, {double width = 92, double height = 64, IconData? icon}) {
     final placeholder = Icon(icon ?? Icons.image_outlined, color: frame, size: 22);

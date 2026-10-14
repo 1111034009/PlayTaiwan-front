@@ -4,6 +4,8 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>用你的位置規劃到景點的路線、確認抵達，並顯示附近的地點。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>做任務時錄影片要用到麥克風。</string>
 <key>NSCameraUsageDescription</key>
 <string>需要使用相機掃描優惠券 QR Code，以便查詢或核銷優惠券。</string>
 <key>NSPhotoLibraryAddUsageDescription</key>

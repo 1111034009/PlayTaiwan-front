@@ -50,7 +50,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        <!-- 開網頁連結（地圖頁照片的出處） -->
+        <!-- 開網頁連結（地圖頁卡片的「前往地址」開外部地圖） -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
