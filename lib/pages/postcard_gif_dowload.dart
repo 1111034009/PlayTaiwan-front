@@ -1,50 +1,59 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PostcardGifDownload {
   const PostcardGifDownload._();
 
-  static Future<String?> downloadPostcard({
+  static final Map<String, Future<File>> _exports = {};
+
+  static Future<File> prepare({
     required String imageUrl,
+    required String name,
+    required bool isSpecial,
+  }) {
+    final String key = '${imageUrl.hashCode}_${isSpecial ? 'g' : 'p'}_v2';
+
+    return _exports.putIfAbsent(key, () async {
+      try {
+        return await _build(imageUrl, isSpecial, key);
+      } catch (_) {
+        _exports.remove(key);
+        rethrow;
+      }
+    });
+  }
+
+  static Future<void> warmUp({
+    required String imageUrl,
+    required String name,
     required bool isSpecial,
   }) async {
     try {
-      debugPrint('開始下載：$imageUrl');
+      await prepare(imageUrl: imageUrl, name: name, isSpecial: isSpecial);
+    } catch (_) {}
+  }
 
-      final http.Response response = await http.get(Uri.parse(imageUrl));
-
-      debugPrint('下載結果：HTTP ${response.statusCode}');
-      debugPrint('圖片大小：${response.bodyBytes.length} bytes');
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-
-      if (response.bodyBytes.isEmpty) {
-        throw Exception('圖片內容為空');
-      }
-
-      final Uint8List originalBytes = response.bodyBytes;
-
-      final Uint8List gifBytes = await compute(
-        _buildGif,
-        _GifParams(imageBytes: originalBytes, isSpecial: isSpecial),
+  static Future<String?> download({
+    required String imageUrl,
+    required String name,
+    required bool isSpecial,
+  }) async {
+    try {
+      final File file = await prepare(
+        imageUrl: imageUrl,
+        name: name,
+        isSpecial: isSpecial,
       );
-
-      debugPrint('GIF 大小：${gifBytes.length} bytes');
-
-      if (gifBytes.isEmpty) {
-        throw Exception('GIF 產生失敗');
-      }
-
-      // ----------------------------------------------------------
-      // 相簿權限
-      // ----------------------------------------------------------
 
       bool hasAccess = await Gal.hasAccess();
 
@@ -56,449 +65,265 @@ class PostcardGifDownload {
         return '沒有相簿權限，無法儲存圖片';
       }
 
-      // ----------------------------------------------------------
-      // 儲存 GIF
-      //
-      // 注意：
-      // name 不要自己加 .gif。
-      // Gal 會根據圖片格式處理副檔名。
-      // ----------------------------------------------------------
-
-      final String fileName =
-          'postcard_${DateTime.now().millisecondsSinceEpoch}';
-
-      await Gal.putImageBytes(gifBytes, album: '回憶明信片', name: fileName);
-
-      debugPrint('GIF 已成功儲存到手機相簿');
+      await Gal.putImage(file.path, album: '回憶明信片');
 
       return null;
     } on GalException catch (e) {
-      debugPrint('相簿錯誤：${e.type.message}');
       return '儲存到相簿失敗：${e.type.message}';
-    } catch (e, stackTrace) {
-      debugPrint('GIF 下載失敗：$e');
-      debugPrint('$stackTrace');
-
-      return 'GIF 產生失敗：$e';
+    } catch (e) {
+      debugPrint('明信片下載失敗：$e');
+      return '明信片製作失敗，請稍後再試';
     }
   }
-}
 
-// ============================================================
-// GIF Parameters
-// ============================================================
+  static Future<String?> share({
+    required String imageUrl,
+    required String name,
+    required bool isSpecial,
+  }) async {
+    try {
+      final File file = await prepare(
+        imageUrl: imageUrl,
+        name: name,
+        isSpecial: isSpecial,
+      );
 
-class _GifParams {
-  final Uint8List imageBytes;
-  final bool isSpecial;
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(file.path, mimeType: isSpecial ? 'image/gif' : 'image/png'),
+          ],
+          text: name.isEmpty ? '回憶明信片' : name,
+        ),
+      );
 
-  const _GifParams({required this.imageBytes, required this.isSpecial});
-}
-
-// ============================================================
-// Build GIF
-// ============================================================
-
-Uint8List _buildGif(_GifParams params) {
-  final img.Image? source = img.decodeImage(params.imageBytes);
-
-  if (source == null) {
-    throw Exception('無法解析 JPG');
+      return null;
+    } catch (e) {
+      debugPrint('明信片分享失敗：$e');
+      return '分享明信片失敗';
+    }
   }
 
-  // ------------------------------------------------------------
-  // Resize
-  // ------------------------------------------------------------
-
-  const int maxWidth = 600;
-
-  img.Image baseImage = source;
-
-  if (baseImage.width > maxWidth) {
-    final int targetHeight = (baseImage.height * maxWidth / baseImage.width)
-        .round();
-
-    baseImage = img.copyResize(
-      baseImage,
-      width: maxWidth,
-      height: targetHeight,
-      interpolation: img.Interpolation.linear,
-    );
+  static Future<String?> downloadPostcard({
+    required String imageUrl,
+    required bool isSpecial,
+    String name = '',
+  }) {
+    return download(imageUrl: imageUrl, name: name, isSpecial: isSpecial);
   }
 
-  // ------------------------------------------------------------
-  // Animation settings
-  //
-  // 10 FPS
-  // 2 seconds
-  // 20 frames
-  // ------------------------------------------------------------
+  static Future<Directory> _cacheDir() async {
+    final Directory base = await getTemporaryDirectory();
+    final Directory dir = Directory('${base.path}/postcard_export');
 
-  const int fps = 10;
-  const int durationMs = 2000;
-
-  final int frameCount = fps * durationMs ~/ 1000;
-
-  // GIF duration 使用 1/100 秒。
-  //
-  // 10 FPS
-  // = 100ms/frame
-  // = 10/100 秒
-  const int frameDuration = 10;
-
-  // ------------------------------------------------------------
-  // GIF encoder
-  // ------------------------------------------------------------
-
-  final img.GifEncoder encoder = img.GifEncoder(samplingFactor: 10);
-
-  // ------------------------------------------------------------
-  // Frames
-  // ------------------------------------------------------------
-
-  for (int i = 0; i < frameCount; i++) {
-    final double progress = i / frameCount;
-
-    final img.Image frame = baseImage.clone();
-
-    if (params.isSpecial) {
-      _drawNightEffect(frame, progress);
-    } else {
-      _drawNormalEffect(frame, progress);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
     }
 
-    encoder.addFrame(frame, duration: frameDuration);
+    return dir;
   }
 
-  // ------------------------------------------------------------
-  // Finish GIF
-  // ------------------------------------------------------------
+  static Future<File> _fetchSource(String url, Directory dir) async {
+    final File file = File('${dir.path}/src_${url.hashCode}');
 
-  final Uint8List? encoded = encoder.finish();
+    if (await file.exists() && await file.length() > 0) {
+      return file;
+    }
 
-  if (encoded == null || encoded.isEmpty) {
-    throw Exception('GIF encoding 失敗');
+    final http.Response response = await http.get(Uri.parse(url));
+
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        response.bodyBytes.isEmpty) {
+      throw Exception('圖片下載失敗');
+    }
+
+    await file.writeAsBytes(response.bodyBytes, flush: true);
+
+    return file;
   }
 
-  return encoded;
-}
+  static Future<File> _build(String url, bool special, String key) async {
+    if (url.isEmpty) {
+      throw Exception('沒有明信片圖片');
+    }
 
-// ============================================================
-// Normal animation
-//
-// 非特殊明信片也要有動畫。
-// 做非常輕微的亮度呼吸，不會破壞原圖。
-// ============================================================
+    final Directory dir = await _cacheDir();
 
-void _drawNormalEffect(img.Image image, double progress) {
-  final double wave = (math.sin(progress * math.pi * 2) + 1) / 2;
+    final File out = File('${dir.path}/out_$key.${special ? 'gif' : 'png'}');
 
-  // 非常輕微的白色呼吸效果
-  final double opacity = 0.025 + wave * 0.035;
+    if (await out.exists() && await out.length() > 0) {
+      return out;
+    }
 
-  _drawTint(image, _Color(255, 255, 255, (opacity * 255).round()));
+    final File sourceFile = await _fetchSource(url, dir);
+    final Uint8List sourceBytes = await sourceFile.readAsBytes();
+    final ui.Codec codec = await ui.instantiateImageCodec(sourceBytes);
+    final ui.Image source = (await codec.getNextFrame()).image;
 
-  _drawAnimatedBorder(image, progress);
-}
+    try {
+      final Uint8List bytes = special
+          ? await _buildGif(source)
+          : await _buildPng(source);
 
-// ============================================================
-// Special / Night animation
-// ============================================================
-void _drawNightEffect(img.Image image, double progress) {
-  final int width = image.width;
-  final int height = image.height;
+      await out.writeAsBytes(bytes, flush: true);
 
-  // ============================================================
-  // 夜間紫色氛圍
-  // 對應 Flutter _NightCardPainter / _ExpandedNightPainter
-  // ============================================================
-
-  _drawTint(image, const _Color(55, 40, 130, 45));
-
-  // ============================================================
-  // Stars
-  // ============================================================
-
-  const List<_StarData> stars = [
-    _StarData(0.10, 0.18, 1.2, 0.00),
-    _StarData(0.25, 0.35, 0.9, 0.23),
-    _StarData(0.76, 0.17, 1.4, 0.43),
-    _StarData(0.88, 0.43, 1.0, 0.67),
-    _StarData(0.18, 0.77, 1.1, 0.38),
-    _StarData(0.78, 0.79, 1.5, 0.59),
-    _StarData(0.52, 0.13, 0.8, 0.82),
-  ];
-
-  for (final star in stars) {
-    final double wave = (progress + star.phase) % 1.0;
-
-    final double glow = 1.0 - ((wave - 0.5).abs() * 2.0);
-
-    final double opacity = (0.15 + glow * 0.85).clamp(0.1, 1.0);
-
-    final int x = (width * star.x).round();
-    final int y = (height * star.y).round();
-
-    _drawGlowCircle(image, x, y, star.radius, opacity);
+      return out;
+    } finally {
+      source.dispose();
+    }
   }
 
-  // ============================================================
-  // Meteor
-  // 對應 Flutter 的 meteor
-  // ============================================================
-
-  final double meteor = (progress * 1.65) % 1.0;
-
-  if (meteor > 0.70) {
-    final double t = (meteor - 0.70) / 0.30;
-
-    final int endX = (width * (0.20 + t * 0.65)).round();
-
-    final int endY = (height * (0.04 + t * 0.42)).round();
-
-    final int startX = endX - (width * 0.16).round();
-
-    final int startY = endY - (height * 0.12).round();
-
-    final double alpha = (1.0 - t).clamp(0.0, 1.0);
-
-    _drawLine(
-      image,
-      startX,
-      startY,
-      endX,
-      endY,
-      const _Color(255, 255, 255, 255),
-      alpha,
-      2,
+  static Future<Uint8List> _buildPng(ui.Image source) async {
+    final ui.Image image = await _renderFrame(
+      source: source,
+      special: false,
+      progress: 0,
+      width: 2160,
     );
 
-    _drawGlowCircle(image, endX, endY, 2.0, alpha);
-  }
+    final ByteData? data = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
 
-  // ============================================================
-  // Animated border
-  // ============================================================
+    image.dispose();
 
-  _drawAnimatedBorder(image, progress);
-}
-
-// ============================================================
-// Glow circle
-// ============================================================
-
-void _drawGlowCircle(
-  img.Image image,
-  int cx,
-  int cy,
-  double radius,
-  double opacity,
-) {
-  final int r = math.max(1, radius.round());
-
-  final int glowRadius = r * 3;
-
-  for (int y = -glowRadius; y <= glowRadius; y++) {
-    for (int x = -glowRadius; x <= glowRadius; x++) {
-      final double distance = math.sqrt(x * x + y * y);
-
-      if (distance > glowRadius) {
-        continue;
-      }
-
-      final double glow = (1 - distance / glowRadius).clamp(0.0, 1.0);
-
-      final double alpha = glow * opacity;
-
-      if (alpha <= 0) {
-        continue;
-      }
-
-      final int px = cx + x;
-      final int py = cy + y;
-
-      if (px < 0 || py < 0 || px >= image.width || py >= image.height) {
-        continue;
-      }
-
-      final img.Pixel pixel = image.getPixel(px, py);
-
-      pixel.r = (pixel.r * (1 - alpha) + 255 * alpha).round();
-
-      pixel.g = (pixel.g * (1 - alpha) + 255 * alpha).round();
-
-      pixel.b = (pixel.b * (1 - alpha) + 255 * alpha).round();
+    if (data == null) {
+      throw Exception('明信片輸出失敗');
     }
-  }
-}
 
-// ============================================================
-// Animated border
-// ============================================================
-
-void _drawAnimatedBorder(img.Image image, double progress) {
-  final int width = image.width;
-  final int height = image.height;
-
-  if (width < 5 || height < 5) {
-    return;
+    return data.buffer.asUint8List();
   }
 
-  final int position = (progress * (width + height) * 2).round();
+  static Future<Uint8List> _buildGif(ui.Image source) async {
+    const int count = 24;
 
-  // ------------------------------------------------------------
-  // Top / Bottom
-  // ------------------------------------------------------------
+    final List<Uint8List> frames = [];
+    int w = 0;
+    int h = 0;
 
-  for (int x = 0; x < width; x++) {
-    final double phase = ((x + position) % width) / width;
+    for (int i = 0; i < count; i++) {
+      final ui.Image image = await _renderFrame(
+        source: source,
+        special: true,
+        progress: i / count,
+        width: 720,
+      );
 
-    final double brightness =
-        0.25 + 0.75 * ((math.sin(phase * math.pi * 2) + 1) / 2);
+      w = image.width;
+      h = image.height;
 
-    _setPixel(image, x, 1, brightness);
+      final ByteData? data = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
 
-    _setPixel(image, x, height - 2, brightness);
-  }
+      image.dispose();
 
-  // ------------------------------------------------------------
-  // Left / Right
-  // ------------------------------------------------------------
-
-  for (int y = 0; y < height; y++) {
-    final double phase = ((y + position) % height) / height;
-
-    final double brightness =
-        0.25 + 0.75 * ((math.sin(phase * math.pi * 2) + 1) / 2);
-
-    _setPixel(image, 1, y, brightness);
-
-    _setPixel(image, width - 2, y, brightness);
-  }
-
-  // ------------------------------------------------------------
-  // Purple highlights
-  // ------------------------------------------------------------
-
-  _setPixel(image, 1, 1, 0.8, purple: true);
-
-  _setPixel(image, width - 2, 1, 0.8, purple: true);
-
-  _setPixel(image, 1, height - 2, 0.8, purple: true);
-
-  _setPixel(image, width - 2, height - 2, 0.8, purple: true);
-}
-
-// ============================================================
-// Tint
-// ============================================================
-
-void _drawTint(img.Image image, _Color color) {
-  final double alpha = color.a / 255.0;
-
-  for (int y = 0; y < image.height; y++) {
-    for (int x = 0; x < image.width; x++) {
-      final img.Pixel pixel = image.getPixel(x, y);
-
-      pixel.r = (pixel.r * (1 - alpha) + color.r * alpha).round();
-
-      pixel.g = (pixel.g * (1 - alpha) + color.g * alpha).round();
-
-      pixel.b = (pixel.b * (1 - alpha) + color.b * alpha).round();
-    }
-  }
-}
-
-// ============================================================
-// Line
-// ============================================================
-
-void _drawLine(
-  img.Image image,
-  int x1,
-  int y1,
-  int x2,
-  int y2,
-  _Color color,
-  double alpha,
-  int thickness,
-) {
-  final int dx = (x2 - x1).abs();
-
-  final int dy = (y2 - y1).abs();
-
-  final int steps = math.max(dx, dy);
-
-  if (steps == 0) {
-    return;
-  }
-
-  for (int i = 0; i <= steps; i++) {
-    final double t = i / steps;
-
-    final int x = (x1 + (x2 - x1) * t).round();
-
-    final int y = (y1 + (y2 - y1) * t).round();
-
-    for (int ox = -thickness; ox <= thickness; ox++) {
-      for (int oy = -thickness; oy <= thickness; oy++) {
-        _blendPixel(image, x + ox, y + oy, color, alpha);
+      if (data == null) {
+        throw Exception('明信片輸出失敗');
       }
+
+      frames.add(Uint8List.fromList(data.buffer.asUint8List()));
     }
+
+    final Uint8List encoded = await compute(_encodeGif, {
+      'frames': frames,
+      'w': w,
+      'h': h,
+    });
+
+    if (encoded.isEmpty) {
+      throw Exception('GIF 產生失敗');
+    }
+
+    return encoded;
+  }
+
+  static Future<ui.Image> _renderFrame({
+    required ui.Image source,
+    required bool special,
+    required double progress,
+    required double width,
+  }) async {
+    final double height = width * 133 / 180;
+    final double border = width * 0.0125;
+
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+
+    final Rect card = Rect.fromLTWH(0, 0, width, height);
+    final RRect cardR = RRect.fromRectAndRadius(
+      card,
+      Radius.circular(width * 0.0175),
+    );
+
+    canvas.drawRRect(cardR, Paint()..color = Colors.white);
+
+    final Rect inner = card.deflate(border);
+    final RRect innerR = RRect.fromRectAndRadius(
+      inner,
+      Radius.circular(width * 0.01),
+    );
+
+    canvas.save();
+    canvas.clipRRect(innerR, doAntiAlias: true);
+
+    final double srcW = source.width.toDouble();
+    final double srcH = source.height.toDouble();
+    final double scale = math.max(inner.width / srcW, inner.height / srcH);
+    final double cropW = inner.width / scale;
+    final double cropH = inner.height / scale;
+
+    canvas.drawImageRect(
+      source,
+      Rect.fromLTWH((srcW - cropW) / 2, (srcH - cropH) / 2, cropW, cropH),
+      inner,
+      Paint()
+        ..filterQuality = FilterQuality.high
+        ..isAntiAlias = true,
+    );
+
+    if (special) {
+      final double s = inner.width / 460;
+
+      canvas.translate(inner.left, inner.top);
+      canvas.scale(s);
+
+      _NightPainter(
+        progress: progress,
+      ).paint(canvas, Size(inner.width / s, inner.height / s));
+    }
+
+    canvas.restore();
+
+    return recorder.endRecording().toImage(width.round(), height.round());
   }
 }
 
-// ============================================================
-// Blend Pixel
-// ============================================================
+Uint8List _encodeGif(Map<String, dynamic> args) {
+  final List<Uint8List> frames = args['frames'] as List<Uint8List>;
+  final int w = args['w'] as int;
+  final int h = args['h'] as int;
 
-void _blendPixel(img.Image image, int x, int y, _Color color, double alpha) {
-  if (x < 0 || y < 0 || x >= image.width || y >= image.height) {
-    return;
+  final img.GifEncoder encoder = img.GifEncoder(
+    repeat: 0,
+    samplingFactor: 1,
+    dither: img.DitherKernel.floydSteinberg,
+  );
+
+  for (final Uint8List bytes in frames) {
+    final img.Image frame = img.Image.fromBytes(
+      width: w,
+      height: h,
+      bytes: bytes.buffer,
+      numChannels: 4,
+    );
+
+    encoder.addFrame(frame, duration: 8);
   }
 
-  final img.Pixel pixel = image.getPixel(x, y);
-
-  pixel.r = (pixel.r * (1 - alpha) + color.r * alpha).round();
-
-  pixel.g = (pixel.g * (1 - alpha) + color.g * alpha).round();
-
-  pixel.b = (pixel.b * (1 - alpha) + color.b * alpha).round();
+  return encoder.finish() ?? Uint8List(0);
 }
-
-// ============================================================
-// Set Pixel
-// ============================================================
-
-void _setPixel(
-  img.Image image,
-  int x,
-  int y,
-  double brightness, {
-  bool purple = false,
-}) {
-  if (x < 0 || y < 0 || x >= image.width || y >= image.height) {
-    return;
-  }
-
-  final img.Pixel pixel = image.getPixel(x, y);
-
-  if (purple) {
-    pixel.r = (pixel.r * 0.4 + 125 * brightness * 0.6).round();
-
-    pixel.g = (pixel.g * 0.4 + 108 * brightness * 0.6).round();
-
-    pixel.b = (pixel.b * 0.4 + 255 * brightness * 0.6).round();
-  } else {
-    pixel.r = 255;
-    pixel.g = 255;
-    pixel.b = 255;
-  }
-}
-
-// ============================================================
-// Star data
-// ============================================================
 
 class _StarData {
   final double x;
@@ -509,15 +334,113 @@ class _StarData {
   const _StarData(this.x, this.y, this.radius, this.phase);
 }
 
-// ============================================================
-// Color
-// ============================================================
+class _NightPainter {
+  final double progress;
 
-class _Color {
-  final int r;
-  final int g;
-  final int b;
-  final int a;
+  const _NightPainter({required this.progress});
 
-  const _Color(this.r, this.g, this.b, this.a);
+  static const List<_StarData> stars = [
+    _StarData(0.12, 0.20, 1.5, 0.00),
+    _StarData(0.30, 0.38, 1.1, 0.24),
+    _StarData(0.76, 0.18, 1.7, 0.46),
+    _StarData(0.88, 0.48, 1.1, 0.68),
+    _StarData(0.20, 0.78, 1.3, 0.35),
+    _StarData(0.78, 0.80, 1.6, 0.58),
+  ];
+
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0x30342B91),
+            Color(0x08101845),
+            Color(0x3A3C247D),
+            Color(0x08101845),
+          ],
+        ).createShader(rect),
+    );
+
+    for (final _StarData star in stars) {
+      final double wave = (progress + star.phase) % 1.0;
+
+      final double floatX =
+          math.sin(progress * math.pi * 2 + star.phase * math.pi * 2) * 1.8;
+
+      final double floatY =
+          math.cos(progress * math.pi * 2 + star.phase * math.pi * 2) * 1.5;
+
+      final double glow = 0.5 + 0.5 * math.sin(wave * math.pi * 2);
+      final double opacity = (0.18 + glow * 0.42).clamp(0.12, 0.6);
+
+      canvas.drawCircle(
+        Offset(size.width * star.x + floatX, size.height * star.y + floatY),
+        star.radius,
+        Paint()..color = Colors.white.withValues(alpha: opacity),
+      );
+    }
+
+    final double moonX = -size.width * 0.35 + progress * size.width * 1.7;
+
+    final Rect moonRect = Rect.fromCenter(
+      center: Offset(moonX, size.height * 0.42),
+      width: size.width * 0.36,
+      height: size.height * 1.5,
+    );
+
+    canvas.save();
+    canvas.rotate(-0.18);
+    canvas.drawRect(
+      moonRect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.transparent,
+            Color(0x107D6CFF),
+            Color(0x35FFFFFF),
+            Color(0x107D6CFF),
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.30, 0.50, 0.70, 1.0],
+        ).createShader(moonRect),
+    );
+    canvas.restore();
+
+    final RRect border = RRect.fromRectAndRadius(
+      rect.deflate(2),
+      const Radius.circular(5),
+    );
+
+    canvas.drawRRect(
+      border,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = const Color(0x287D6CFF),
+    );
+
+    canvas.drawRRect(
+      border,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.7
+        ..shader = SweepGradient(
+          transform: GradientRotation(progress * math.pi * 2),
+          colors: const [
+            Color(0x227D6CFF),
+            Color(0x88FFFFFF),
+            Color(0xFFFFFFFF),
+            Color(0x88756BFF),
+            Color(0x227D6CFF),
+          ],
+        ).createShader(rect),
+    );
+  }
 }

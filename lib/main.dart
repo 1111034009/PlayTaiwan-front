@@ -12,6 +12,8 @@ import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'core/auth_guard.dart';
 import 'block/app_shell.dart';
+import 'api/merchant_vlog_api.dart';
+import 'admin/visitor_dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +61,7 @@ class PlayTaiwanApp extends StatelessWidget {
         '/past': (context) => const PastPage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
+        '/admin': (context) => const AudienceDashboardPage(),
       },
     );
   }

@@ -7,6 +7,7 @@ import 'package:gal/gal.dart';
 
 import '../api/postcard_api.dart';
 import '../block/navigationbar.dart';
+import 'postcard_gif_dowload.dart';
 import 'story_end_page.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
@@ -63,12 +64,11 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
 
   Uint8List? _postcardImage;
 
-  /// 明信片做好了，但圖片內容下載不了時，改用這個網址直接顯示（見 _startGeneratePostcard）
-  String? _postcardUrl;
-
   String? _postcardError;
 
   String? _taskId;
+
+  String? _downloadUrl;
 
   bool _isGenerating = true;
 
@@ -124,7 +124,6 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
           _progress = 0.1;
           _postcardError = null;
           _postcardImage = null;
-          _postcardUrl = null;
           _taskId = null;
         });
       }
@@ -143,22 +142,12 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       );
 
       _taskId = result.taskId;
+      _downloadUrl = result.downloadUrl;
 
       Uint8List? imageBytes;
 
-      // 明信片已經做好了，只是圖片內容下載不了：網頁版圖片放在別的網域（AI 服務）、
-      // 那邊沒有開放跨網域讀取時，瀏覽器會把下載擋掉。這時不算失敗，改用網址直接顯示
-      bool showByUrl = false;
-
       for (int i = 0; i < 60; i++) {
-        try {
-          imageBytes = await _postcardApi.downloadAiPostcard(
-            result.downloadUrl,
-          );
-        } catch (_) {
-          showByUrl = true;
-          break;
-        }
+        imageBytes = await _postcardApi.downloadAiPostcard(result.downloadUrl);
 
         if (imageBytes != null && imageBytes.isNotEmpty) {
           break;
@@ -167,7 +156,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
         await Future.delayed(const Duration(seconds: 2));
       }
 
-      if (!showByUrl && (imageBytes == null || imageBytes.isEmpty)) {
+      if (imageBytes == null || imageBytes.isEmpty) {
         throw Exception('AI 明信片生成逾時，請稍後再試。');
       }
 
@@ -188,8 +177,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       }
 
       setState(() {
-        _postcardImage = showByUrl ? null : imageBytes;
-        _postcardUrl = showByUrl ? result.downloadUrl : null;
+        _postcardImage = imageBytes;
         _isGenerating = false;
         _postcardError = null;
       });
@@ -213,7 +201,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       return;
     }
 
-    if (_postcardImage == null && _postcardUrl == null) {
+    if (_postcardImage == null) {
       showMessage('目前沒有可列印的明信片');
       return;
     }
@@ -635,6 +623,32 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
     );
   }
 
+  Future<void> _sharePostcard() async {
+    if (_isGenerating) {
+      showMessage('明信片尚未生成完成');
+      return;
+    }
+
+    final String url = _downloadUrl?.trim() ?? '';
+
+    if (_postcardImage == null || url.isEmpty) {
+      showMessage('目前沒有可分享的明信片');
+      return;
+    }
+
+    final String? error = await PostcardGifDownload.share(
+      imageUrl: url,
+      name: widget.spotName ?? '',
+      isSpecial: false,
+    );
+
+    if (!mounted) return;
+
+    if (error != null) {
+      showMessage(error);
+    }
+  }
+
   void goNext() {
     if (widget.onNext != null) {
       widget.onNext!();
@@ -643,7 +657,9 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const StoryEndPage()),
+      MaterialPageRoute(
+        builder: (_) => StoryEndPage(storyId: widget.storyId?.toString() ?? ''),
+      ),
     );
   }
 
@@ -716,9 +732,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
                     isGenerating: _isGenerating,
                     progress: _progress,
                     imageBytes: _postcardImage,
-                    imageUrl: _postcardUrl,
                     errorMessage: _postcardError,
-                    spotName: widget.spotName ?? '臺南孔廟',
                   ),
                 ),
                 Positioned(
@@ -733,12 +747,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
                   top: 478,
                   width: 184,
                   height: 52,
-                  child: _SecondaryButton(
-                    text: '分享',
-                    onTap: () {
-                      showMessage('已準備分享功能');
-                    },
-                  ),
+                  child: _SecondaryButton(text: '分享', onTap: _sharePostcard),
                 ),
                 Positioned(
                   left: 22,
@@ -876,21 +885,13 @@ class _PostcardDisplay extends StatelessWidget {
   final bool isGenerating;
   final double progress;
   final Uint8List? imageBytes;
-
-  /// 沒有圖片內容時用網址顯示
-  final String? imageUrl;
   final String? errorMessage;
-
-  /// 正在做的是哪個景點的明信片
-  final String spotName;
 
   const _PostcardDisplay({
     required this.isGenerating,
     required this.progress,
     required this.imageBytes,
-    required this.imageUrl,
     required this.errorMessage,
-    required this.spotName,
   });
 
   @override
@@ -928,22 +929,8 @@ class _PostcardDisplay extends StatelessWidget {
       );
     }
 
-    if (imageUrl != null) {
-      // 網頁版讀不到別的網域的圖片內容時，fallback 會改用瀏覽器自己的 <img> 來顯示，不受跨網域限制
-      return Image.network(
-        imageUrl!,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
-        errorBuilder: (context, error, stackTrace) =>
-            _buildError('明信片做好了，但圖片顯示不出來'),
-      );
-    }
-
     if (errorMessage != null) {
-      return _buildError(errorMessage ?? '未知錯誤');
+      return _buildError();
     }
 
     return _buildGenerating();
@@ -971,7 +958,7 @@ class _PostcardDisplay extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              spotName,
+              '這可能需要一些時間，請耐心等候',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmallBold
                   .copyWith(color: const Color(0xFF724E4E))
@@ -1000,7 +987,7 @@ class _PostcardDisplay extends StatelessWidget {
     );
   }
 
-  Widget _buildError(String message) {
+  Widget _buildError() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1022,10 +1009,7 @@ class _PostcardDisplay extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              message,
-              // 後端的錯誤訊息可能很長，框只有這麼高，放不下的收起來
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
+              errorMessage ?? '未知錯誤',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
                 color: const Color(0xFF724E4E),

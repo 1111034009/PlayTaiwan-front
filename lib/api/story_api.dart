@@ -441,4 +441,79 @@ class StoryApi {
 
     return Map<String, dynamic>.from(result);
   }
+
+  static Future<Map<String, dynamic>> _resultMap(
+    Map<String, dynamic> data,
+    String failMessage,
+  ) async {
+    final dynamic result = data['Result'];
+
+    if (result is! Map) {
+      throw Exception(failMessage);
+    }
+
+    return Map<String, dynamic>.from(result);
+  }
+
+  static Future<Map<String, dynamic>> drawBadge({
+    required String storyId,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Badge/Draw',
+      failMessage: '抽取徽章失敗',
+      body: {'story_id': int.tryParse(storyId) ?? storyId},
+    );
+
+    return _resultMap(data, '抽取徽章失敗');
+  }
+
+  static Future<Map<String, dynamic>> previewVisitorVlog({
+    required String storyId,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/VisitorVlog/Preview',
+      failMessage: '旁白草稿產生失敗',
+      body: {'story_id': int.tryParse(storyId) ?? storyId},
+    );
+
+    return _resultMap(data, '旁白草稿產生失敗');
+  }
+
+  static Future<Map<String, dynamic>> createFinalVisitorVlog({
+    required String storyId,
+    required String finalScript,
+    required String promoCopy,
+    required List<String> seoKeywords,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/VisitorVlog/CreateFinal',
+      failMessage: '建立 Vlog 失敗',
+      body: {
+        'story_id': int.tryParse(storyId) ?? storyId,
+        'final_script': finalScript,
+        'promo_copy': promoCopy,
+        'seo_keywords': seoKeywords,
+      },
+    );
+
+    return _resultMap(data, '建立 Vlog 失敗');
+  }
+
+  static Future<Map<String, dynamic>> visitorVlogStatus({
+    required String storyId,
+    required String taskId,
+  }) async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path:
+          '/api/VisitorVlog/Status/${_cleanStoryId(storyId)}'
+          '?task_id=${Uri.encodeQueryComponent(taskId)}',
+      failMessage: '查詢 Vlog 狀態失敗',
+    );
+
+    return _resultMap(data, '查詢 Vlog 狀態失敗');
+  }
 }

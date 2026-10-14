@@ -7,6 +7,7 @@ class HistoryRecord {
   final List<String> routeSummary;
   final String? vlogId;
   final String? postcardReviewUrl;
+  final String coverImageUrl;
 
   const HistoryRecord({
     required this.storyId,
@@ -17,6 +18,7 @@ class HistoryRecord {
     required this.routeSummary,
     required this.vlogId,
     required this.postcardReviewUrl,
+    this.coverImageUrl = '',
   });
 
   factory HistoryRecord.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class HistoryRecord {
           : const [],
       vlogId: json['vlog_id']?.toString(),
       postcardReviewUrl: json['postcard_review_url']?.toString(),
+      coverImageUrl: json['cover_image_url']?.toString().trim() ?? '',
     );
   }
 }

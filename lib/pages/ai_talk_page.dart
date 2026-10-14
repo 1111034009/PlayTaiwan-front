@@ -63,7 +63,7 @@ class AiTalkPage extends StatefulWidget {
 
 class _AiTalkPageState extends State<AiTalkPage> {
   static const String _npcName = '小精靈';
-  static const String _npcSubtitle = '探員隨身導覽';
+  static const String _npcSubtitle = '探員隨身尋找';
 
   final List<_Entry> _entries = [];
   final ScrollController _scrollController = ScrollController();
@@ -216,7 +216,7 @@ class _AiTalkPageState extends State<AiTalkPage> {
       _ChoiceGroup(
         options: const [
           _ChoiceOption(icon: Icons.auto_stories, label: '開一個劇本給我'),
-          _ChoiceOption(icon: Icons.explore, label: '我想找點地方去晃晃……'),
+          _ChoiceOption(icon: Icons.explore, label: '我想找點附近去晃晃……'),
           _ChoiceOption(icon: Icons.chat_bubble_outline, label: '只是想找你聊聊天'),
         ],
         onSelected: _handleMainMenuChoice,

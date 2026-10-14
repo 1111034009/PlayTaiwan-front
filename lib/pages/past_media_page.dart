@@ -6,9 +6,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import '../block/navigationbar.dart';
 import 'past_page.dart';
@@ -51,7 +53,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
   String? loadError;
 
   List<Map<String, dynamic>> postcards = [];
-  // Vlog API 與影片暫存
   final VlogApi _vlogApi = VlogApi();
 
   Map<String, dynamic>? _vlogStatus;
@@ -78,43 +79,37 @@ class _PastMediaPageState extends State<PastMediaPage> {
       ),
     );
 
-    _fetchPostcards();
-    _loadVlog();
+    _loadRecap();
   }
 
-  Future<void> _fetchPostcards() async {
+  Future<void> _loadRecap() async {
     final String? token = AppSession.token;
 
-    if (token == null || token.isEmpty) {
+    if (token == null || token.isEmpty || _apiBaseUrl.isEmpty) {
       if (!mounted) return;
 
       setState(() {
         isLoading = false;
-        loadError = '尚未登入，無法取得明信片資料';
+        _isVlogLoading = false;
+        loadError = '尚未登入，無法取得資料';
       });
 
       return;
     }
 
-    if (_apiBaseUrl.isEmpty) {
-      if (!mounted) return;
-
+    if (mounted) {
       setState(() {
-        isLoading = false;
-        loadError = '尚未設定 API_BASE_URL';
+        _isVlogLoading = true;
+        _vlogError = null;
       });
-
-      return;
     }
 
     try {
-      final Uri url = Uri.parse(
-        '$_apiBaseUrl/api/PostcardCatalog/by-story/'
-        '${Uri.encodeComponent(widget.storyId)}',
-      );
-
       final http.Response response = await http.get(
-        url,
+        Uri.parse(
+          '$_apiBaseUrl/api/History/'
+          '${Uri.encodeComponent(widget.storyId)}/Recap',
+        ),
         headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
 
@@ -122,33 +117,45 @@ class _PastMediaPageState extends State<PastMediaPage> {
         throw Exception('HTTP ${response.statusCode}');
       }
 
-      final dynamic decoded = jsonDecode(response.body);
+      final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('API 回傳格式錯誤');
-      }
-
-      if (decoded['isSuccess'] != true) {
-        throw Exception(decoded['message']?.toString() ?? '明信片資料取得失敗');
+      if (decoded is! Map<String, dynamic> || decoded['isSuccess'] != true) {
+        throw Exception('Recap 資料取得失敗');
       }
 
       final dynamic result = decoded['Result'];
 
-      if (result is! List) {
-        throw Exception('API Result 不是陣列');
+      if (result is! Map) {
+        throw Exception('Recap Result 格式錯誤');
       }
 
-      final List<Map<String, dynamic>> loadedPostcards = result
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
+      final dynamic rawPostcards = result['postcards'];
+      final List<Map<String, dynamic>> loadedPostcards = [];
 
-      loadedPostcards.sort((a, b) {
-        final int nodeA = int.tryParse(a['NodeId']?.toString() ?? '') ?? 0;
-        final int nodeB = int.tryParse(b['NodeId']?.toString() ?? '') ?? 0;
+      if (rawPostcards is List) {
+        for (int i = 0; i < rawPostcards.length; i++) {
+          final dynamic item = rawPostcards[i];
 
-        return nodeA.compareTo(nodeB);
-      });
+          if (item is! Map) continue;
+
+          loadedPostcards.add({
+            'postcard_id': item['postcard_id'],
+            'NodeId': i + 1,
+            'PostcardName': item['name'],
+            'ImageUrl': item['image_url'],
+            'Summary': '',
+            'IsNightEdition': item['is_night_edition'] == true,
+          });
+        }
+      }
+
+      final dynamic rawVlog = result['vlog'];
+      final Map<String, dynamic>? vlog = rawVlog is Map
+          ? Map<String, dynamic>.from(rawVlog)
+          : null;
+
+      final int status = int.tryParse(vlog?['status']?.toString() ?? '') ?? 0;
+      final String videoUrl = vlog?['video_url']?.toString().trim() ?? '';
 
       if (!mounted) return;
 
@@ -156,58 +163,27 @@ class _PastMediaPageState extends State<PastMediaPage> {
         postcards = loadedPostcards;
         isLoading = false;
         loadError = null;
-      });
-    } catch (e) {
-      debugPrint('取得明信片目錄失敗：$e');
-
-      if (!mounted) return;
-
-      setState(() {
-        postcards = [];
-        isLoading = false;
-        loadError = '明信片資料取得失敗';
-      });
-    }
-  }
-
-  Future<void> _loadVlog() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isVlogLoading = true;
-      _vlogError = null;
-    });
-
-    try {
-      final Map<String, dynamic> result = await _vlogApi.getStatus(
-        storyId: widget.storyId,
-      );
-
-      if (!mounted) return;
-
-      _vlogStatus = result;
-
-      final int status = int.tryParse(result['status']?.toString() ?? '') ?? -1;
-
-      final String videoUrl = result['video_url']?.toString().trim() ?? '';
-
-      setState(() {
+        _vlogStatus = vlog;
         _videoUrl = videoUrl.isEmpty ? null : videoUrl;
       });
 
-      if (status != 3) {
+      if (vlog == null || status != 3 || videoUrl.isEmpty) {
+        final String message = vlog == null
+            ? '這趟旅程沒有 Vlog'
+            : status == 1
+            ? 'Vlog 尚在草稿階段'
+            : status == 2
+            ? 'Vlog 製作中，請稍後再試'
+            : status == 4
+            ? 'Vlog 製作失敗'
+            : '影片尚未完成製作';
+
         setState(() {
           _isVlogLoading = false;
-          _vlogError =
-              result['status_text']?.toString().trim().isNotEmpty == true
-              ? '影片狀態：${result['status_text']}'
-              : '影片尚未完成製作';
+          _vlogError = message;
         });
-        return;
-      }
 
-      if (videoUrl.isEmpty) {
-        throw Exception('影片已完成，但 API 沒有提供影片網址');
+        return;
       }
 
       final File file = await _vlogApi.downloadToCache(
@@ -223,12 +199,14 @@ class _PastMediaPageState extends State<PastMediaPage> {
         _vlogError = null;
       });
     } catch (e) {
-      debugPrint('取得 Vlog 失敗：$e');
+      debugPrint('取得 Recap 失敗：$e');
 
       if (!mounted) return;
 
       setState(() {
+        isLoading = false;
         _isVlogLoading = false;
+        if (postcards.isEmpty) loadError = '明信片資料取得失敗';
         _vlogError = 'Vlog 載入失敗，請點擊影片區域重試';
       });
     }
@@ -362,9 +340,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ─────────────────────────────
-                  // 標題
-                  // ─────────────────────────────
                   Text(
                     'ibon 列印資訊',
                     textAlign: TextAlign.center,
@@ -374,10 +349,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
                     ),
                   ),
                   const SizedBox(height: 18),
-
-                  // ─────────────────────────────
-                  // 截止時間
-                  // ─────────────────────────────
                   if (formattedDeadline.isNotEmpty)
                     Container(
                       width: double.infinity,
@@ -409,9 +380,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                               color: AppColors.secondaryRed,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,12 +407,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                         ],
                       ),
                     ),
-
                   const SizedBox(height: 20),
-
-                  // ─────────────────────────────
-                  // QR CODE 區域
-                  // ─────────────────────────────
                   if (qrCodeBytes != null) ...[
                     Text(
                       '掃描 QR Code',
@@ -452,19 +416,14 @@ class _PastMediaPageState extends State<PastMediaPage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
                       '至 ibon 機台掃描即可列印',
                       style: AppTextStyles.microLabel.copyWith(
                         color: AppColors.textPrimary.withValues(alpha: 0.55),
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
-                    // QR 白底卡片
                     Container(
                       width: 220,
                       height: 220,
@@ -491,10 +450,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                         filterQuality: FilterQuality.high,
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
-                    // 下載 QR Code
                     SizedBox(
                       width: 220,
                       height: 42,
@@ -578,17 +534,12 @@ class _PastMediaPageState extends State<PastMediaPage> {
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 22),
-
-                  // 分隔線
                   Container(
                     height: 1,
                     color: Colors.black.withValues(alpha: 0.10),
                   ),
-
                   const SizedBox(height: 18),
-                  // 取件碼
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -598,9 +549,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 7),
-
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(16, 13, 10, 13),
@@ -623,7 +572,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             ),
                           ),
                         ),
-
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: pickupCode.isEmpty
@@ -633,7 +581,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                     ClipboardData(text: pickupCode),
                                   );
                                 },
-
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 9,
@@ -662,10 +609,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // ─────────────────────────────
-                  // 關閉
-                  // ─────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     height: 42,
@@ -716,90 +659,63 @@ class _PastMediaPageState extends State<PastMediaPage> {
   }
 
   Future<void> _downloadPostcard(Map<String, dynamic> postcard) async {
-    final String imageUrl = _imageUrl(postcard['ImageUrl']?.toString());
+    final bool special = _isNightPostcard(postcard);
 
-    final bool isSpecial = _isNightPostcard(postcard);
-
-    try {
-      if (isSpecial) {
-        _showMessage('正在製作動畫明信片，完成後將通知你！');
-        final String? error = await PostcardGifDownload.downloadPostcard(
-          imageUrl: imageUrl,
-          isSpecial: true,
-        );
-
-        if (!mounted) return;
-
-        if (error != null) {
-          _showMessage(error);
-          return;
-        }
-
-        _showMessage('動畫明信片已成功儲存到相簿');
-        return;
-      }
-
-      final http.Response response = await http.get(Uri.parse(imageUrl));
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-
-      final Uint8List bytes = response.bodyBytes;
-
-      if (bytes.isEmpty) {
-        throw Exception('圖片內容為空');
-      }
-
-      bool hasAccess = await Gal.hasAccess();
-
-      if (!hasAccess) {
-        hasAccess = await Gal.requestAccess();
-      }
-
-      if (!hasAccess) {
-        _showMessage('沒有相簿權限，無法儲存圖片');
-        return;
-      }
-
-      await Gal.putImageBytes(
-        bytes,
-        album: '回憶明信片',
-        name: 'postcard_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-
-      _showMessage('明信片已成功儲存到相簿');
-    } on GalException catch (e) {
-      _showMessage('儲存到相簿失敗：${e.type.message}');
-    } catch (e) {
-      _showMessage('圖片下載失敗：$e');
+    if (special) {
+      _showMessage('正在製作動態明信片，請稍候');
     }
+
+    final String? error = await PostcardGifDownload.download(
+      imageUrl: _imageUrl(postcard['ImageUrl']?.toString()),
+      name: postcard['PostcardName']?.toString().trim() ?? '',
+      isSpecial: special,
+    );
+
+    if (!mounted) return;
+
+    _showMessage(error ?? (special ? '動態明信片已儲存到相簿' : '明信片已儲存到相簿'));
   }
 
   Future<void> _sharePostcard(Map<String, dynamic> postcard) async {
-    final String imageUrl = _imageUrl(postcard['ImageUrl']?.toString());
+    final bool special = _isNightPostcard(postcard);
 
-    if (imageUrl.isEmpty) {
-      _showMessage('目前沒有可分享的明信片圖片');
+    if (special) {
+      _showMessage('正在製作動態明信片，請稍候');
+    }
+
+    final String? error = await PostcardGifDownload.share(
+      imageUrl: _imageUrl(postcard['ImageUrl']?.toString()),
+      name: postcard['PostcardName']?.toString().trim() ?? '',
+      isSpecial: special,
+    );
+
+    if (!mounted) return;
+
+    if (error != null) {
+      _showMessage(error);
+    }
+  }
+
+  Future<void> _shareVlog() async {
+    if (_isVlogLoading || _isVideoPreparing) {
+      _showMessage('Vlog 正在準備中，請稍候');
+      return;
+    }
+
+    final File? file = _cachedVideoFile;
+
+    if (file == null || !await file.exists()) {
+      _showMessage('目前沒有可分享的 Vlog 影片');
       return;
     }
 
     try {
-      final http.Response response = await http.get(Uri.parse(imageUrl));
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-
-      final Uint8List bytes = response.bodyBytes;
-
-      if (bytes.isEmpty) {
-        throw Exception('圖片內容為空');
-      }
-
-      _showMessage('明信片已準備完成');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: '我的旅程回憶 Vlog'),
+      );
     } catch (e) {
-      _showMessage('分享明信片失敗');
+      debugPrint('分享 Vlog 失敗：$e');
+      _showMessage('分享 Vlog 失敗');
     }
   }
 
@@ -824,6 +740,14 @@ class _PastMediaPageState extends State<PastMediaPage> {
     setState(() {
       selectedPostcardIndex = index;
     });
+
+    final Map<String, dynamic> postcard = postcards[index];
+
+    PostcardGifDownload.warmUp(
+      imageUrl: _imageUrl(postcard['ImageUrl']?.toString()),
+      name: postcard['PostcardName']?.toString().trim() ?? '',
+      isSpecial: _isNightPostcard(postcard),
+    );
   }
 
   void closePostcard() {
@@ -841,67 +765,30 @@ class _PastMediaPageState extends State<PastMediaPage> {
     }
 
     final File? cachedFile = _cachedVideoFile;
+
     if (cachedFile != null && await cachedFile.exists()) {
       if (!mounted) return;
+
       setState(() {
         showVideo = true;
       });
+
       return;
     }
 
-    if (_vlogStatus == null || (_videoUrl ?? '').isEmpty) {
-      await _loadVlog();
-      if (!mounted) return;
-    }
+    await _loadRecap();
 
-    final int status =
-        int.tryParse(_vlogStatus?['status']?.toString() ?? '') ?? -1;
+    if (!mounted) return;
 
-    if (status != 3) {
-      _showMessage(_vlogError ?? '影片尚未完成製作，請稍後再試');
-      return;
-    }
-
-    final String? url = _videoUrl;
-    if (url == null || url.isEmpty) {
-      _showMessage('目前沒有可播放的影片網址');
-      return;
-    }
-
-    setState(() {
-      _isVideoPreparing = true;
-    });
-
-    try {
-      final File file = await _vlogApi.downloadToCache(
-        storyId: widget.storyId,
-        videoUrl: url,
-      );
-
-      if (!mounted) return;
-
+    if (_cachedVideoFile != null) {
       setState(() {
-        _cachedVideoFile = file;
-        _vlogError = null;
         showVideo = true;
       });
-    } catch (e) {
-      debugPrint('下載 Vlog 失敗：$e');
 
-      if (!mounted) return;
-
-      setState(() {
-        _vlogError = '影片下載失敗，請稍後重試';
-      });
-
-      _showMessage('影片下載失敗，請稍後重試');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isVideoPreparing = false;
-        });
-      }
+      return;
     }
+
+    _showMessage(_vlogError ?? '影片尚未完成製作，請稍後再試');
   }
 
   void closeVideo() {
@@ -1005,7 +892,6 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                 children: [
                                   const _OutlinedTitle(text: '回憶vlog'),
                                   const Spacer(),
-
                                   _ActionIcon(
                                     icon: Icons.download_rounded,
                                     onTap: () {
@@ -1022,21 +908,10 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                       _saveVlogToGallery();
                                     },
                                   ),
-
                                   const SizedBox(width: 12),
                                   _ActionIcon(
                                     icon: Icons.share_rounded,
-                                    onTap: () {
-                                      if (postcards.isEmpty) {
-                                        _showMessage('目前沒有可分享的明信片');
-                                        return;
-                                      }
-
-                                      final int index =
-                                          selectedPostcardIndex ?? 0;
-
-                                      _sharePostcard(postcards[index]);
-                                    },
+                                    onTap: _shareVlog,
                                   ),
                                 ],
                               ),
@@ -1897,23 +1772,7 @@ class _PostcardVisual extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (imageUrl.isNotEmpty)
-              Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: AppColors.paper,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '圖片載入失敗',
-                      style: AppTextStyles.microLabel.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  );
-                },
-              )
+              _CachedPostcardImage(imageUrl: imageUrl, compact: true)
             else
               Container(
                 color: AppColors.paper,
@@ -2354,23 +2213,7 @@ class _ExpandedPostcard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (imageUrl.isNotEmpty)
-              Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: AppColors.paper,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '圖片載入失敗',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  );
-                },
-              )
+              _CachedPostcardImage(imageUrl: imageUrl)
             else
               Container(
                 color: AppColors.paper,
@@ -2508,5 +2351,135 @@ class _ExpandedNightPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ExpandedNightPainter oldDelegate) {
     return oldDelegate.progress != progress;
+  }
+}
+
+class _PostcardImageCache {
+  static final Map<String, Future<File?>> _tasks = {};
+
+  static Future<File?> load(String url) {
+    return _tasks.putIfAbsent(url, () => _download(url));
+  }
+
+  static Future<File?> _download(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+
+      final Directory base = await getTemporaryDirectory();
+      final Directory dir = Directory('${base.path}/postcard_cache');
+
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      final String last = uri.pathSegments.isNotEmpty
+          ? uri.pathSegments.last
+          : '';
+
+      final String name = last.isNotEmpty
+          ? last
+          : 'postcard_${url.hashCode}.png';
+
+      final File file = File('${dir.path}/$name');
+
+      if (await file.exists() && await file.length() > 0) {
+        return file;
+      }
+
+      final http.Response response = await http.get(uri);
+
+      if (response.statusCode < 200 ||
+          response.statusCode >= 300 ||
+          response.bodyBytes.isEmpty) {
+        _tasks.remove(url);
+        return null;
+      }
+
+      await file.writeAsBytes(response.bodyBytes, flush: true);
+
+      return file;
+    } catch (_) {
+      _tasks.remove(url);
+      return null;
+    }
+  }
+}
+
+class _CachedPostcardImage extends StatefulWidget {
+  final String imageUrl;
+  final bool compact;
+
+  const _CachedPostcardImage({required this.imageUrl, this.compact = false});
+
+  @override
+  State<_CachedPostcardImage> createState() => _CachedPostcardImageState();
+}
+
+class _CachedPostcardImageState extends State<_CachedPostcardImage> {
+  late Future<File?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _PostcardImageCache.load(widget.imageUrl);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CachedPostcardImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      _future = _PostcardImageCache.load(widget.imageUrl);
+    }
+  }
+
+  Widget _message(String text) {
+    return Container(
+      color: AppColors.paper,
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: widget.compact
+            ? AppTextStyles.microLabel.copyWith(color: AppColors.textPrimary)
+            : AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<File?>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Container(
+            color: AppColors.paper,
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.secondaryRed,
+              ),
+            ),
+          );
+        }
+
+        final File? file = snapshot.data;
+
+        if (file == null) {
+          return _message('圖片載入失敗');
+        }
+
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (context, error, stackTrace) => _message('圖片載入失敗'),
+        );
+      },
+    );
   }
 }

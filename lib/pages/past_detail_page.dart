@@ -67,6 +67,19 @@ class _PastDetailPageState extends State<PastDetailPage> {
     'img/home_trip.png',
   ];
 
+  List<Map<String, String>> photos = [];
+
+  String _imageUrl(String? path) {
+    final String value = path?.trim() ?? '';
+
+    if (value.isEmpty) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+
+    return '$_apiBaseUrl/${value.replaceFirst(RegExp(r'^/'), '')}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -102,7 +115,9 @@ class _PastDetailPageState extends State<PastDetailPage> {
         headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic> data = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
 
         if (data['isSuccess'] == true) {
           final dynamic result = data['Result'];
@@ -125,6 +140,29 @@ class _PastDetailPageState extends State<PastDetailPage> {
                       .toList()
                 : [];
 
+            final dynamic apiPhotos = result['photos'];
+
+            final List<Map<String, String>> loadedPhotos = apiPhotos is List
+                ? apiPhotos
+                      .whereType<Map>()
+                      .map(
+                        (item) => {
+                          'url': _imageUrl(item['image_url']?.toString()),
+                          'name': item['place_name']?.toString() ?? '',
+                        },
+                      )
+                      .where((item) => item['url']!.isNotEmpty)
+                      .toList()
+                : [];
+
+            final String cover = _imageUrl(
+              result['cover_image_url']?.toString(),
+            );
+
+            if (loadedPhotos.isEmpty && cover.isNotEmpty) {
+              loadedPhotos.add({'url': cover, 'name': ''});
+            }
+
             if (!mounted) return;
 
             setState(() {
@@ -141,6 +179,8 @@ class _PastDetailPageState extends State<PastDetailPage> {
               region = apiRegion is String ? apiRegion : '';
 
               routeSummary = routes;
+
+              photos = loadedPhotos;
 
               isLoading = false;
             });
@@ -210,8 +250,8 @@ class _PastDetailPageState extends State<PastDetailPage> {
             options: FlutterCarouselOptions(
               height: 128,
               viewportFraction: 0.68,
-              initialPage: 1,
-              enableInfiniteScroll: true,
+              initialPage: 0,
+              enableInfiniteScroll: photos.length > 1,
               autoPlay: false,
               enlargeCenterPage: true,
               showIndicator: false,
@@ -219,9 +259,18 @@ class _PastDetailPageState extends State<PastDetailPage> {
               scrollDirection: Axis.horizontal,
               enlargeStrategy: CenterPageEnlargeStrategy.scale,
             ),
-            items: photoAssets.map((asset) {
-              return _PastPhoto(assetPath: asset);
-            }).toList(),
+            items: photos.isEmpty
+                ? photoAssets
+                      .map((asset) => _PastPhoto(assetPath: asset, label: ''))
+                      .toList()
+                : photos
+                      .map(
+                        (photo) => _PastPhoto(
+                          imageUrl: photo['url'],
+                          label: photo['name'] ?? '',
+                        ),
+                      )
+                      .toList(),
           ),
         ),
         const SizedBox(height: 8),
@@ -352,6 +401,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
       '八',
       '九',
       '十',
+      '十一',
     ];
 
     if (number >= 1 && number < numbers.length) {
@@ -363,12 +413,24 @@ class _PastDetailPageState extends State<PastDetailPage> {
 }
 
 class _PastPhoto extends StatelessWidget {
-  final String assetPath;
+  final String? imageUrl;
+  final String? assetPath;
+  final String label;
 
-  const _PastPhoto({required this.assetPath});
+  const _PastPhoto({this.imageUrl, this.assetPath, required this.label});
+
+  Widget _fallback() {
+    return Container(
+      color: AppColors.paper,
+      alignment: Alignment.center,
+      child: const Icon(Icons.image_not_supported_outlined, color: _darkBrown),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final String url = imageUrl ?? '';
+
     return Container(
       width: 174,
       height: 122,
@@ -383,18 +445,27 @@ class _PastPhoto extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
-              child: Image.asset(
-                assetPath,
+              child: SizedBox(
                 width: double.infinity,
                 height: double.infinity,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
+                child: url.isNotEmpty
+                    ? Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
+                        errorBuilder: (_, __, ___) => _fallback(),
+                      )
+                    : assetPath != null
+                    ? Image.asset(assetPath!, fit: BoxFit.cover)
+                    : _fallback(),
               ),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            '臺南赤崁樓',
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: AppTextStyles.microBold.copyWith(color: _darkBrown),
           ),

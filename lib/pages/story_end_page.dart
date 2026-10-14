@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../api/story_api.dart';
+import 'vlog_check_page.dart';
 
 import '../block/navigationbar.dart';
 
@@ -22,7 +24,9 @@ const Color _buttonOuter = AppColors.primary;
 const String _badgeAsset = 'img/Badge_location.png';
 
 class StoryEndPage extends StatefulWidget {
-  const StoryEndPage({super.key});
+  final String storyId;
+
+  const StoryEndPage({super.key, this.storyId = ''});
 
   @override
   State<StoryEndPage> createState() => _StoryEndPageState();
@@ -33,6 +37,8 @@ class _StoryEndPageState extends State<StoryEndPage> {
   static const double designHeight = 760;
 
   int currentIndex = 1;
+
+  Map<String, dynamic>? _result;
 
   final GlobalKey<_EndGachaMachineState> _gachaKey =
       GlobalKey<_EndGachaMachineState>();
@@ -51,12 +57,23 @@ class _StoryEndPageState extends State<StoryEndPage> {
       ),
     );
   }
-  void goHome() {
-    Navigator.pushReplacementNamed(context, '/home');
+
+  void goVlog() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => VlogCheckPage(storyId: widget.storyId)),
+    );
   }
 
   void startGacha() {
     _gachaKey.currentState?.startGacha();
+  }
+
+  void _onResult(Map<String, dynamic> result) {
+    if (!mounted) return;
+
+    setState(() {
+      _result = result;
+    });
   }
 
   @override
@@ -78,11 +95,11 @@ class _StoryEndPageState extends State<StoryEndPage> {
                   child: ColoredBox(color: _backgroundColor),
                 ),
 
-                // 整個畫面皆可點擊抽扭蛋。
+                // 抽取失敗時點擊畫面可重試。
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    onTap: startGacha,
+                    onTap: _result == null ? startGacha : null,
                     child: const SizedBox.expand(),
                   ),
                 ),
@@ -113,7 +130,9 @@ class _StoryEndPageState extends State<StoryEndPage> {
                         scale: 1.06,
                         child: Text(
                           '尋回真相',
-                          style: AppTextStyles.subtitle.copyWith(color: _subtitleColor).copyWith(height: 1, letterSpacing: 1.2),
+                          style: AppTextStyles.subtitle
+                              .copyWith(color: _subtitleColor)
+                              .copyWith(height: 1, letterSpacing: 1.2),
                         ),
                       ),
                     ),
@@ -130,7 +149,11 @@ class _StoryEndPageState extends State<StoryEndPage> {
                     child: Transform.scale(
                       scale: 1.08,
                       alignment: Alignment.topCenter,
-                      child: _EndGachaMachine(key: _gachaKey),
+                      child: _EndGachaMachine(
+                        key: _gachaKey,
+                        storyId: widget.storyId,
+                        onResult: _onResult,
+                      ),
                     ),
                   ),
                 ),
@@ -145,7 +168,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                     child: Transform.scale(
                       scale: 1.08,
                       alignment: Alignment.center,
-                      child: _EndResultCard(),
+                      child: _EndResultCard(result: _result),
                     ),
                   ),
                 ),
@@ -161,24 +184,26 @@ class _StoryEndPageState extends State<StoryEndPage> {
                         scale: 1.06,
                         child: Text(
                           '回憶紀錄片請至過往查看',
-                          style: AppTextStyles.bodyEmphasisBold.copyWith(color: const Color.fromARGB(188, 255, 255, 255)).copyWith(height: 1, letterSpacing: 0.5),
+                          style: AppTextStyles.bodyEmphasisBold
+                              .copyWith(
+                                color: const Color.fromARGB(188, 255, 255, 255),
+                              )
+                              .copyWith(height: 1, letterSpacing: 0.5),
                         ),
                       ),
                     ),
                   ),
                 ),
 
-                // 返回首頁。
-                Positioned(
-                  left: 45,
-                  right: 45,
-                  top: 620,
-                  height: 54,
-                  child: _EndButton(
-                    text: '返回首頁',
-                    onTap: goHome,
+                // 前往製作 Vlog。
+                if (_result != null)
+                  Positioned(
+                    left: 45,
+                    right: 45,
+                    top: 620,
+                    height: 54,
+                    child: _EndButton(text: '前往製作 Vlog', onTap: goVlog),
                   ),
-                ),
               ],
             ),
           ),
@@ -195,7 +220,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
 
 class _OutlinedTitle extends StatelessWidget {
   final String text;
-const _OutlinedTitle({required this.text});
+  const _OutlinedTitle({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -204,17 +229,21 @@ const _OutlinedTitle({required this.text});
       children: [
         Text(
           text,
-          style: AppTextStyles.display.copyWith(color: _titleColor).copyWith(
-            height: 1,
-            foreground: Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 3.5
-              ..color = Colors.black,
-          ),
+          style: AppTextStyles.display
+              .copyWith(color: _titleColor)
+              .copyWith(
+                height: 1,
+                foreground: Paint()
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 3.5
+                  ..color = Colors.black,
+              ),
         ),
         Text(
           text,
-          style: AppTextStyles.display.copyWith(color: Colors.white).copyWith(height: 1),
+          style: AppTextStyles.display
+              .copyWith(color: Colors.white)
+              .copyWith(height: 1),
         ),
       ],
     );
@@ -226,7 +255,14 @@ const _OutlinedTitle({required this.text});
 // ============================================================
 
 class _EndGachaMachine extends StatefulWidget {
-  const _EndGachaMachine({super.key});
+  final String storyId;
+  final ValueChanged<Map<String, dynamic>> onResult;
+
+  const _EndGachaMachine({
+    super.key,
+    required this.storyId,
+    required this.onResult,
+  });
 
   @override
   State<_EndGachaMachine> createState() => _EndGachaMachineState();
@@ -252,6 +288,10 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
       vsync: this,
       duration: const Duration(milliseconds: 1050),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) startGacha();
+    });
   }
 
   @override
@@ -261,9 +301,16 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
     super.dispose();
   }
 
+  Map<String, dynamic>? _result;
+
   // 開始抽扭蛋。
   Future<void> startGacha() async {
     if (_isPlaying) {
+      return;
+    }
+
+    if (widget.storyId.isEmpty) {
+      _showError('找不到劇本 ID');
       return;
     }
 
@@ -271,10 +318,18 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
       _isPlaying = true;
     });
 
+    final Future<Object> draw = _result != null
+        ? Future<Object>.value(_result!)
+        : StoryApi.drawBadge(
+            storyId: widget.storyId,
+          ).then<Object>((value) => value).catchError((Object e) => e);
+
     await Future.wait([
       _knobController.forward(from: 0),
       _shakeController.forward(from: 0),
     ]);
+
+    final Object out = await draw;
 
     if (!mounted) {
       return;
@@ -284,12 +339,26 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
       _isPlaying = false;
     });
 
-    // 顯示全螢幕獎勵動畫。
-    await _showRewardDialog();
+    if (out is! Map<String, dynamic>) {
+      _showError(out.toString().replaceFirst('Exception: ', ''));
+      return;
+    }
+
+    _result = out;
+
+    widget.onResult(out);
+
+    await _showRewardDialog(out);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   // 顯示全螢幕黑幕與獎勵動畫。
-  Future<void> _showRewardDialog() async {
+  Future<void> _showRewardDialog(Map<String, dynamic> result) async {
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -297,7 +366,7 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
       barrierLabel: '獎勵動畫',
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return const _FullScreenRewardOverlay();
+        return _FullScreenRewardOverlay(result: result);
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
@@ -590,7 +659,9 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
 // ============================================================
 
 class _FullScreenRewardOverlay extends StatefulWidget {
-  const _FullScreenRewardOverlay();
+  final Map<String, dynamic> result;
+
+  const _FullScreenRewardOverlay({required this.result});
 
   @override
   State<_FullScreenRewardOverlay> createState() =>
@@ -605,6 +676,22 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
   late final AnimationController _badgeController;
 
   final Color _capsuleColor = const Color(0xFFF3B68E);
+
+  Map<String, dynamic> get _badge {
+    final dynamic badge = widget.result['badge'];
+
+    return badge is Map ? Map<String, dynamic>.from(badge) : {};
+  }
+
+  String get _badgeImage => _badge['b_image']?.toString().trim() ?? '';
+
+  String get _badgeSeries {
+    final String series = _badge['b_fication']?.toString().trim() ?? '';
+
+    return series.isEmpty ? '' : '$series系列';
+  }
+
+  String get _badgeName => _badge['b_name']?.toString().trim() ?? '';
 
   @override
   void initState() {
@@ -832,18 +919,19 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                           ],
                         ),
                         child: ClipOval(
-                          child: Image.asset(
-                            _badgeAsset,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.workspace_premium_rounded,
-                                color: Color(0xFFDEB019),
-                                size: 60,
-                              );
-                            },
-                          ),
+                          child: _badgeImage.isEmpty
+                              ? Image.asset(_badgeAsset, fit: BoxFit.contain)
+                              : Image.network(
+                                  _badgeImage,
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      _badgeAsset,
+                                      fit: BoxFit.contain,
+                                    );
+                                  },
+                                ),
                         ),
                       ),
                     ),
@@ -857,15 +945,45 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 20,
+                  bottom: 0,
                   child: Opacity(
                     opacity: badgeOpacity,
-                    child: Text(
-                      '獲得府城探索徽章',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyEmphasisBold.copyWith(color: const Color(0xFFFFF4C9)).copyWith(shadows: const [
-                          Shadow(color: Colors.black, blurRadius: 5),
-                        ]),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_badgeSeries.isNotEmpty)
+                          Text(
+                            _badgeSeries,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.captionBold.copyWith(
+                              color: const Color(0xFFFFF4C9),
+                              shadows: const [
+                                Shadow(color: Colors.black, blurRadius: 5),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _badgeName.isEmpty ? '獲得新徽章' : _badgeName,
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.bodyEmphasisBold.copyWith(
+                            color: const Color(0xFFFFF4C9),
+                            shadows: const [
+                              Shadow(color: Colors.black, blurRadius: 5),
+                            ],
+                          ),
+                        ),
+                        if (widget.result['is_new'] == false) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '這枚徽章你已經擁有',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.captionBold.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -1039,10 +1157,40 @@ class _CapsuleHalf extends StatelessWidget {
 // ============================================================
 
 class _EndResultCard extends StatelessWidget {
-const _EndResultCard();
+  final Map<String, dynamic>? result;
+
+  const _EndResultCard({required this.result});
+
+  String _text(dynamic value) => value?.toString().trim() ?? '';
+
+  List<String> _lines() {
+    final Map<String, dynamic>? data = result;
+
+    if (data == null) {
+      return const ['徽章抽取中……'];
+    }
+
+    final dynamic rawBadge = data['badge'];
+    final Map<String, dynamic> badge = rawBadge is Map
+        ? Map<String, dynamic>.from(rawBadge)
+        : {};
+
+    final String series = _text(badge['b_fication']);
+    final String name = _text(badge['b_name']);
+    final String thing = _text(badge['b_thing']);
+
+    return [
+      if (series.isNotEmpty) '徽章系列：$series',
+      if (name.isNotEmpty) '徽章名稱：$name',
+      if (thing.isNotEmpty) '徽章說明：$thing',
+      '獲得狀態：${data['is_new'] == false ? '已擁有' : '新徽章'}',
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<String> lines = _lines();
+
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -1068,11 +1216,10 @@ const _EndResultCard();
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _EndResultLine(text: '遊踏步數：8,432 步'),
-              const SizedBox(height: 8),
-              _EndResultLine(text: '破解謎題：16/16'),
-              const SizedBox(height: 8),
-              _EndResultLine(text: '尋獲卡片：10/10'),
+              for (int i = 0; i < lines.length; i++) ...[
+                if (i > 0) const SizedBox(height: 6),
+                _EndResultLine(text: lines[i]),
+              ],
             ],
           ),
         ),
@@ -1134,28 +1281,29 @@ class _DashedBorderPainter extends CustomPainter {
 
 class _EndResultLine extends StatelessWidget {
   final String text;
-const _EndResultLine({required this.text});
+  const _EndResultLine({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: AppTextStyles.sectionTitle.copyWith(color: _cardText).copyWith(height: 1),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.sectionTitle
+          .copyWith(color: _cardText)
+          .copyWith(height: 1),
     );
   }
 }
 
 // ============================================================
-// 返回首頁按鈕
+// 按鈕
 // ============================================================
 
 class _EndButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-  const _EndButton({
-    required this.text,
-    required this.onTap,
-});
+  const _EndButton({required this.text, required this.onTap});
 
   @override
   State<_EndButton> createState() => _EndButtonState();
@@ -1228,7 +1376,8 @@ class _EndButtonState extends State<_EndButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.sectionTitle.copyWith(color: AppColors.paper)
+              style: AppTextStyles.sectionTitle
+                  .copyWith(color: AppColors.paper)
                   .copyWith(height: 1.1, letterSpacing: 0.4),
             ),
           ),

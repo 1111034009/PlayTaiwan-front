@@ -124,6 +124,29 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
       ..sort((a, b) => orderOf(a).compareTo(orderOf(b)));
   }
 
+  // 輪播圖片：使用 API 回傳的 image_url；第一張只顯示圖片，其餘顯示圖片+文字
+  List<Widget> get _photoItems {
+    final nodes = _nodes;
+
+    if (nodes.isEmpty) {
+      return photoAssets
+          .map((asset) => _PolaroidPhoto(fallbackAsset: asset))
+          .toList();
+    }
+
+    return List.generate(nodes.length, (index) {
+      final Map<String, dynamic> node = nodes[index];
+      final String url = node['image_url']?.toString().trim() ?? '';
+      final String name = node['place_name']?.toString().trim() ?? '';
+
+      return _PolaroidPhoto(
+        imageUrl: url,
+        fallbackAsset: photoAssets[index % photoAssets.length],
+        caption: index == 0 ? null : name,
+      );
+    });
+  }
+
   String _nodeDisplayName(Map<String, dynamic> node, int index) {
     if (index == 0) {
       return node['location_codename']?.toString() ?? '';
@@ -430,9 +453,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                             scrollDirection: Axis.horizontal,
                             enlargeStrategy: CenterPageEnlargeStrategy.scale,
                           ),
-                          items: photoAssets.map((asset) {
-                            return _PolaroidPhoto(assetPath: asset);
-                          }).toList(),
+                          items: _photoItems,
                         ),
                       ),
 
@@ -444,7 +465,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         right: 0,
                         top: 265,
                         child: Text(
-                          '←  左右滑動探索  →',
+                          '←  左右滑動探索  → \n(迷霧圖片尚未解鎖)',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.microLabel.copyWith(
                             color: _darkBrown,
@@ -458,7 +479,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                       Positioned(
                         left: 34,
                         right: 34,
-                        top: 285,
+                        top: 305,
                         bottom: 112,
                         child: _isLoadingDetail
                             ? const Center(
@@ -610,12 +631,27 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 // ============================================================================
 
 class _PolaroidPhoto extends StatelessWidget {
-  final String assetPath;
+  final String imageUrl;
+  final String fallbackAsset;
+  final String? caption;
 
-  const _PolaroidPhoto({required this.assetPath});
+  const _PolaroidPhoto({
+    this.imageUrl = '',
+    required this.fallbackAsset,
+    this.caption,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final Widget fallback = Image.asset(
+      fallbackAsset,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+    );
+    final String? text = caption;
+    final bool showCaption = text != null && text.isNotEmpty;
+
     return Container(
       width: 176,
       height: 145,
@@ -630,22 +666,30 @@ class _PolaroidPhoto extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
-              child: Image.asset(
-                assetPath,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: imageUrl.isEmpty
+                  ? fallback
+                  : Image.network(
+                      imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null ? child : fallback,
+                      errorBuilder: (context, error, stack) => fallback,
+                    ),
             ),
           ),
 
-          const SizedBox(height: 5),
-
-          Text(
-            '臺南景點',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.microTightBold.copyWith(color: _darkBrown),
-          ),
+          if (showCaption) ...[
+            const SizedBox(height: 5),
+            Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.microTightBold.copyWith(color: _darkBrown),
+            ),
+          ],
         ],
       ),
     );

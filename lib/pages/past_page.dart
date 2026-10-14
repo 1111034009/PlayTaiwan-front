@@ -73,7 +73,9 @@ class _PastPageState extends State<PastPage> {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic> data = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
 
         if (data['isSuccess'] == true) {
           final dynamic result = data['Result'];
@@ -297,6 +299,19 @@ class _PastTicket extends StatelessWidget {
                   color: const Color(0xFFE4D6B7),
                   border: Border.all(color: const Color(0xFF8C8176)),
                 ),
+                child: record.coverImageUrl.isEmpty
+                    ? const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Color(0xFF8C8176),
+                      )
+                    : Image.network(
+                        record.coverImageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Color(0xFF8C8176),
+                        ),
+                      ),
               ),
             ),
             Positioned(

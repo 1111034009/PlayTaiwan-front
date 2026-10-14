@@ -150,6 +150,8 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacementNamed(context, '/home');
         } else if (accountType == 2) {
           Navigator.pushReplacementNamed(context, '/merchant-home');
+        } else if (accountType == 3) {
+          Navigator.pushReplacementNamed(context, '/admin');
         } else {
           ScaffoldMessenger.of(
             context,
