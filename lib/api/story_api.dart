@@ -158,20 +158,68 @@ class StoryApi {
     return file.path;
   }
 
+  /// NPC 語音要排隊，每隔幾秒查一次進度，最多等多久
+  static const Duration _voicePollInterval = Duration(seconds: 2);
+  static const Duration _voiceTimeout = Duration(minutes: 2);
+
+  /// 後端 NPC 語音是排隊模式：送出後只拿到 task_id，
+  /// 每隔幾秒查 GET /api/Npc/Speak/{task_id}，做好（有 audio_url）時下載語音檔、回傳本機路徑。
+  /// 等的時候把「語音等待中／生成中」交給 [onStatus]；失敗或等太久就丟出錯誤
   static Future<String> _downloadResultAudio(
     Map<String, dynamic> data,
-    String failMessage,
-  ) {
-    final dynamic result = data['Result'];
-    final String audioUrl = result is Map
-        ? (result['audio_url']?.toString().trim() ?? '')
-        : '';
+    String failMessage, {
+    void Function(String status)? onStatus,
+  }) async {
+    Map<String, dynamic> result = _voiceResult(data);
+    final String taskId = result['task_id']?.toString().trim() ?? '';
+    final DateTime deadline = DateTime.now().add(_voiceTimeout);
 
-    if (audioUrl.isEmpty) {
-      throw Exception('$failMessage：沒有回傳 audio_url');
+    while (true) {
+      final String audioUrl = result['audio_url']?.toString().trim() ?? '';
+
+      if (audioUrl.isNotEmpty) {
+        return _downloadAudio(audioUrl);
+      }
+
+      if (taskId.isEmpty) {
+        throw Exception('$failMessage：沒有回傳 task_id');
+      }
+
+      if (DateTime.now().isAfter(deadline)) {
+        throw Exception('$failMessage：語音還在排隊，請稍後再試');
+      }
+
+      onStatus?.call(_voiceStatusText(result));
+      await Future.delayed(_voicePollInterval);
+
+      // 生成失敗時後端回 isSuccess = false，_storyRequest 會丟出失敗原因
+      result = _voiceResult(
+        await _storyRequest(
+          method: 'GET',
+          path: '/api/Npc/Speak/${Uri.encodeComponent(taskId)}',
+          failMessage: failMessage,
+        ),
+      );
+    }
+  }
+
+  static Map<String, dynamic> _voiceResult(Map<String, dynamic> data) {
+    final dynamic result = data['Result'];
+
+    return result is Map ? Map<String, dynamic>.from(result) : {};
+  }
+
+  /// 語音進度給玩家看的文字：等待中（排第幾位）、生成中
+  static String _voiceStatusText(Map<String, dynamic> result) {
+    if (result['status'] != 'waiting') {
+      return '語音生成中…';
     }
 
-    return _downloadAudio(audioUrl);
+    final int? position = int.tryParse(
+      result['queue_position']?.toString() ?? '',
+    );
+
+    return position != null ? '語音等待中（排第 $position 位）…' : '語音等待中…';
   }
 
   static Future<String> preparePrologueVoice({required String storyId}) async {
@@ -184,11 +232,18 @@ class StoryApi {
     return _downloadResultAudio(data, '前傳語音產生失敗');
   }
 
+  /// 文字轉語音，排隊做好後回傳下載好的語音檔路徑。
+  /// [npcName] 是唸這句的 NPC（例如薯光、阿達力），沒給時後端用薯光；
+  /// [voice] 是 NPC 的聲線（後端已改用 npc_name 決定聲音）；[onStatus] 會收到「語音等待中／生成中」
   static Future<String> prepareNpcVoice({
     required String text,
-    String voice = 'zh-TW-HsiaoChenNeural',
+    String? voice,
+    String? npcName,
+    void Function(String status)? onStatus,
   }) async {
     final String cleanText = text.trim();
+    final String cleanVoice = voice?.trim() ?? '';
+    final String cleanNpcName = npcName?.trim() ?? '';
 
     if (cleanText.isEmpty) {
       throw Exception('NPC 語音文字不能為空');
@@ -198,10 +253,14 @@ class StoryApi {
       method: 'POST',
       path: '/api/Npc/Speak',
       failMessage: 'NPC 語音產生失敗',
-      body: {'text': cleanText, 'voice': voice},
+      body: {
+        'text': cleanText,
+        if (cleanVoice.isNotEmpty) 'voice': cleanVoice,
+        if (cleanNpcName.isNotEmpty) 'npc_name': cleanNpcName,
+      },
     );
 
-    return _downloadResultAudio(data, 'NPC 語音產生失敗');
+    return _downloadResultAudio(data, 'NPC 語音產生失敗', onStatus: onStatus);
   }
 
   static Future<Map<String, dynamic>> getCurrentPlaying() async {

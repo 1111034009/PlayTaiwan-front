@@ -73,9 +73,10 @@ class TreasureMap extends StatefulWidget {
   )?
   onDoTasks;
 
-  /// 破了一關：後端的進度說這一關過了才算，不管是自己做完任務、隊友做完，還是示範模式直接破關。[node] 是剛破的那一關。
-  /// 正式 App 用來在破關的時候自動跳出這一關的明信片。答題頁開著的時候不會叫，等它關掉、地圖重新問過進度才叫
-  final void Function(MapNode node)? onStageCleared;
+  /// 破了一關：後端的進度說這一關過了才算，不管是自己做完任務、隊友做完，還是示範模式直接破關。
+  /// [node] 是剛破的那一關，[next] 是跟著解鎖的下一關（全部破關時是 null）。
+  /// 正式 App 用來在破關的時候播破關劇情、自動跳出這一關的明信片。答題頁開著的時候不會叫，等它關掉、地圖重新問過進度才叫
+  final void Function(MapNode node, MapNode? next)? onStageCleared;
 
   @override
   State<TreasureMap> createState() => _TreasureMapState();
@@ -317,6 +318,7 @@ class _TreasureMapState extends State<TreasureMap> {
 
     if (after > before) {
       final cleared = _nodes[before];
+      final next = _finished ? null : _nodes[after];
       _stopSim();
       setState(() {
         _selectedPlace = null;
@@ -326,13 +328,13 @@ class _TreasureMapState extends State<TreasureMap> {
         _dropDetour();
       });
       _snack(
-        _finished
+        next == null
             ? '全部破關！最後一關是「${cleared.label}」'
-            : '第 ${before + 1} 關破關，這裡是「${cleared.label}」。下一關：${_nodes[after].label}',
+            : '第 ${before + 1} 關破關，這裡是「${cleared.label}」。下一關：${next.label}',
         Pal.moss,
       );
       _enterStage();
-      widget.onStageCleared?.call(cleared);
+      widget.onStageCleared?.call(cleared, next);
     } else if (after < before) {
       // 進度被重設（示範模式的重來）
       _stopSim();

@@ -12,6 +12,7 @@ import '../route_map/api.dart';
 import '../route_map/models.dart';
 import '../route_map/pages/treasure_map.dart';
 import '../route_map/theme.dart';
+import 'story_play_page.dart';
 import 'story_postcard_page.dart';
 import 'story_task_page.dart';
 
@@ -49,8 +50,8 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   /// 做任務時在拍照任務交的照片，key 是節點代號：那一關破關時拿來做明信片
   final Map<int, XFile> _taskPhotos = {};
 
-  /// 破關的明信片一張一張來：上一張還開著時又破一關（例如隊友做完的），等它關掉再跳下一張
-  Future<void> _postcards = Future.value();
+  /// 破關的劇情和明信片一關一關來：上一關的還開著時又破一關（例如隊友做完的），等它關掉再輪到下一關
+  Future<void> _afterClear = Future.value();
 
   @override
   void initState() {
@@ -173,14 +174,16 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                             final photo = result?.photo;
                             if (photo != null) _taskPhotos[node.nodeId] = photo;
                           },
-                          // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，自動跳出這一關的明信片
-                          onStageCleared: (node) {
-                            _postcards = _postcards.then((_) async {
+                          // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，先播破關劇情，播完自動跳出這一關的明信片
+                          onStageCleared: (node, next) {
+                            _afterClear = _afterClear.then((_) async {
+                              // 劇情或明信片哪一個沒做成，都不影響另一個和之後的
+                              try {
+                                if (mounted) await _playStageStory(node, next);
+                              } catch (_) {}
                               try {
                                 if (mounted) await _makePostcard(story, node, _taskPhotos.remove(node.nodeId));
-                              } catch (_) {
-                                // 這一張沒做成不影響之後的
-                              }
+                              } catch (_) {}
                             });
                           },
                           onPostcards: (have, total) {
@@ -208,6 +211,65 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
         bottomNavigationBar: const AppNavigationBar(currentIndex: 1),
       ),
     );
+  }
+
+  /// 破關劇情：剛破的這一關的完成劇情，接著跟著解鎖的下一關的開場白，在劇情頁一句一句播、NPC 唸出來。
+  /// - 完成劇情：GET /api/Task/Node/{這一關} 的 node.success_text，由這一站的 NPC（npc）說
+  /// - 開場白：GET /api/Map/Node/{下一關}/Interact 的 npc_dialogue（剛解鎖、還沒抵達也拿得到），由劇本的 NPC 說
+  /// 背景是那一站的情境圖（Interact 的 scene_image_url）：這一關抵達過是景點照片，下一關還沒到是迷霧圖。
+  /// 最後一關破關就只有完成劇情；兩段都拿不到就不播
+  Future<void> _playStageStory(MapNode cleared, MapNode? next) async {
+    final responses = await Future.wait([
+      _tryGet('/api/Task/Node/${cleared.nodeId}'),
+      _tryGet('/api/Map/Node/${cleared.nodeId}/Interact'),
+      if (next != null) _tryGet('/api/Map/Node/${next.nodeId}/Interact'),
+    ]);
+    final play = responses[0];
+    final clearedScene = responses[1];
+    final nextScene = next == null ? null : responses[2];
+    final npc = play?['npc'] as Map<String, dynamic>?;
+
+    final lines = [
+      ...splitStoryLines(
+        _text((play?['node'] as Map<String, dynamic>?)?['success_text']) ?? '',
+        speaker: _text(npc?['npc_name']) ?? '旁白',
+        voice: _text(npc?['npc_voice']),
+        backgroundUrl: _text(clearedScene?['scene_image_url']),
+      ),
+      ...splitStoryLines(
+        _text(nextScene?['npc_dialogue']) ?? '',
+        speaker: _text(nextScene?['npc_name']) ?? '旁白',
+        voice: _text(nextScene?['npc_voice']),
+        backgroundUrl: _text(nextScene?['scene_image_url']),
+      ),
+    ];
+    if (lines.isEmpty || !mounted) return;
+
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (page) => StoryPage(
+        lines: lines,
+        locationCurrent: _cleared,
+        locationTotal: _total,
+        postcardCurrent: _postcardCurrent,
+        postcardTotal: _postcardTotal,
+        onFinish: () => Navigator.of(page).pop(),
+      ),
+    ));
+  }
+
+  /// 拿不到（例如還沒抵達、連不到後端）就是 null
+  static Future<Map<String, dynamic>?> _tryGet(String path) async {
+    try {
+      return await Api.instance.get(path) as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 後端的文字欄位：去掉頭尾空白，空的當成沒有
+  static String? _text(Object? value) {
+    final text = value is String ? value.trim() : '';
+    return text.isEmpty ? null : text;
   }
 
   /// 破關時自動跳出來的明信片：用這一關拍照任務交的照片；沒有的話請玩家拍一張或從相簿選（也可以先不要）。

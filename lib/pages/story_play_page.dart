@@ -22,10 +22,36 @@ const Color _skipBorder = Color(0xB8E3D1A4);
 
 const Color _storyRed = AppColors.primaryAccent;
 
+/// 劇情播放頁：一次一句，NPC 把台詞唸出來，點對話框看下一句，右上可以跳過。
+/// - 前傳：確認劇本、隊伍出發後播。[generatedScript] 是劇本詳情（{'story_id', 'data'}），
+///   播劇本前傳和第一關的開場白，播完進地圖頁
+/// - 破關劇情：地圖頁直接給要播的台詞（[lines]），播完或跳過時叫 [onFinish]
 class StoryPage extends StatefulWidget {
   final Map<String, dynamic>? generatedScript;
 
-  const StoryPage({super.key, this.generatedScript});
+  /// 要播的台詞；有給就不看 [generatedScript]
+  final List<StoryLine>? lines;
+
+  /// 上列的地點探索度、明信片收集；沒給就用劇本的站數算（剛開始都是 0）
+  final int? locationCurrent;
+  final int? locationTotal;
+  final int? postcardCurrent;
+  final int? postcardTotal;
+
+  /// 播完或跳過時；沒給就進地圖頁。
+  /// 有給的時候不顯示下面的導覽列：這一頁是疊在地圖頁上面的，從這裡切去別頁會留下底下那一頁
+  final VoidCallback? onFinish;
+
+  const StoryPage({
+    super.key,
+    this.generatedScript,
+    this.lines,
+    this.locationCurrent,
+    this.locationTotal,
+    this.postcardCurrent,
+    this.postcardTotal,
+    this.onFinish,
+  });
 
   @override
   State<StoryPage> createState() => _StoryPageState();
@@ -38,23 +64,21 @@ class _StoryPageState extends State<StoryPage> {
   static const double maxScale = 1.15;
   static const double topSpacePercent = 0.05;
 
+  /// 語音同時準備幾句
+  static const int voiceWorkers = 3;
+
   final AudioPlayer _npcAudioPlayer = AudioPlayer();
 
   bool _isSpeaking = false;
   bool _isPreparing = true;
   bool _isDisposed = false;
+  bool _isFinished = false;
 
   String _loadingText = '正在準備劇情資訊…';
 
   double _voiceProgress = 0.0;
 
   int currentIndex = 1;
-
-  int locationCurrent = 1;
-  int locationTotal = 16;
-
-  int postcardCurrent = 1;
-  int postcardTotal = 10;
 
   int storyIndex = 0;
 
@@ -63,6 +87,7 @@ class _StoryPageState extends State<StoryPage> {
 
   final math.Random _random = math.Random();
 
+  /// 台詞沒有指定背景圖時用的背景
   late String backgroundUrl;
 
   List<StoryLine> _storyLines = [];
@@ -111,319 +136,143 @@ class _StoryPageState extends State<StoryPage> {
       });
   }
 
-  String get _storyId {
-    final String id =
-        widget.generatedScript?['story_id']?.toString().trim() ?? '';
+  Map<String, dynamic>? get _npc {
+    final dynamic npc = _scriptData?['npc'];
 
-    return id.isNotEmpty
-        ? id
-        : _scriptData?['story_id']?.toString().trim() ?? '';
+    return npc is Map ? Map<String, dynamic>.from(npc) : null;
   }
 
   String get _npcName {
-    final dynamic npc = _scriptData?['npc'];
+    final String name = _npc?['name']?.toString().trim() ?? '';
 
-    if (npc is Map) {
-      final String name = npc['name']?.toString().trim() ?? '';
-
-      if (name.isNotEmpty) {
-        return name;
-      }
-    }
-
-    return 'NPC';
+    return name.isNotEmpty ? name : 'NPC';
   }
 
-  Map<String, String> _parseDialogue(String dialogue) {
-    final String value = dialogue.trim();
+  /// 唸前傳的 NPC（劇本的 NPC）；沒有時後端用薯光
+  String? get _npcSpeaker {
+    final String name = _npc?['name']?.toString().trim() ?? '';
 
-    if (value.isEmpty) {
-      return {'speaker': _npcName, 'text': ''};
-    }
-
-    int separatorIndex = value.indexOf('：');
-
-    if (separatorIndex < 0) {
-      separatorIndex = value.indexOf(':');
-    }
-
-    if (separatorIndex < 0) {
-      return {'speaker': _npcName, 'text': value};
-    }
-
-    final String speaker = value.substring(0, separatorIndex).trim();
-
-    final String text = value.substring(separatorIndex + 1).trim();
-
-    return {'speaker': speaker.isEmpty ? _npcName : speaker, 'text': text};
+    return name.isNotEmpty ? name : null;
   }
 
-  List<String> _splitSentences(String text) {
-    final String value = text.trim();
+  /// 劇本 NPC 的聲線；沒有時後端用預設聲線
+  String? get _npcVoice {
+    final String voice = _npc?['voice']?.toString().trim() ?? '';
 
-    if (value.isEmpty) {
-      return [];
-    }
-
-    final List<String> result = [];
-
-    final StringBuffer current = StringBuffer();
-
-    for (int i = 0; i < value.length; i++) {
-      final String char = value[i];
-
-      current.write(char);
-
-      if (char == '。' ||
-          char == '！' ||
-          char == '？' ||
-          char == '!' ||
-          char == '?') {
-        final String sentence = current.toString().trim();
-
-        if (sentence.isNotEmpty) {
-          result.add(sentence);
-        }
-
-        current.clear();
-      }
-    }
-
-    final String remaining = current.toString().trim();
-
-    if (remaining.isNotEmpty) {
-      result.add(remaining);
-    }
-
-    return result;
+    return voice.isNotEmpty ? voice : null;
   }
 
-  void _addTextAsSentences({
-    required List<StoryLine> target,
-    required String speaker,
-    required String text,
-    required int nodeIndex,
-  }) {
-    final List<String> sentences = _splitSentences(text);
+  int get _locationCurrent => widget.locationCurrent ?? 0;
+  int get _locationTotal => widget.locationTotal ?? _nodes.length;
+  int get _postcardCurrent => widget.postcardCurrent ?? 0;
+  int get _postcardTotal => widget.postcardTotal ?? _nodes.length;
 
-    for (final String sentence in sentences) {
-      target.add(
-        StoryLine(nodeIndex: nodeIndex, name: speaker, text: sentence),
-      );
-    }
-  }
-
-  void _collectDialogueValue({
-    required List<StoryLine> target,
-    required dynamic value,
-    required int nodeIndex,
-    String? fallbackSpeaker,
-  }) {
-    if (value == null) {
-      return;
-    }
-
-    if (value is String) {
-      final String text = value.trim();
-
-      if (text.isEmpty) {
-        return;
-      }
-
-      final Map<String, String> parsed = _parseDialogue(text);
-
-      final bool hasSpeaker = text.contains('：') || text.contains(':');
-
-      _addTextAsSentences(
-        target: target,
-        speaker: hasSpeaker
-            ? parsed['speaker'] ?? _npcName
-            : fallbackSpeaker ?? _npcName,
-        text: hasSpeaker ? parsed['text'] ?? '' : text,
-        nodeIndex: nodeIndex,
-      );
-
-      return;
-    }
-
-    if (value is List) {
-      for (final dynamic item in value) {
-        _collectDialogueValue(
-          target: target,
-          value: item,
-          nodeIndex: nodeIndex,
-          fallbackSpeaker: fallbackSpeaker,
-        );
-      }
-
-      return;
-    }
-
-    if (value is Map) {
-      final Map<String, dynamic> map = Map<String, dynamic>.from(value);
-
-      final dynamic speakerValue =
-          map['speaker'] ??
-          map['name'] ??
-          map['character'] ??
-          fallbackSpeaker ??
-          _npcName;
-
-      final String speaker = speakerValue.toString().trim();
-
-      final dynamic textValue =
-          map['text'] ?? map['content'] ?? map['dialogue'] ?? map['line'];
-
-      if (textValue != null) {
-        _addTextAsSentences(
-          target: target,
-          speaker: speaker.isEmpty ? _npcName : speaker,
-          text: textValue.toString(),
-          nodeIndex: nodeIndex,
-        );
-
-        return;
-      }
-
-      for (final MapEntry<String, dynamic> entry in map.entries) {
-        if (entry.key == 'speaker' ||
-            entry.key == 'name' ||
-            entry.key == 'character' ||
-            entry.key == 'text' ||
-            entry.key == 'content' ||
-            entry.key == 'dialogue' ||
-            entry.key == 'line') {
-          continue;
-        }
-
-        _collectDialogueValue(
-          target: target,
-          value: entry.value,
-          nodeIndex: nodeIndex,
-          fallbackSpeaker: entry.key,
-        );
-      }
-    }
-  }
-
-  List<StoryLine> _buildStoryLines() {
-    final List<StoryLine> lines = [];
-
-    final String preface = _scriptData?['preface']?.toString().trim() ?? '';
-
-    if (preface.isNotEmpty) {
-      lines.add(StoryLine(nodeIndex: -1, name: '旁白', text: preface));
-    }
+  /// 前傳要播的台詞：劇本前傳（旁白），接著第一關的開場白。
+  /// 第一關一開始就解鎖了，所以開場白在這裡播；之後每破一關，地圖頁會播下一關的開場白
+  List<StoryLine> _buildPrologueLines() {
+    final String preface = _scriptData?['preface']?.toString() ?? '';
 
     final List<Map<String, dynamic>> nodes = _nodes;
+    final Map<String, dynamic>? first = nodes.isEmpty ? null : nodes.first;
+    final String firstNpc = first?['npc_name']?.toString().trim() ?? '';
 
-    for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-      final Map<String, dynamic> node = nodes[nodeIndex];
-
-      final dynamic dialogues = node['dialogues'] ?? node['opening'];
-      if (dialogues is Map) {
-        final Map<String, dynamic> dialogueMap = Map<String, dynamic>.from(
-          dialogues,
-        );
-
-        for (final MapEntry<String, dynamic> entry in dialogueMap.entries) {
-          _collectDialogueValue(
-            target: lines,
-            value: entry.value,
-            nodeIndex: nodeIndex,
-            fallbackSpeaker: entry.key == 'opening' ? _npcName : null,
-          );
-        }
-      } else {
-        _collectDialogueValue(
-          target: lines,
-          value: dialogues,
-          nodeIndex: nodeIndex,
-          fallbackSpeaker: _npcName,
-        );
-      }
-    }
-
-    return lines;
+    return [
+      ...splitStoryLines(
+        preface,
+        speaker: '旁白',
+        voice: _npcVoice,
+        npcName: _npcSpeaker,
+      ),
+      if (first != null)
+        ...splitStoryLines(
+          first['opening']?.toString() ?? '',
+          speaker: firstNpc.isNotEmpty ? firstNpc : _npcName,
+          voice: _npcVoice,
+          npcName: firstNpc.isNotEmpty ? firstNpc : _npcSpeaker,
+        ),
+    ];
   }
 
+  /// 每一句先轉成語音（POST /api/Npc/Speak，排隊做好後下載）再開始播。幾句同時準備，
+  /// 排隊時讀取畫面顯示「語音等待中／生成中」；哪一句沒做成，那一句就只顯示文字，不影響其他句
   Future<void> _prepareAllVoices() async {
-    try {
-      final List<StoryLine> lines = _buildStoryLines();
+    final List<StoryLine> lines = widget.lines ?? _buildPrologueLines();
 
-      if (lines.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _storyLines = [
-              const StoryLine(nodeIndex: -1, name: '旁白', text: '目前尚未取得劇本內容。'),
-            ];
-
-            _voiceProgress = 1.0;
-            _isPreparing = false;
-          });
-        }
-
-        return;
-      }
-
-      final List<StoryLine> preparedLines = [];
-
-      if (mounted) {
-        setState(() {
-          _voiceProgress = 0.0;
-          _loadingText = '正在建立劇情語音…';
-        });
-      }
-
-      for (int i = 0; i < lines.length; i++) {
-        if (_isDisposed) {
-          return;
-        }
-
-        final StoryLine line = lines[i];
-
-        String localPath;
-
-        if (line.nodeIndex == -1 && _storyId.isNotEmpty) {
-          try {
-            localPath = await StoryApi.preparePrologueVoice(storyId: _storyId);
-          } catch (_) {
-            localPath = await StoryApi.prepareNpcVoice(text: line.text);
-          }
-        } else {
-          localPath = await StoryApi.prepareNpcVoice(text: line.text);
-        }
-
-        preparedLines.add(line.copyWith(audioPath: localPath));
-        if (mounted) {
-          setState(() {
-            _voiceProgress = (i + 1) / lines.length;
-          });
-        }
-      }
-
-      if (!mounted || _isDisposed) {
-        return;
-      }
-
+    if (lines.isEmpty) {
       setState(() {
+        _storyLines = [const StoryLine(name: '旁白', text: '目前尚未取得劇本內容。')];
+
         _voiceProgress = 1.0;
-        _storyLines = preparedLines;
-        storyIndex = 0;
         _isPreparing = false;
       });
 
-      await _playCurrentVoice();
-    } catch (e) {
-      if (!mounted || _isDisposed) {
-        return;
-      }
-
-      setState(() {
-        _isPreparing = false;
-        _loadingText = '劇情語音準備失敗';
-      });
+      return;
     }
+
+    // 台詞的背景圖先載好，換到下一段時才不會閃一下
+    for (final String url
+        in lines.map((line) => line.backgroundUrl).whereType<String>().toSet()) {
+      precacheImage(NetworkImage(url), context, onError: (error, stackTrace) {});
+    }
+
+    setState(() {
+      _voiceProgress = 0.0;
+      _loadingText = '正在建立劇情語音…';
+    });
+
+    final List<StoryLine> preparedLines = List.of(lines);
+    int next = 0;
+    int done = 0;
+
+    Future<void> worker() async {
+      while (next < lines.length && !_isDisposed) {
+        final int i = next++;
+
+        try {
+          final String localPath = await StoryApi.prepareNpcVoice(
+            text: lines[i].text,
+            voice: lines[i].voice,
+            npcName: lines[i].npcName,
+            onStatus: (status) {
+              if (mounted && !_isDisposed) {
+                setState(() {
+                  _loadingText = status;
+                });
+              }
+            },
+          );
+
+          preparedLines[i] = lines[i].copyWith(audioPath: localPath);
+        } catch (_) {
+          // 這一句沒有語音，只顯示文字
+        }
+
+        done++;
+
+        if (mounted) {
+          setState(() {
+            _voiceProgress = done / lines.length;
+          });
+        }
+      }
+    }
+
+    await Future.wait([
+      for (int k = 0; k < math.min(voiceWorkers, lines.length); k++) worker(),
+    ]);
+
+    if (!mounted || _isDisposed) {
+      return;
+    }
+
+    setState(() {
+      _voiceProgress = 1.0;
+      _storyLines = preparedLines;
+      storyIndex = 0;
+      _isPreparing = false;
+    });
+
+    await _playCurrentVoice();
   }
 
   Future<void> _playCurrentVoice() async {
@@ -504,7 +353,15 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   void finishStory() {
-    if (!mounted) {
+    // 最後一句和跳過連按時只結束一次，不然會多關掉底下的頁面
+    if (!mounted || _isFinished) {
+      return;
+    }
+
+    _isFinished = true;
+
+    if (widget.onFinish != null) {
+      widget.onFinish!();
       return;
     }
 
@@ -559,7 +416,10 @@ class _StoryPageState extends State<StoryPage> {
       ),
     );
 
-    _prepareAllVoices();
+    // 第一個畫面出來之後才開始：要用 context 預先載背景圖
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _prepareAllVoices();
+    });
   }
 
   @override
@@ -580,7 +440,7 @@ class _StoryPageState extends State<StoryPage> {
 
     final StoryLine story = _storyLines.isNotEmpty
         ? _storyLines[storyIndex.clamp(0, _storyLines.length - 1)]
-        : const StoryLine(nodeIndex: -1, name: '旁白', text: '目前尚未取得劇本內容。');
+        : const StoryLine(name: '旁白', text: '目前尚未取得劇本內容。');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -612,7 +472,9 @@ class _StoryPageState extends State<StoryPage> {
               fit: StackFit.expand,
               children: [
                 Positioned.fill(
-                  child: _BackgroundImage(imageUrl: backgroundUrl),
+                  child: _BackgroundImage(
+                    imageUrl: story.backgroundUrl ?? backgroundUrl,
+                  ),
                 ),
                 const Positioned.fill(
                   child: IgnorePointer(
@@ -642,10 +504,10 @@ class _StoryPageState extends State<StoryPage> {
                           width: topBarDesignWidth,
                           height: topBarDesignHeight,
                           child: TopBar(
-                            locationCurrent: locationCurrent,
-                            locationTotal: locationTotal,
-                            postcardCurrent: postcardCurrent,
-                            postcardTotal: postcardTotal,
+                            locationCurrent: _locationCurrent,
+                            locationTotal: _locationTotal,
+                            postcardCurrent: _postcardCurrent,
+                            postcardTotal: _postcardTotal,
                           ),
                         ),
                       ),
@@ -704,7 +566,9 @@ class _StoryPageState extends State<StoryPage> {
             );
           },
         ),
-        bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
+        bottomNavigationBar: widget.onFinish == null
+            ? AppNavigationBar(currentIndex: currentIndex)
+            : null,
       ),
     );
   }
@@ -1337,30 +1201,89 @@ class _StoryDialog extends StatelessWidget {
   }
 }
 
+/// 劇情的一句話：誰說的（名牌上的名字）、說了什麼。
+/// voice 是唸這句的聲線（NPC 的 npc_voice，沒有時後端用預設聲線）；
+/// npcName 是唸這句的 NPC（後端用它決定聲音，沒有時用薯光）；
+/// backgroundUrl 是這句的背景圖（沒有就用劇情頁隨機挑的那張）；audioPath 是準備好的語音檔
 class StoryLine {
-  final int nodeIndex;
   final String name;
   final String text;
+  final String? voice;
+  final String? npcName;
+  final String? backgroundUrl;
   final String? audioPath;
 
   const StoryLine({
-    required this.nodeIndex,
     required this.name,
     required this.text,
+    this.voice,
+    this.npcName,
+    this.backgroundUrl,
     this.audioPath,
   });
 
   StoryLine copyWith({
-    int? nodeIndex,
     String? name,
     String? text,
+    String? voice,
+    String? npcName,
+    String? backgroundUrl,
     String? audioPath,
   }) {
     return StoryLine(
-      nodeIndex: nodeIndex ?? this.nodeIndex,
       name: name ?? this.name,
       text: text ?? this.text,
+      voice: voice ?? this.voice,
+      npcName: npcName ?? this.npcName,
+      backgroundUrl: backgroundUrl ?? this.backgroundUrl,
       audioPath: audioPath ?? this.audioPath,
     );
   }
+}
+
+/// 一句話：到。！？為止，後面緊接的引號、括號算同一句
+final RegExp _sentencePattern = RegExp(r'[^。！？!?]+(?:[。！？!?]+[」』”’）)]*)?');
+
+/// 一行開頭寫明是誰說的，例如「薯光：」「薯光說：」
+final RegExp _speakerPattern = RegExp(r'^\s*([^\s：:，,。！？!?「」]{1,8}?)說?[：:]\s*');
+
+/// 把一段劇情拆成一句一句，劇情頁一次顯示、唸一句。換行也算一句結束；
+/// 一行開頭寫明「某某：」或「某某說：」的，那一行算那個人說的，其他算 [speaker] 說的
+List<StoryLine> splitStoryLines(
+  String text, {
+  required String speaker,
+  String? voice,
+  String? npcName,
+  String? backgroundUrl,
+}) {
+  final List<StoryLine> lines = [];
+
+  for (String paragraph in text.split('\n')) {
+    String name = speaker;
+
+    final RegExpMatch? said = _speakerPattern.firstMatch(paragraph);
+
+    if (said != null) {
+      name = said.group(1)!;
+      paragraph = paragraph.substring(said.end);
+    }
+
+    for (final RegExpMatch match in _sentencePattern.allMatches(paragraph)) {
+      final String sentence = match.group(0)!.trim();
+
+      if (sentence.isNotEmpty) {
+        lines.add(
+          StoryLine(
+            name: name,
+            text: sentence,
+            voice: voice,
+            npcName: npcName,
+            backgroundUrl: backgroundUrl,
+          ),
+        );
+      }
+    }
+  }
+
+  return lines;
 }
