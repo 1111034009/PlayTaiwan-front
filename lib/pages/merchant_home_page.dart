@@ -380,7 +380,7 @@ class _ManagementButtons extends StatelessWidget {
         Expanded(
           child: _ManagementButton(
             icon: Icons.assignment_outlined,
-            title: '任務管理',
+            title: '題庫管理',
             onTap: onTaskTap,
           ),
         ),

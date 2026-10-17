@@ -403,7 +403,7 @@ class _MerchantTaskPageState extends State<MerchantTaskPage> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          '任務管理',
+          '題庫管理',
           style: AppTextStyles.title.copyWith(color: _textColor),
         ),
         actions: [

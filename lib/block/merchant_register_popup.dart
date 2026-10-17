@@ -1,11 +1,11 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../api/merchant_register_api.dart';
 
 class ParsedTaiwanAddress {
   final String city;
@@ -179,7 +179,7 @@ ButtonStyle _primaryButtonStyle() {
   return ElevatedButton.styleFrom(
     backgroundColor: AppColors.primary,
     foregroundColor: Colors.white,
-    disabledBackgroundColor: AppColors.primary.withOpacity(0.45),
+    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
     elevation: 2,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
     shape: RoundedRectangleBorder(
@@ -201,7 +201,7 @@ class StorySearchPopup extends StatelessWidget {
     return showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (_) => StorySearchPopup(results: results),
     );
   }
@@ -292,12 +292,15 @@ class StorySearchPopup extends StatelessWidget {
                           ? '尚未找到符合條件的地點'
                           : '找到 ${results.length} 個地點，選擇一個帶入店家資訊',
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textPrimary.withOpacity(0.72),
+                        color: AppColors.textPrimary.withValues(alpha: 0.72),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Divider(height: 1, color: AppColors.primary.withOpacity(0.4)),
+                  Divider(
+                    height: 1,
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 12),
                   Flexible(
                     child: results.isEmpty
@@ -313,7 +316,9 @@ class StorySearchPopup extends StatelessWidget {
                                   Icon(
                                     Icons.travel_explore_rounded,
                                     size: 48,
-                                    color: AppColors.primary.withOpacity(0.7),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
                                   const SizedBox(height: 14),
                                   Text(
@@ -327,8 +332,8 @@ class StorySearchPopup extends StatelessWidget {
                                     '可以換個關鍵字搜尋，或建立新地點。',
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textPrimary.withOpacity(
-                                        0.72,
+                                      color: AppColors.textPrimary.withValues(
+                                        alpha: 0.72,
                                       ),
                                     ),
                                   ),
@@ -341,7 +346,7 @@ class StorySearchPopup extends StatelessWidget {
                             itemCount: results.length,
                             separatorBuilder: (_, __) => Divider(
                               height: 1,
-                              color: AppColors.primary.withOpacity(0.18),
+                              color: AppColors.primary.withValues(alpha: 0.18),
                             ),
                             itemBuilder: (context, index) {
                               final Map<String, dynamic> place = results[index];
@@ -369,8 +374,9 @@ class StorySearchPopup extends StatelessWidget {
                                           width: 42,
                                           height: 42,
                                           decoration: BoxDecoration(
-                                            color: AppColors.primary
-                                                .withOpacity(0.10),
+                                            color: AppColors.primary.withValues(
+                                              alpha: 0.10,
+                                            ),
                                             borderRadius: BorderRadius.circular(
                                               12,
                                             ),
@@ -403,7 +409,9 @@ class StorySearchPopup extends StatelessWidget {
                                                       .copyWith(
                                                         color: AppColors
                                                             .textPrimary
-                                                            .withOpacity(0.72),
+                                                            .withValues(
+                                                              alpha: 0.72,
+                                                            ),
                                                       ),
                                                 ),
                                               ],
@@ -416,7 +424,7 @@ class StorySearchPopup extends StatelessWidget {
                                                     ),
                                                 decoration: BoxDecoration(
                                                   color: AppColors.primary
-                                                      .withOpacity(0.10),
+                                                      .withValues(alpha: 0.10),
                                                   borderRadius:
                                                       BorderRadius.circular(20),
                                                 ),
@@ -470,7 +478,7 @@ class StoryNewPlacePopup extends StatefulWidget {
     return showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (_) => StoryNewPlacePopup(initial: initial),
     );
   }
@@ -486,16 +494,57 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _phoneController;
   late final TextEditingController _websiteController;
-  late final TextEditingController _hoursController;
   late final TextEditingController _addressController;
 
   String _category = 'Restaurant';
+  String? _subCategory;
+  List<MerchantCategory> _categories = [];
+  String? _categoriesError;
+
+  final List<_HourRow> _hours = [];
+  String? _hoursError;
+
   bool _isGeocoding = false;
   bool _approximate = false;
   double? _lat;
   double? _lng;
   String _geocodedAddress = '';
   String? _error;
+
+  static const List<MerchantCategory> _fallbackCategories = [
+    MerchantCategory(
+      category: 'Attraction',
+      name: '景點',
+      defaultSubCategory: '其他',
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Restaurant',
+      name: '餐廳',
+      defaultSubCategory: '其他',
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Hotel',
+      name: '住宿',
+      defaultSubCategory: null,
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Event',
+      name: '活動',
+      defaultSubCategory: '一般活動',
+      subCategories: [],
+    ),
+  ];
+
+  List<MerchantCategory> get _categoryList =>
+      _categories.isNotEmpty ? _categories : _fallbackCategories;
+
+  MerchantCategory get _currentCategory => _categoryList.firstWhere(
+    (MerchantCategory c) => c.category == _category,
+    orElse: () => _categoryList.first,
+  );
 
   @override
   void initState() {
@@ -509,7 +558,6 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     _descriptionController = TextEditingController(text: text('description'));
     _phoneController = TextEditingController(text: text('phone'));
     _websiteController = TextEditingController(text: text('website'));
-    _hoursController = TextEditingController(text: text('opening_hours'));
     _addressController = TextEditingController(
       text: text('full_address').isNotEmpty
           ? text('full_address')
@@ -522,6 +570,24 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
       _category = category;
     }
 
+    final String sub = text('sub_category');
+
+    if (sub.isNotEmpty) _subCategory = sub;
+
+    final dynamic hours = i['operating_hours'];
+
+    if (hours is List) {
+      for (final Map h in hours.whereType<Map>()) {
+        _hours.add(
+          _HourRow(
+            day: h['day_of_week']?.toString() ?? 'Monday',
+            open: h['open_time']?.toString() ?? '09:00',
+            close: h['close_time']?.toString() ?? '18:00',
+          ),
+        );
+      }
+    }
+
     final dynamic lat = i['lat'];
     final dynamic lng = i['lng'];
 
@@ -531,6 +597,8 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
       _approximate = i['approximate'] == true;
       _geocodedAddress = _addressController.text.trim();
     }
+
+    _loadCategories();
   }
 
   @override
@@ -539,7 +607,6 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     _descriptionController.dispose();
     _phoneController.dispose();
     _websiteController.dispose();
-    _hoursController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -551,6 +618,31 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
         _lng = null;
         _approximate = false;
         _error = null;
+      });
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final List<MerchantCategory> list =
+          await MerchantRegisterApi.fetchCategories();
+
+      if (!mounted) return;
+
+      setState(() {
+        _categories = list;
+        _categoriesError = null;
+
+        if (_subCategory != null &&
+            !_currentCategory.subCategories.contains(_subCategory)) {
+          _subCategory = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _categoriesError = '細分類載入失敗，將使用預設細分類';
       });
     }
   }
@@ -627,10 +719,6 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     return 'https://$text';
   }
 
-  String _normalizeHours(String value) {
-    return _normalizeDigits(value).replaceAll('：', ':').trim();
-  }
-
   String? _validateName(String? value) {
     final String text = value?.trim() ?? '';
 
@@ -676,43 +764,6 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     return null;
   }
 
-  String? _validateHours(String? value) {
-    final String text = _normalizeHours(value ?? '');
-
-    if (text.isEmpty) return null;
-
-    if (text.length > 100) return '營業時間不可超過 100 個字元';
-
-    final List<RegExpMatch> times = RegExp(
-      r'(\d{1,2}):(\d{2})',
-    ).allMatches(text).toList();
-
-    if (times.isEmpty) {
-      if (RegExp(r'24\s*小時|全天|全年無休').hasMatch(text)) return null;
-
-      return '請輸入營業時間，例如：每日 10:00–21:00';
-    }
-
-    for (final RegExpMatch m in times) {
-      final int hour = int.parse(m.group(1)!);
-      final int minute = int.parse(m.group(2)!);
-
-      if (minute > 59 || hour > 24 || (hour == 24 && minute != 0)) {
-        return '時間需介於 00:00 至 24:00';
-      }
-    }
-
-    final int ranges = RegExp(
-      r'\d{1,2}:\d{2}\s*[-–—~～至到]\s*\d{1,2}:\d{2}',
-    ).allMatches(text).length;
-
-    if (ranges == 0 || ranges * 2 != times.length) {
-      return '請以「開始–結束」輸入，例如：10:00–21:00';
-    }
-
-    return null;
-  }
-
   String? _validateAddress(String? value) {
     final String text = value?.trim() ?? '';
 
@@ -725,10 +776,86 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     return null;
   }
 
+  String? _checkHours() {
+    return OperatingHour.validate(
+      _hours
+          .map(
+            (_HourRow r) => OperatingHour(
+              dayOfWeek: r.day,
+              openTime: r.open,
+              closeTime: r.close,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  void _addHourRow() {
+    final _HourRow? last = _hours.isEmpty ? null : _hours.last;
+
+    final int nextDay = last == null
+        ? 0
+        : (OperatingHour.days.indexOf(last.day) + 1) % 7;
+
+    setState(() {
+      _hours.add(
+        _HourRow(
+          day: OperatingHour.days[nextDay],
+          open: last?.open ?? '09:00',
+          close: last?.close ?? '18:00',
+        ),
+      );
+      _hoursError = _checkHours();
+    });
+  }
+
+  Future<void> _pickTime(_HourRow row, {required bool isOpen}) async {
+    final List<String> parts = (isOpen ? row.open : row.close).split(':');
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 9,
+        minute: int.tryParse(parts[1]) ?? 0,
+      ),
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null || !mounted) return;
+
+    final String text =
+        '${picked.hour.toString().padLeft(2, '0')}:'
+        '${picked.minute.toString().padLeft(2, '0')}';
+
+    setState(() {
+      if (isOpen) {
+        row.open = text;
+      } else {
+        row.close = text;
+      }
+
+      _hoursError = _checkHours();
+    });
+  }
+
   void _confirm() {
     FocusScope.of(context).unfocus();
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final String? hoursError = _checkHours();
+
+    if (hoursError != null) {
+      setState(() {
+        _hoursError = hoursError;
+      });
+      return;
+    }
 
     final String address = _addressController.text.trim();
 
@@ -743,13 +870,32 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
 
     if (parsed == null) return;
 
+    final List<OperatingHour> hours =
+        _hours
+            .map(
+              (_HourRow r) => OperatingHour(
+                dayOfWeek: r.day,
+                openTime: r.open,
+                closeTime: r.close,
+              ),
+            )
+            .toList()
+          ..sort((OperatingHour a, OperatingHour b) {
+            final int byDay = OperatingHour.days
+                .indexOf(a.dayOfWeek)
+                .compareTo(OperatingHour.days.indexOf(b.dayOfWeek));
+
+            return byDay != 0 ? byDay : a.openTime.compareTo(b.openTime);
+          });
+
     Navigator.of(context).pop(<String, dynamic>{
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'phone': _phoneController.text.trim(),
       'website': _normalizeWebsite(_websiteController.text),
-      'opening_hours': _normalizeHours(_hoursController.text),
       'category': _category,
+      if (_subCategory != null) 'sub_category': _subCategory,
+      'operating_hours': hours.map((OperatingHour h) => h.toJson()).toList(),
       'city': parsed.city,
       'town': parsed.town,
       'address': parsed.address,
@@ -804,6 +950,185 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
     );
   }
 
+  Widget _timeButton(String text, VoidCallback onTap) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.bodySmallBold.copyWith(
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHourRow(int index) {
+    final _HourRow row = _hours[index];
+    final bool nextDay = row.close.compareTo(row.open) <= 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ObjectKey(row),
+                  initialValue: row.day,
+                  isExpanded: true,
+                  decoration: _inputDecoration(hintText: ''),
+                  dropdownColor: AppColors.merchantPaper,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                  items: [
+                    for (final String d in OperatingHour.days)
+                      DropdownMenuItem(
+                        value: d,
+                        child: Text(OperatingHour.dayLabels[d]!),
+                      ),
+                  ],
+                  onChanged: (String? value) {
+                    if (value == null) return;
+
+                    setState(() {
+                      row.day = value;
+                      _hoursError = _checkHours();
+                    });
+                  },
+                ),
+              ),
+              IconButton(
+                tooltip: '刪除時段',
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () {
+                  setState(() {
+                    _hours.removeAt(index);
+                    _hoursError = _checkHours();
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _timeButton(
+                    row.open,
+                    () => _pickTime(row, isOpen: true),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '~',
+                    style: AppTextStyles.bodySmallBold.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _timeButton(
+                    row.close,
+                    () => _pickTime(row, isOpen: false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (nextDay)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4, right: 6),
+                child: Text(
+                  '結束時間為隔天',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.deepOrange,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHoursEditor() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '營業時間（選填）',
+            style: AppTextStyles.bodySmallBold.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '公休日不用填；中午休息請同一天填兩段；跨夜營業的結束時間會算隔天。',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textPrimary.withValues(alpha: 0.72),
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (int i = 0; i < _hours.length; i++) _buildHourRow(i),
+          if (_hoursError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _hoursError!,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: Colors.redAccent,
+                ),
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _addHourRow,
+              icon: const Icon(Icons.add),
+              label: Text(
+                '新增時段',
+                style: AppTextStyles.bodySmallBold.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.65),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -850,12 +1175,15 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                   child: Text(
                     '填寫地點資訊，並輸入地址轉換成經緯度。',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary.withOpacity(0.72),
+                      color: AppColors.textPrimary.withValues(alpha: 0.72),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Divider(height: 1, color: AppColors.primary.withOpacity(0.4)),
+                Divider(
+                  height: 1,
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                ),
                 const SizedBox(height: 12),
                 Flexible(
                   child: SingleChildScrollView(
@@ -913,18 +1241,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                               FilteringTextInputFormatter.deny(RegExp(r'\s')),
                             ],
                           ),
-                          _field(
-                            label: '營業時間（選填）',
-                            controller: _hoursController,
-                            hint: '例如：每日 10:00–21:00',
-                            validator: _validateHours,
-                            inputFormatters: [
-                              LengthLimitingTextInputFormatter(100),
-                              FilteringTextInputFormatter.deny(
-                                RegExp(r'[<>{}\[\]\\|^`@#$%&*=+;]'),
-                              ),
-                            ],
-                          ),
+                          _buildHoursEditor(),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 20),
                             child: Column(
@@ -938,7 +1255,8 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                                 ),
                                 const SizedBox(height: 3),
                                 DropdownButtonFormField<String>(
-                                  value: _category,
+                                  initialValue: _category,
+                                  isExpanded: true,
                                   decoration: _inputDecoration(
                                     hintText: '選擇地點類別',
                                   ),
@@ -946,35 +1264,87 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                                   style: AppTextStyles.bodySmall.copyWith(
                                     color: AppColors.textPrimary,
                                   ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'Attraction',
-                                      child: Text('景點 Attraction'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Restaurant',
-                                      child: Text('餐廳 Restaurant'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Hotel',
-                                      child: Text('旅宿 Hotel'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Event',
-                                      child: Text('活動 Event'),
-                                    ),
+                                  items: [
+                                    for (final MerchantCategory c
+                                        in _categoryList)
+                                      DropdownMenuItem(
+                                        value: c.category,
+                                        child: Text('${c.name} ${c.category}'),
+                                      ),
                                   ],
                                   onChanged: (String? value) {
                                     if (value == null) return;
 
                                     setState(() {
                                       _category = value;
+                                      _subCategory = null;
                                     });
                                   },
                                 ),
+                                if (_categoriesError != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      _categoriesError!,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Colors.deepOrange,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
+                          if (_currentCategory.subCategories.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '細分類（選填）',
+                                    style: AppTextStyles.bodySmallBold.copyWith(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  DropdownButtonFormField<String>(
+                                    key: ValueKey('sub_$_category'),
+                                    initialValue: _subCategory,
+                                    isExpanded: true,
+                                    menuMaxHeight: 320,
+                                    decoration: _inputDecoration(
+                                      hintText: '選擇細分類',
+                                    ),
+                                    dropdownColor: AppColors.merchantPaper,
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    items: [
+                                      DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text(
+                                          _currentCategory.defaultSubCategory ==
+                                                  null
+                                              ? '不選擇'
+                                              : '使用預設（${_currentCategory.defaultSubCategory}）',
+                                        ),
+                                      ),
+                                      for (final String s
+                                          in _currentCategory.subCategories)
+                                        DropdownMenuItem<String>(
+                                          value: s,
+                                          child: Text(s),
+                                        ),
+                                    ],
+                                    onChanged: (String? value) {
+                                      setState(() {
+                                        _subCategory = value;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
                           _field(
                             label: '地點地址',
                             controller: _addressController,
@@ -1013,7 +1383,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.08),
+                                color: Colors.green.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Column(
@@ -1061,8 +1431,8 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                                       vertical: 13,
                                     ),
                                     side: BorderSide(
-                                      color: AppColors.primary.withOpacity(
-                                        0.65,
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.65,
                                       ),
                                     ),
                                     shape: RoundedRectangleBorder(
@@ -1104,4 +1474,12 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
       ),
     );
   }
+}
+
+class _HourRow {
+  String day;
+  String open;
+  String close;
+
+  _HourRow({required this.day, this.open = '09:00', this.close = '18:00'});
 }

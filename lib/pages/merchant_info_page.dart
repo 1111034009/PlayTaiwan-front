@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
+import '../api/merchant_register_api.dart';
 import '../core/app_colors.dart';
-import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
+import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.card;
@@ -44,6 +46,11 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
   String shopAddress = '';
   String shopCity = '';
   String shopTown = '';
+  String shopCategory = '';
+  String shopSubCategory = '';
+  String shopImageUrl = '';
+  bool shopIsSelfBuilt = false;
+  List<OperatingHour> shopHours = [];
 
   double? shopLat;
   double? shopLng;
@@ -91,6 +98,39 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     isMerchantLoading = false;
   }
 
+  void _readProfile(Map<String, dynamic> profile) {
+    shopName = profile['store_name']?.toString() ?? '';
+    shopDescription = profile['store_dec']?.toString() ?? '';
+    shopAddress = profile['store_address']?.toString() ?? '';
+    shopCity = profile['store_city']?.toString() ?? '';
+    shopTown = profile['store_town']?.toString() ?? '';
+    shopCategory = profile['category']?.toString() ?? '';
+    shopSubCategory = profile['sub_category']?.toString() ?? '';
+    shopImageUrl = profile['image_url']?.toString().trim() ?? '';
+    shopIsSelfBuilt = profile['is_self_built_place'] == true;
+
+    final dynamic lat = profile['lat'];
+    final dynamic lng = profile['lng'];
+
+    shopLat = lat is num ? lat.toDouble() : double.tryParse('$lat');
+    shopLng = lng is num ? lng.toDouble() : double.tryParse('$lng');
+
+    final dynamic hours = profile['operating_hours'];
+
+    shopHours = hours is List
+        ? hours
+              .whereType<Map>()
+              .map(
+                (h) => OperatingHour(
+                  dayOfWeek: h['day_of_week']?.toString() ?? '',
+                  openTime: h['open_time']?.toString() ?? '',
+                  closeTime: h['close_time']?.toString() ?? '',
+                ),
+              )
+              .toList()
+        : [];
+  }
+
   void _applyMerchantProfile(
     Map<String, dynamic> data, {
     bool updateSession = true,
@@ -99,36 +139,18 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       AppSession.updateMerchantProfile(data);
     }
 
-    final profile = AppSession.merchantProfile ?? data;
+    final Map<String, dynamic> profile = {
+      ...?AppSession.merchantProfile,
+      ...data,
+    };
 
     if (!mounted) {
-      shopName = profile['store_name']?.toString() ?? shopName;
-      shopDescription = profile['store_dec']?.toString() ?? shopDescription;
-      shopAddress = profile['store_address']?.toString() ?? shopAddress;
-      shopCity = profile['store_city']?.toString() ?? shopCity;
-      shopTown = profile['store_town']?.toString() ?? shopTown;
-
-      final dynamic lat = profile['lat'];
-      final dynamic lng = profile['lng'];
-
-      shopLat = lat is num ? lat.toDouble() : double.tryParse('$lat');
-      shopLng = lng is num ? lng.toDouble() : double.tryParse('$lng');
-
+      _readProfile(profile);
       return;
     }
 
     setState(() {
-      shopName = profile['store_name']?.toString() ?? '';
-      shopDescription = profile['store_dec']?.toString() ?? '';
-      shopAddress = profile['store_address']?.toString() ?? '';
-      shopCity = profile['store_city']?.toString() ?? '';
-      shopTown = profile['store_town']?.toString() ?? '';
-
-      final dynamic lat = profile['lat'];
-      final dynamic lng = profile['lng'];
-
-      shopLat = lat is num ? lat.toDouble() : double.tryParse('$lat');
-      shopLng = lng is num ? lng.toDouble() : double.tryParse('$lng');
+      _readProfile(profile);
     });
   }
 
@@ -190,7 +212,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
         return;
       }
 
-      final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (decoded is Map<String, dynamic> &&
           decoded['isSuccess'] == true &&
@@ -311,6 +333,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
     }
   }
 
+  /// 只送有變動的欄位；沒帶的欄位後端維持原值
   Future<bool> _updateMerchantProfile(Map<String, dynamic> fields) async {
     if (fields.isEmpty) return true;
 
@@ -332,33 +355,38 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
             },
             body: jsonEncode(fields),
           )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (mounted) _showSnackBar('更新店家資訊失敗');
-
-        return false;
-      }
+          .timeout(const Duration(seconds: 20));
 
       Map<String, dynamic> data = {};
 
       try {
-        final decoded = jsonDecode(response.body);
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
         if (decoded is Map<String, dynamic>) {
           data = decoded;
         }
       } catch (_) {}
 
-      if (data['isSuccess'] == false) {
+      final bool failed =
+          response.statusCode < 200 ||
+          response.statusCode >= 300 ||
+          data['isSuccess'] == false;
+
+      if (failed) {
+        final String message = data['message']?.toString().trim() ?? '';
+
         if (mounted) {
-          _showSnackBar(data['message']?.toString() ?? '更新店家資訊失敗');
+          _showSnackBar(message.isEmpty ? '更新店家資訊失敗' : message);
         }
 
         return false;
       }
 
       return true;
+    } on TimeoutException {
+      if (mounted) _showSnackBar('更新逾時，請稍後再試');
+
+      return false;
     } catch (_) {
       if (mounted) _showSnackBar('無法連線到伺服器');
 
@@ -387,7 +415,6 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
         return Positioned(
           left: 16,
           right: 16,
-          // 固定在畫面底部，避開系統導覽列
           bottom: mediaQuery.padding.bottom + 16,
           child: Material(
             color: Colors.transparent,
@@ -488,6 +515,11 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
           initialTown: shopTown,
           initialLat: shopLat,
           initialLng: shopLng,
+          initialImageUrl: shopImageUrl,
+          initialCategory: shopCategory,
+          initialSubCategory: shopSubCategory,
+          initialHours: shopHours,
+          isSelfBuilt: shopIsSelfBuilt,
         );
       },
     );
@@ -507,8 +539,11 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       fields['store_dec'] = newDescription;
     }
 
-    final String newFullAddress =
-        '${result.city}${result.town}${result.address}';
+    final String newFullAddress = _joinAddress(
+      result.city,
+      result.town,
+      result.address,
+    );
 
     final bool addressChanged = newFullAddress != _fullAddress;
 
@@ -527,44 +562,64 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
       fields['lng'] = result.lng;
     }
 
+    if (result.imageUrl != shopImageUrl) {
+      fields['image_url'] = result.imageUrl;
+    }
+
+    if (shopIsSelfBuilt) {
+      if (result.category.isNotEmpty && result.category != shopCategory) {
+        fields['category'] = result.category;
+      }
+
+      if (result.subCategory != null && result.subCategory != shopSubCategory) {
+        fields['sub_category'] = result.subCategory;
+      }
+
+      if (_hoursKey(result.hours) != _hoursKey(shopHours)) {
+        fields['operating_hours'] = result.hours
+            .map((OperatingHour h) => h.toJson())
+            .toList();
+      }
+    }
+
     if (fields.isEmpty) return;
 
     final bool success = await _updateMerchantProfile(fields);
 
     if (!success || !mounted) return;
 
+    final List<OperatingHour> newHours = fields.containsKey('operating_hours')
+        ? result.hours
+        : shopHours;
+
     final updatedProfile = <String, dynamic>{
-      'store_name': result.name.trim(),
-      'store_dec': result.description.trim(),
+      ...?AppSession.merchantProfile,
+      'store_name': newName,
+      'store_dec': newDescription,
       'store_address': addressChanged ? result.address : shopAddress,
       'store_city': addressChanged ? result.city : shopCity,
       'store_town': addressChanged ? result.town : shopTown,
       'lat': addressChanged ? result.lat : shopLat,
       'lng': addressChanged ? result.lng : shopLng,
+      'image_url': result.imageUrl,
+      'category': fields.containsKey('category')
+          ? result.category
+          : shopCategory,
+      'sub_category': fields.containsKey('sub_category')
+          ? result.subCategory
+          : (fields.containsKey('category') ? '' : shopSubCategory),
+      'operating_hours': newHours.map((OperatingHour h) => h.toJson()).toList(),
     };
 
-    AppSession.updateMerchantProfile(updatedProfile);
-
-    setState(() {
-      shopName = updatedProfile['store_name'] as String;
-      shopDescription = updatedProfile['store_dec'] as String;
-      shopAddress = updatedProfile['store_address'] as String;
-      shopCity = updatedProfile['store_city'] as String;
-      shopTown = updatedProfile['store_town'] as String;
-      shopLat = updatedProfile['lat'] as double?;
-      shopLng = updatedProfile['lng'] as double?;
-    });
+    _applyMerchantProfile(updatedProfile);
 
     _showSnackBar('店家資訊更新成功');
+
+    // 以後端資料為準（類別更換後的細分類等）
+    unawaited(_fetchMerchantProfile());
   }
 
-  String get _fullAddress {
-    final String city = shopCity.trim();
-    final String town = shopTown.trim();
-    final String address = shopAddress.trim();
-
-    return '$city$town$address';
-  }
+  String get _fullAddress => _joinAddress(shopCity, shopTown, shopAddress);
 
   Future<void> logout() async {
     final token = AppSession.token;
@@ -600,6 +655,10 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
             shopName: shopName,
             shopDescription: shopDescription,
             shopAddress: _fullAddress,
+            category: shopCategory,
+            subCategory: shopSubCategory,
+            imageUrl: shopImageUrl,
+            hours: shopHours,
             isLoading: isMerchantLoading && AppSession.merchantProfile == null,
             onEditAccount: editAccount,
             onEditShop: editShop,
@@ -793,6 +852,10 @@ class _MerchantEditResult {
   final double? lat;
   final double? lng;
   final bool addressConfirmed;
+  final String imageUrl;
+  final String category;
+  final String? subCategory;
+  final List<OperatingHour> hours;
 
   const _MerchantEditResult({
     required this.name,
@@ -803,7 +866,19 @@ class _MerchantEditResult {
     required this.lat,
     required this.lng,
     required this.addressConfirmed,
+    required this.imageUrl,
+    required this.category,
+    required this.subCategory,
+    required this.hours,
   });
+}
+
+class _HourRow {
+  String day;
+  String open;
+  String close;
+
+  _HourRow({required this.day, this.open = '09:00', this.close = '18:00'});
 }
 
 class _MerchantEditDialog extends StatefulWidget {
@@ -814,6 +889,11 @@ class _MerchantEditDialog extends StatefulWidget {
   final String initialTown;
   final double? initialLat;
   final double? initialLng;
+  final String initialImageUrl;
+  final String initialCategory;
+  final String initialSubCategory;
+  final List<OperatingHour> initialHours;
+  final bool isSelfBuilt;
 
   const _MerchantEditDialog({
     required this.initialName,
@@ -823,6 +903,11 @@ class _MerchantEditDialog extends StatefulWidget {
     required this.initialTown,
     required this.initialLat,
     required this.initialLng,
+    required this.initialImageUrl,
+    required this.initialCategory,
+    required this.initialSubCategory,
+    required this.initialHours,
+    required this.isSelfBuilt,
   });
 
   @override
@@ -834,6 +919,33 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
+
+  static const List<MerchantCategory> _fallbackCategories = [
+    MerchantCategory(
+      category: 'Attraction',
+      name: '景點',
+      defaultSubCategory: '其他',
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Restaurant',
+      name: '餐廳',
+      defaultSubCategory: '其他',
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Hotel',
+      name: '住宿',
+      defaultSubCategory: null,
+      subCategories: [],
+    ),
+    MerchantCategory(
+      category: 'Event',
+      name: '活動',
+      defaultSubCategory: '一般活動',
+      subCategories: [],
+    ),
+  ];
 
   late final TextEditingController nameController;
   late final TextEditingController descriptionController;
@@ -847,6 +959,31 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
 
   bool addressConfirmed = true;
   bool isGeocoding = false;
+
+  late String imageUrl;
+  bool isUploadingImage = false;
+
+  late String category;
+  String? subCategory;
+  List<MerchantCategory> categories = [];
+  String? categoriesError;
+
+  final List<_HourRow> hourRows = [];
+  String? hoursError;
+
+  String? message;
+  bool messageIsError = true;
+
+  List<MerchantCategory> get _categoryList =>
+      categories.isNotEmpty ? categories : _fallbackCategories;
+
+  bool get _hasValidCategory =>
+      _categoryList.any((MerchantCategory c) => c.category == category);
+
+  MerchantCategory get _currentCategory => _categoryList.firstWhere(
+    (MerchantCategory c) => c.category == category,
+    orElse: () => _categoryList.first,
+  );
 
   @override
   void initState() {
@@ -865,7 +1002,21 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
     lat = widget.initialLat;
     lng = widget.initialLng;
 
+    imageUrl = widget.initialImageUrl;
+    category = widget.initialCategory;
+    subCategory = widget.initialSubCategory.isEmpty
+        ? null
+        : widget.initialSubCategory;
+
+    for (final OperatingHour h in widget.initialHours) {
+      hourRows.add(
+        _HourRow(day: h.dayOfWeek, open: h.openTime, close: h.closeTime),
+      );
+    }
+
     addressController.addListener(_onAddressChanged);
+
+    if (widget.isSelfBuilt) _loadCategories();
   }
 
   @override
@@ -890,6 +1041,146 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
         lng = null;
       });
     }
+  }
+
+  void _showMessage(String text, {bool error = true}) {
+    if (!mounted) return;
+
+    setState(() {
+      message = text;
+      messageIsError = error;
+    });
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final List<MerchantCategory> list =
+          await MerchantRegisterApi.fetchCategories();
+
+      if (!mounted) return;
+
+      setState(() {
+        categories = list;
+        categoriesError = null;
+
+        if (subCategory != null &&
+            !_currentCategory.subCategories.contains(subCategory)) {
+          subCategory = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        categoriesError = '細分類載入失敗，暫時無法選擇細分類';
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    if (isUploadingImage) return;
+
+    final XFile? file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+
+    if (file == null || !mounted) return;
+
+    setState(() {
+      isUploadingImage = true;
+      message = null;
+    });
+
+    try {
+      final String url = await MerchantRegisterApi.uploadImage(file);
+
+      if (!mounted) return;
+
+      setState(() {
+        imageUrl = url;
+      });
+    } catch (e) {
+      _showMessage('圖片上傳失敗：${e.toString().replaceFirst('Exception: ', '')}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  String? _checkHours() {
+    return OperatingHour.validate(_currentHours());
+  }
+
+  List<OperatingHour> _currentHours() {
+    return _sortedHours(
+      hourRows
+          .map(
+            (_HourRow r) => OperatingHour(
+              dayOfWeek: r.day,
+              openTime: r.open,
+              closeTime: r.close,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  void _addHourRow() {
+    final _HourRow? last = hourRows.isEmpty ? null : hourRows.last;
+
+    final int nextDay = last == null
+        ? 0
+        : (OperatingHour.days.indexOf(last.day) + 1) % 7;
+
+    setState(() {
+      hourRows.add(
+        _HourRow(
+          day: OperatingHour.days[nextDay],
+          open: last?.open ?? '09:00',
+          close: last?.close ?? '18:00',
+        ),
+      );
+      hoursError = _checkHours();
+    });
+  }
+
+  Future<void> _pickTime(_HourRow row, {required bool isOpen}) async {
+    final List<String> parts = (isOpen ? row.open : row.close).split(':');
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 9,
+        minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
+      ),
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null || !mounted) return;
+
+    final String text =
+        '${picked.hour.toString().padLeft(2, '0')}:'
+        '${picked.minute.toString().padLeft(2, '0')}';
+
+    setState(() {
+      if (isOpen) {
+        row.open = text;
+      } else {
+        row.close = text;
+      }
+
+      hoursError = _checkHours();
+    });
   }
 
   Map<String, String>? _splitAddress(String input) {
@@ -994,6 +1285,7 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
       addressConfirmed = false;
       lat = null;
       lng = null;
+      message = null;
     });
 
     try {
@@ -1013,34 +1305,26 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (mounted) {
-          _showMessage('地址轉換失敗（HTTP ${response.statusCode}），請稍後再試');
-        }
+        _showMessage('地址轉換失敗（HTTP ${response.statusCode}），請稍後再試');
         return;
       }
 
-      final dynamic decoded = jsonDecode(response.body);
+      final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (decoded is! Map<String, dynamic>) {
-        if (mounted) {
-          _showMessage('地址轉換 API 回傳格式錯誤');
-        }
+        _showMessage('地址轉換 API 回傳格式錯誤');
         return;
       }
 
       if (decoded['isSuccess'] != true) {
-        if (mounted) {
-          _showMessage(decoded['message']?.toString() ?? '地址轉換失敗');
-        }
+        _showMessage(decoded['message']?.toString() ?? '地址轉換失敗');
         return;
       }
 
       final dynamic result = decoded['Result'];
 
       if (result is! Map) {
-        if (mounted) {
-          _showMessage('地址轉換 API 未回傳座標資料');
-        }
+        _showMessage('地址轉換 API 未回傳座標資料');
         return;
       }
 
@@ -1054,9 +1338,7 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
           resultLat > 90 ||
           resultLng < -180 ||
           resultLng > 180) {
-        if (mounted) {
-          _showMessage('API 未回傳有效的經緯度');
-        }
+        _showMessage('API 未回傳有效的經緯度');
         return;
       }
 
@@ -1073,21 +1355,12 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
         lat = resultLat;
         lng = resultLng;
         addressConfirmed = true;
+        message = null;
       });
-
-      _showMessage(
-        '地址確認成功\n'
-        '緯度：${resultLat.toStringAsFixed(6)}，'
-        '經度：${resultLng.toStringAsFixed(6)}',
-      );
     } on TimeoutException {
-      if (mounted) {
-        _showMessage('地址查詢逾時，請稍後再試');
-      }
+      _showMessage('地址查詢逾時，請稍後再試');
     } catch (_) {
-      if (mounted) {
-        _showMessage('地址轉換失敗，請確認網路連線或稍後再試');
-      }
+      _showMessage('地址轉換失敗，請確認網路連線或稍後再試');
     } finally {
       if (mounted) {
         setState(() {
@@ -1095,12 +1368,6 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
         });
       }
     }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _submit() {
@@ -1112,7 +1379,32 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
       return;
     }
 
+    if (isUploadingImage) {
+      _showMessage('照片上傳中，請稍候');
+      return;
+    }
+
+    List<OperatingHour> hours = widget.initialHours;
+
+    if (widget.isSelfBuilt) {
+      final String? error = _checkHours();
+
+      if (error != null) {
+        setState(() {
+          hoursError = error;
+        });
+        _showMessage(error);
+        return;
+      }
+
+      hours = _currentHours();
+    }
+
     final bool addressChanged = address != widget.initialAddress;
+
+    String resultAddress = widget.initialAddress;
+    String resultCity = widget.initialCity;
+    String resultTown = widget.initialTown;
 
     if (addressChanged) {
       if (!addressConfirmed || lat == null || lng == null) {
@@ -1127,21 +1419,9 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
         return;
       }
 
-      Navigator.pop(
-        context,
-        _MerchantEditResult(
-          name: name,
-          description: descriptionController.text.trim(),
-          address: parsed['address']!,
-          city: parsed['city']!,
-          town: parsed['town']!,
-          lat: lat,
-          lng: lng,
-          addressConfirmed: true,
-        ),
-      );
-
-      return;
+      resultAddress = parsed['address']!;
+      resultCity = parsed['city']!;
+      resultTown = parsed['town']!;
     }
 
     Navigator.pop(
@@ -1149,13 +1429,342 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
       _MerchantEditResult(
         name: name,
         description: descriptionController.text.trim(),
-        address: widget.initialAddress,
-        city: widget.initialCity,
-        town: widget.initialTown,
-        lat: widget.initialLat,
-        lng: widget.initialLng,
+        address: resultAddress,
+        city: resultCity,
+        town: resultTown,
+        lat: addressChanged ? lat : widget.initialLat,
+        lng: addressChanged ? lng : widget.initialLng,
         addressConfirmed: true,
+        imageUrl: imageUrl,
+        category: category,
+        subCategory: subCategory,
+        hours: hours,
       ),
+    );
+  }
+
+  InputDecoration _dropDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: AppTextStyles.captionBold.copyWith(
+        color: const Color(0xFF6F6258),
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.black, width: 1.2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.black, width: 1.2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: _accentRed, width: 2),
+      ),
+    );
+  }
+
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '店家照片',
+          style: AppTextStyles.captionBold.copyWith(
+            color: const Color(0xFF6F6258),
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: isUploadingImage ? null : _pickImage,
+          child: Container(
+            height: 130,
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: Colors.black, width: 1.2),
+            ),
+            child: isUploadingImage
+                ? const Center(child: CircularProgressIndicator())
+                : imageUrl.isEmpty
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 34,
+                        color: Color(0xFF6F6258),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '點擊選擇照片',
+                        style: AppTextStyles.caption.copyWith(
+                          color: const Color(0xFF6F6258),
+                        ),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(
+                              child: Icon(Icons.broken_image_outlined),
+                            ),
+                      ),
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: GestureDetector(
+                          onTap: () => setState(() => imageUrl = ''),
+                          child: const CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.black54,
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timeButton(String text, VoidCallback onTap) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _bodyText,
+        backgroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        side: const BorderSide(color: Colors.black, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.captionBold.copyWith(color: _bodyText),
+      ),
+    );
+  }
+
+  Widget _buildHourRow(int index) {
+    final _HourRow row = hourRows[index];
+    final bool nextDay = row.close.compareTo(row.open) <= 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 4, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.black26),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ObjectKey(row),
+                  initialValue: row.day,
+                  isExpanded: true,
+                  decoration: _dropDecoration('星期'),
+                  style: AppTextStyles.subtitle.copyWith(color: _bodyText),
+                  items: [
+                    for (final String d in OperatingHour.days)
+                      DropdownMenuItem(
+                        value: d,
+                        child: Text(OperatingHour.dayLabels[d]!),
+                      ),
+                  ],
+                  onChanged: (String? value) {
+                    if (value == null) return;
+
+                    setState(() {
+                      row.day = value;
+                      hoursError = _checkHours();
+                    });
+                  },
+                ),
+              ),
+              IconButton(
+                tooltip: '刪除時段',
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () {
+                  setState(() {
+                    hourRows.removeAt(index);
+                    hoursError = _checkHours();
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _timeButton(
+                    row.open,
+                    () => _pickTime(row, isOpen: true),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '~',
+                    style: AppTextStyles.captionBold.copyWith(color: _bodyText),
+                  ),
+                ),
+                Expanded(
+                  child: _timeButton(
+                    row.close,
+                    () => _pickTime(row, isOpen: false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (nextDay)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4, right: 6),
+                child: Text(
+                  '結束時間為隔天',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.deepOrange,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHoursEditor() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '營業時間',
+          style: AppTextStyles.captionBold.copyWith(
+            color: const Color(0xFF6F6258),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '公休日不用填；中午休息請同一天填兩段；跨夜營業的結束時間會算隔天。全部刪除並儲存會清空營業時間。',
+          style: AppTextStyles.caption.copyWith(color: const Color(0xFF6F6258)),
+        ),
+        const SizedBox(height: 8),
+        for (int i = 0; i < hourRows.length; i++) _buildHourRow(i),
+        if (hoursError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              hoursError!,
+              style: AppTextStyles.caption.copyWith(color: Colors.redAccent),
+            ),
+          ),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _addHourRow,
+            icon: const Icon(Icons.add),
+            label: Text(
+              '新增時段',
+              style: AppTextStyles.captionBold.copyWith(color: _accentRed),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _accentRed,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              side: const BorderSide(color: Colors.black, width: 1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySection() {
+    final MerchantCategory current = _currentCategory;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _hasValidCategory ? category : null,
+          isExpanded: true,
+          decoration: _dropDecoration('店家類別'),
+          style: AppTextStyles.subtitle.copyWith(color: _bodyText),
+          items: [
+            for (final MerchantCategory c in _categoryList)
+              DropdownMenuItem(value: c.category, child: Text(c.name)),
+          ],
+          onChanged: (String? value) {
+            if (value == null) return;
+
+            setState(() {
+              category = value;
+              subCategory = null;
+            });
+          },
+        ),
+        if (categoriesError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              categoriesError!,
+              style: AppTextStyles.caption.copyWith(color: Colors.deepOrange),
+            ),
+          ),
+        if (_hasValidCategory && current.subCategories.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            key: ValueKey('sub_$category'),
+            initialValue: subCategory,
+            isExpanded: true,
+            menuMaxHeight: 320,
+            decoration: _dropDecoration('細分類'),
+            style: AppTextStyles.subtitle.copyWith(color: _bodyText),
+            items: [
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(
+                  category == widget.initialCategory ? '不變更' : '使用預設',
+                ),
+              ),
+              for (final String s in current.subCategories)
+                DropdownMenuItem<String>(value: s, child: Text(s)),
+            ],
+            onChanged: (String? value) {
+              setState(() {
+                subCategory = value;
+              });
+            },
+          ),
+        ],
+      ],
     );
   }
 
@@ -1247,6 +1856,31 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
                   '地址已確認',
                   style: AppTextStyles.captionBold.copyWith(
                     color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              _buildImageSection(),
+              const SizedBox(height: 16),
+              if (widget.isSelfBuilt) ...[
+                _buildCategorySection(),
+                const SizedBox(height: 16),
+                _buildHoursEditor(),
+              ] else
+                Text(
+                  '此店家綁定的是既有景點，類別與營業時間由景點資料決定，無法在這裡修改。',
+                  style: AppTextStyles.caption.copyWith(
+                    color: const Color(0xFF6F6258),
+                  ),
+                ),
+              if (message != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  message!,
+                  style: AppTextStyles.captionBold.copyWith(
+                    color: messageIsError
+                        ? Colors.red.shade700
+                        : Colors.green.shade800,
                   ),
                 ),
               ],
@@ -1357,6 +1991,10 @@ class _InfoCard extends StatelessWidget {
   final String shopName;
   final String shopDescription;
   final String shopAddress;
+  final String category;
+  final String subCategory;
+  final String imageUrl;
+  final List<OperatingHour> hours;
   final bool isLoading;
   final VoidCallback onEditAccount;
   final VoidCallback onEditShop;
@@ -1367,6 +2005,10 @@ class _InfoCard extends StatelessWidget {
     required this.shopName,
     required this.shopDescription,
     required this.shopAddress,
+    required this.category,
+    required this.subCategory,
+    required this.imageUrl,
+    required this.hours,
     required this.isLoading,
     required this.onEditAccount,
     required this.onEditShop,
@@ -1375,6 +2017,13 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String categoryText = [
+      _categoryLabel(category),
+      subCategory,
+    ].where((e) => e.isNotEmpty).join('・');
+
+    final List<String> hourLines = _hoursLines(hours);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -1422,6 +2071,27 @@ class _InfoCard extends StatelessWidget {
                     ),
                   )
                 else ...[
+                  if (imageUrl.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                        width: double.infinity,
+                        height: 130,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 1),
+                        ),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                                child: Icon(Icons.broken_image_outlined),
+                              ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   _InfoRow(
                     text: '店家名稱：${shopName.isEmpty ? '尚未設定' : shopName}',
                     showEdit: true,
@@ -1430,16 +2100,44 @@ class _InfoCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   _InfoRow(
                     text:
-                        '店家介紹：${shopDescription.isEmpty ? '尚未設定' : shopDescription}',
+                        '店家介紹：\n${shopDescription.isEmpty ? '尚未設定' : shopDescription}',
                     showEdit: false,
                     onEdit: onEditShop,
                   ),
                   const SizedBox(height: 12),
                   _InfoRow(
-                    text: '店家地址：${shopAddress.isEmpty ? '尚未設定' : shopAddress}',
+                    text:
+                        '店家地址：\n${shopAddress.isEmpty ? '尚未設定' : shopAddress}',
                     showEdit: false,
                     onEdit: onEditShop,
                   ),
+                  if (categoryText.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _InfoRow(
+                      text: '店家類別：$categoryText',
+                      showEdit: false,
+                      onEdit: onEditShop,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    '營業時間：${hourLines.isEmpty ? '尚未設定' : ''}',
+                    style: AppTextStyles.sectionTitle.copyWith(
+                      color: _bodyText,
+                      height: 1.35,
+                    ),
+                  ),
+                  for (final String line in hourLines)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 8),
+                      child: Text(
+                        line,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: _bodyText,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
                 ],
                 const SizedBox(height: 25),
                 Center(
@@ -1500,15 +2198,40 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int separatorIndex = text.indexOf('：');
+
+    final String label = separatorIndex >= 0
+        ? text.substring(0, separatorIndex + 1)
+        : '';
+
+    final String value = separatorIndex >= 0
+        ? text.substring(separatorIndex + 1)
+        : text;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text(
-            text,
-            style: AppTextStyles.sectionTitle.copyWith(
-              color: _bodyText,
-              height: 1.35,
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: label,
+                  style: AppTextStyles.sectionTitle.copyWith(
+                    color: _bodyText,
+                    height: 1.35,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextSpan(
+                  text: value,
+                  style: AppTextStyles.sectionTitle.copyWith(
+                    color: _bodyText,
+                    height: 1.35,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1600,7 +2323,7 @@ class _Pin extends StatelessWidget {
               width: 5,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
@@ -1711,4 +2434,78 @@ class _TopSnackBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 後端的 store_address 可能已含縣市與區，已含就不重複加
+String _joinAddress(String city, String town, String address) {
+  final String c = city.trim();
+  final String t = town.trim();
+  final String a = address.trim();
+
+  String norm(String s) => s.replaceAll('台', '臺');
+
+  if (c.isNotEmpty && norm(a).startsWith(norm(c))) return a;
+
+  return '$c$t$a';
+}
+
+String _categoryLabel(String category) {
+  switch (category) {
+    case 'Attraction':
+      return '景點';
+    case 'Restaurant':
+      return '餐廳';
+    case 'Hotel':
+      return '住宿';
+    case 'Event':
+      return '活動';
+    default:
+      return category;
+  }
+}
+
+List<OperatingHour> _sortedHours(List<OperatingHour> hours) {
+  return List<OperatingHour>.of(hours)..sort((a, b) {
+    final int byDay = OperatingHour.days
+        .indexOf(a.dayOfWeek)
+        .compareTo(OperatingHour.days.indexOf(b.dayOfWeek));
+
+    return byDay != 0 ? byDay : a.openTime.compareTo(b.openTime);
+  });
+}
+
+/// 比對兩份營業時間是否相同（不看順序）
+String _hoursKey(List<OperatingHour> hours) {
+  final List<String> keys =
+      hours.map((h) => '${h.dayOfWeek}|${h.openTime}|${h.closeTime}').toList()
+        ..sort();
+
+  return keys.join(';');
+}
+
+/// 每天一行；同一天多個時段用頓號串起，沒有資料的日子顯示公休，
+/// 結束時間不晚於開始時間代表次日
+List<String> _hoursLines(List<OperatingHour> hours) {
+  if (hours.isEmpty) return const [];
+
+  return [
+    for (final String day in OperatingHour.days)
+      () {
+        final List<OperatingHour> slots =
+            hours.where((h) => h.dayOfWeek == day).toList()
+              ..sort((a, b) => a.openTime.compareTo(b.openTime));
+
+        final String text = slots.isEmpty
+            ? '公休'
+            : slots
+                  .map(
+                    (s) => s.closeTime.compareTo(s.openTime) <= 0
+                        ? '${s.openTime}–次日${s.closeTime}'
+                        : '${s.openTime}–${s.closeTime}',
+                  )
+                  .join('、');
+
+        return '${OperatingHour.dayLabels[day] ?? day}　$text';
+      }(),
+  ];
 }

@@ -55,6 +55,17 @@ String _formatDateTime(String value) {
   return '${_formatDay(date)} ${_two(date.hour)}:${_two(date.minute)}';
 }
 
+/// 取第一個有內容的值（後端欄位名稱為 qrcode_uid，舊版為 qr_uid）
+String _firstNonEmpty(List<dynamic> values) {
+  for (final dynamic v in values) {
+    final String text = v?.toString().trim() ?? '';
+
+    if (text.isNotEmpty && text != 'null') return text;
+  }
+
+  return '';
+}
+
 class MerchantCouponPage extends StatefulWidget {
   const MerchantCouponPage({super.key});
 
@@ -475,9 +486,8 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
                 _detailLine('開始日期', _formatDateTime(detail.validFrom)),
                 _detailLine('結束日期', _formatDateTime(detail.validTo)),
                 _detailLine('目前狀態', detail.isActive ? '已上架' : '未上架'),
-                if (qrUid.isEmpty)
-                  _detailLine('QR Code', '尚未綁定')
-                else
+                _detailLine('QR Code', qrUid.isEmpty ? '尚未綁定' : '已綁定'),
+                if (qrUid.isNotEmpty)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -711,7 +721,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
 
           return _CouponCard(
             coupon: coupon,
-            onTap: () => _showCouponDetails(coupon),
+            onTap: () => {},
             onEdit: () => _openCouponForm(coupon: coupon),
             onToggle: () => _toggleCouponStatus(coupon),
             onDelete: () => _deleteCoupon(coupon),
@@ -760,7 +770,7 @@ class _Coupon {
       validFrom: json['valid_from']?.toString() ?? '',
       validTo: json['valid_to']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      qrUid: json['qr_uid']?.toString() ?? '',
+      qrUid: _firstNonEmpty([json['qrcode_uid'], json['qr_uid']]),
     );
   }
 
@@ -1339,184 +1349,213 @@ class _CouponCard extends StatelessWidget {
     return Material(
       color: _cardColor,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black, width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x12000000),
-                offset: Offset(2, 3),
-                blurRadius: 0,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: enabled && coupon.hasQr ? onQr : null,
-                    child: coupon.hasQr
-                        ? _QrBox(
-                            data: coupon.qrUid,
-                            size: 34,
-                            padding: 4,
-                            radius: 10,
-                          )
-                        : Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: _accentColor.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.confirmation_number_outlined,
-                              color: _primaryColor,
-                              size: 26,
-                            ),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12000000),
+              offset: Offset(2, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: enabled && coupon.hasQr ? onQr : null,
+                  child: coupon.hasQr
+                      ? _QrBox(
+                          data: coupon.qrUid,
+                          size: 34,
+                          padding: 4,
+                          radius: 10,
+                        )
+                      : Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _accentColor.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          coupon.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyBold.copyWith(
-                            color: _textColor,
+                          child: const Icon(
+                            Icons.confirmation_number_outlined,
+                            color: _primaryColor,
+                            size: 26,
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        Text(
-                          coupon.code.isEmpty ? '無優惠代碼' : coupon.code,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.grey.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      active ? '已上架' : '未上架',
-                      style: AppTextStyles.caption.copyWith(
-                        color: active ? Colors.green.shade800 : Colors.black54,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.local_offer_outlined,
-                      color: _primaryColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        coupon.commodity.isEmpty ? '未設定適用商品' : coupon.commodity,
-                        maxLines: 1,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        coupon.name,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(
+                        style: AppTextStyles.bodyBold.copyWith(
                           color: _textColor,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        coupon.discountText,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
-                        style: AppTextStyles.title.copyWith(
-                          color: _primaryColor,
+                      const SizedBox(height: 5),
+                      Text(
+                        coupon.code.isEmpty ? '無優惠代碼' : coupon.code,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.black54,
                         ),
                       ),
-                    ),
-                  ],
+                      if (coupon.hasQr) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.link,
+                                size: 13,
+                                color: _primaryColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '已綁定 QR',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: _primaryColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? Colors.green.withValues(alpha: 0.12)
+                        : Colors.grey.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    active ? '已上架' : '未上架',
+                    style: AppTextStyles.caption.copyWith(
+                      color: active ? Colors.green.shade800 : Colors.black54,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(height: 10),
-              Row(
+              child: Row(
                 children: [
                   const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 14,
-                    color: Colors.black54,
+                    Icons.local_offer_outlined,
+                    color: _primaryColor,
+                    size: 20,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${_formatDateTime(coupon.validFrom)} - ${_formatDateTime(coupon.validTo)}',
-                      maxLines: 2,
+                      coupon.commodity.isEmpty ? '未設定適用商品' : coupon.commodity,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption.copyWith(
-                        color: Colors.black54,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: _textColor,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const Divider(height: 22),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  _action(Icons.qr_code_2, coupon.hasQr ? 'QR' : '綁定 QR', onQr),
-                  _action(Icons.edit_outlined, '修改', onEdit),
-                  _action(
-                    active
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    active ? '下架' : '上架',
-                    onToggle,
-                  ),
-                  _action(
-                    Icons.delete_outline,
-                    '刪除',
-                    onDelete,
-                    color: Colors.red.shade700,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      coupon.discountText,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: AppTextStyles.title.copyWith(color: _primaryColor),
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: Colors.black54,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${_formatDateTime(coupon.validFrom)} - ${_formatDateTime(coupon.validTo)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 22),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                _action(
+                  coupon.hasQr ? Icons.qr_code_2 : Icons.add_link,
+                  coupon.hasQr ? '顯示 QR' : '綁定 QR',
+                  onQr,
+                ),
+                _action(Icons.edit_outlined, '修改', onEdit),
+                _action(
+                  active
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  active ? '下架' : '上架',
+                  onToggle,
+                ),
+                _action(
+                  Icons.delete_outline,
+                  '刪除',
+                  onDelete,
+                  color: Colors.red.shade700,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

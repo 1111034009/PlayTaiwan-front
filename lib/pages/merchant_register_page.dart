@@ -1,13 +1,14 @@
 import 'dart:convert';
-
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-
+import '../core/app_session.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../block/merchant_register_popup.dart';
+import '../api/merchant_register_api.dart';
 
 InputDecoration storyRegisterInputDecoration({
   required String hintText,
@@ -73,7 +74,8 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
   String? _selectedPlaceAddress;
 
   Map<String, dynamic>? _newPlace;
-
+  String? _imageUrl;
+  bool _isUploadingImage = false;
   String get _apiBaseUrl {
     final String value = (dotenv.env['API_BASE_URL'] ?? '').trim();
 
@@ -293,6 +295,118 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
     _showMessage('已帶入地點資訊，請確認店家地址。');
   }
 
+  Future<void> _pickImage() async {
+    if (_isUploadingImage) return;
+
+    final XFile? file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+
+    if (file == null || !mounted) return;
+
+    setState(() {
+      _isUploadingImage = true;
+    });
+
+    try {
+      final String url = await MerchantRegisterApi.uploadImage(file);
+
+      if (!mounted) return;
+
+      setState(() {
+        _imageUrl = url;
+      });
+    } catch (e) {
+      _showMessage('圖片上傳失敗：${_errorText(e)}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildImagePicker() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '店家照片（選填）',
+            style: AppTextStyles.bodySmallBold.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _isUploadingImage ? null : _pickImage,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.inputLine),
+              ),
+              child: _isUploadingImage
+                  ? const Center(child: CircularProgressIndicator())
+                  : _imageUrl == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 36,
+                          color: AppColors.textPrimary.withOpacity(0.6),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '點擊選擇照片',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.inputHint,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          _imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.broken_image_outlined),
+                        ),
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _imageUrl = null),
+                            child: const CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.black54,
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _startCreatingNewPlace() async {
     FocusScope.of(context).unfocus();
 
@@ -503,28 +617,31 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
       'store_address': address,
     };
 
+    if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+      payload['image_url'] = _imageUrl;
+    }
+
     final Map<String, dynamic>? place = _newPlace;
 
-    if (place != null) {
-      final Map<String, dynamic> newPlace = <String, dynamic>{
-        'name': place['name'],
-        'address': place['address'],
-        'description': place['description'],
-      };
-
-      for (final String key in ['phone', 'website', 'opening_hours']) {
-        final String value = place[key]?.toString().trim() ?? '';
-
-        if (value.isNotEmpty) newPlace[key] = value;
-      }
-
-      newPlace['lat'] = place['lat'];
-      newPlace['lng'] = place['lng'];
-      newPlace['category'] = place['category'];
-
-      payload['new_place'] = newPlace;
-    } else {
+    if (place == null) {
       payload['place_uid'] = _selectedPlaceUid;
+      return payload;
+    }
+
+    payload['lat'] = place['lat'];
+    payload['lng'] = place['lng'];
+    payload['category'] = place['category'];
+
+    for (final String key in ['sub_category', 'phone', 'website']) {
+      final String value = place[key]?.toString().trim() ?? '';
+
+      if (value.isNotEmpty) payload[key] = value;
+    }
+
+    final dynamic hours = place['operating_hours'];
+
+    if (hours is List && hours.isNotEmpty) {
+      payload['operating_hours'] = hours;
     }
 
     return payload;
@@ -533,8 +650,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
   Future<void> _submitRegistration() async {
     FocusScope.of(context).unfocus();
 
-    if (_isLoading || !_validateBeforeSubmit()) return;
-
+    if (_isLoading || _isUploadingImage || !_validateBeforeSubmit()) return;
     final String address = _storeAddressController.text.trim();
 
     setState(() {
@@ -572,9 +688,17 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
           context,
         ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
       } else {
-        final String message = responseText.trim().isEmpty
-            ? '店家註冊失敗，稍後嘗試'
-            : '店家註冊失敗，稍後嘗試';
+        String message = '店家註冊失敗，請稍後再試';
+
+        try {
+          final dynamic data = jsonDecode(responseText);
+
+          if (data is Map && data['message'] != null) {
+            final String serverMessage = data['message'].toString().trim();
+
+            if (serverMessage.isNotEmpty) message = serverMessage;
+          }
+        } catch (_) {}
 
         _showMessage(message);
       }
@@ -1139,6 +1263,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
                                   LengthLimitingTextInputFormatter(300),
                                 ],
                               ),
+                              _buildImagePicker(),
                               _buildTextField(
                                 label: '店家地址',
                                 controller: _storeAddressController,
