@@ -6,7 +6,7 @@ class AuthGuard {
       GlobalKey<NavigatorState>();
 
   /// 不需登入的頁面
-  static const Set<String> publicRoutes = {'/login', '/register'};
+  static const Set<String> publicRoutes = {'/login', '/register', '/splash'};
 
   static final NavigatorObserver observer = _AuthObserver();
 

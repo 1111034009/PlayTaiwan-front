@@ -57,6 +57,8 @@ dependencies:
   uuid: ^4.6.0
   share_plus: ^12.0.2
   fl_chart: ^1.1.1
+  flutter_svg: ^2.0.9      
+  path_drawing: ^1.0.1
 
 dev_dependencies:
   flutter_test:
@@ -67,7 +69,26 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.3.9
+  flutter_launcher_icons: ^0.14.4
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "img/app_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
 
+flutter_native_splash:
+  color: "#857870"
+  image: img/loading.png
+  android: true
+  ios: true
+  web: true
+
+  android_12:
+    color: "#857870"
+    image: img/loading.png
+    icon_background_color: "#857870"
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -82,6 +103,7 @@ flutter:
   assets:
     - img/
     - .env
+    - assets/audio/
   fonts:
     - family: KaiseiHarunoUmi
       fonts:

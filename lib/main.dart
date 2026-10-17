@@ -11,14 +11,15 @@ import 'pages/merchant_home_page.dart';
 import 'core/app_colors.dart';
 import 'core/app_text_styles.dart';
 import 'core/auth_guard.dart';
+import 'core/bgm_service.dart';
 import 'block/app_shell.dart';
-import 'api/merchant_vlog_api.dart';
 import 'admin/visitor_dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   AuthGuard.init();
+  await BgmService.instance.init();
   runApp(const PlayTaiwanApp());
 }
 

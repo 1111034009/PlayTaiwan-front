@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import '../core/bgm_service.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-
+    BgmService.instance.play(BgmTrack.login);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: pageColor,
@@ -145,7 +145,9 @@ class _LoginPageState extends State<LoginPage> {
         NearbyCache.instance.start();
 
         if (!mounted) return;
-
+        if (accountType == 1 || accountType == 2 || accountType == 3) {
+          BgmService.instance.play(BgmTrack.main);
+        }
         if (accountType == 1) {
           Navigator.pushReplacementNamed(context, '/home');
         } else if (accountType == 2) {
@@ -391,8 +393,8 @@ class _LoginPageState extends State<LoginPage> {
                   height: 49,
                   child: Center(
                     child: SizedBox(
-                      width: 90,
-                      height: 49,
+                      width: 100,
+                      height: 80,
                       child: _LoginButton(
                         onPressed: login,
                         isLoading: isLoading,
@@ -401,7 +403,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 Positioned(
-                  top: 565,
+                  top: 575,
                   left: 0,
                   right: 0,
                   child: Center(

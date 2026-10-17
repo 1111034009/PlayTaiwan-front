@@ -2376,8 +2376,8 @@ class _PostcardImageCache {
           ? uri.pathSegments.last
           : '';
 
-      final String name = last.isNotEmpty
-          ? last
+      final String name = uri.pathSegments.isNotEmpty
+          ? uri.pathSegments.join('_')
           : 'postcard_${url.hashCode}.png';
 
       final File file = File('${dir.path}/$name');

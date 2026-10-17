@@ -122,7 +122,7 @@ abstract final class AppTextStyles {
   static TextStyle get bodyBold =>
       fromSize(size: bodySize, weight: FontWeight.w700);
 
-  static TextStyle get subtitle => fromSize(size: 17, weight: FontWeight.w700);
+  static TextStyle get subtitle => fromSize(size: 20, weight: FontWeight.w700);
 
   static TextStyle get subtitleMedium =>
       fromSize(size: 17, weight: FontWeight.w700);

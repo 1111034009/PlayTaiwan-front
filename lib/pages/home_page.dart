@@ -259,10 +259,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openWallet() {
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const WalletPage()),
-    // );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const WalletPage()),
+    );
   }
 
   void _openLoveStory() {
@@ -869,7 +869,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               width: double.infinity,
               child: Text(
-                '過往旅途',
+                '過往遊玩',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodySmallBold.copyWith(color: darkText),
               ),
