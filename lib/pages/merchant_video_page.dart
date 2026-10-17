@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -130,31 +130,88 @@ class _MerchantVideoPageState extends State<MerchantVideoPage> {
   Future<void> _prepareVideo(_VlogDetail detail) async {
     if (_isPreparingVideo) return;
 
+    final videoUrl = detail.videoUrl.trim();
+
+    if (videoUrl.isEmpty) {
+      if (!mounted) return;
+
+      setState(() {
+        _videoFile = null;
+        _videoError = '沒有影片下載網址';
+      });
+      return;
+    }
+
     setState(() {
       _isPreparingVideo = true;
       _videoError = null;
     });
 
+    final client = http.Client();
+
     try {
+      final uri = Uri.parse(videoUrl);
+
+      if (uri.scheme != 'https' && uri.scheme != 'http') {
+        throw Exception('影片網址格式錯誤');
+      }
+
+      // 使用影片網址產生唯一檔名。
+      // URL 改變時，檔名也會改變，不會誤用舊影片。
+      final urlHash = sha256.convert(utf8.encode(videoUrl));
+      final tempDir = Directory.systemTemp;
+
       final file = File(
-        '${Directory.systemTemp.path}/merchant_vlog_${widget.mmId}.mp4',
+        '${tempDir.path}/merchant_vlog_${widget.mmId}_$urlHash.mp4',
       );
 
-      if (!await file.exists() || await file.length() == 0) {
-        final response = await http
-            .get(Uri.parse(detail.videoUrl))
-            .timeout(const Duration(minutes: 2));
+      final partialFile = File('${file.path}.part');
 
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw Exception('影片下載失敗（HTTP ${response.statusCode}）');
-        }
+      // 同一網址已經下載完成的影片可以重複使用。
+      if (await file.exists() && await file.length() > 0) {
+        if (!mounted) return;
 
-        if (response.bodyBytes.isEmpty) {
-          throw Exception('影片內容為空');
-        }
-
-        await file.writeAsBytes(response.bodyBytes, flush: true);
+        setState(() {
+          _videoFile = file;
+          _videoError = null;
+        });
+        return;
       }
+
+      // 清除上次下載失敗留下的暫存片段。
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
+
+      final request = http.Request('GET', uri);
+      final response = await client
+          .send(request)
+          .timeout(const Duration(minutes: 2));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('影片下載失敗（HTTP ${response.statusCode}）');
+      }
+
+      final sink = partialFile.openWrite();
+      var receivedBytes = 0;
+
+      try {
+        await for (final chunk in response.stream) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+        }
+
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+
+      if (receivedBytes == 0) {
+        throw Exception('影片內容為空');
+      }
+
+      // 下載成功後才改成正式檔名。
+      await partialFile.rename(file.path);
 
       if (!mounted) return;
 
@@ -172,6 +229,8 @@ class _MerchantVideoPageState extends State<MerchantVideoPage> {
         _videoError = '影片載入失敗，點擊重試';
       });
     } finally {
+      client.close();
+
       if (mounted) {
         setState(() {
           _isPreparingVideo = false;
