@@ -48,10 +48,30 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   final Set<String> selectedTransports = {};
 
   bool isGenerating = false;
+  double maxTravelMinutes = 30;
+  int generatingTotal = 0;
+  int generatingFinished = 0;
+
+  String get generatingDetail {
+    final int percent = (generatingProgress * 100).round().clamp(0, 100);
+
+    if (generatingTotal <= 0) {
+      return '$percent%';
+    }
+
+    final int remaining = (generatingTotal - generatingFinished).clamp(
+      0,
+      generatingTotal,
+    );
+
+    return '還剩 $remaining 本・$percent%';
+  }
+
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
   Map<String, dynamic>? generatedScript;
   int partySize = 1;
+
   void _startGeneratingProgress() {
     _progressTimer?.cancel();
 
@@ -60,11 +80,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       _generationCompleted = false;
     });
 
-    const Duration totalDuration = Duration(seconds: 60);
+    const Duration totalDuration = Duration(seconds: 100);
     const Duration interval = Duration(milliseconds: 100);
 
     const double startProgress = 0.01;
-    const double maxProgress = 0.97;
+    const double maxProgress = 0.99;
 
     final int totalTicks =
         totalDuration.inMilliseconds ~/ interval.inMilliseconds;
@@ -72,12 +92,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     int tick = 0;
 
     _progressTimer = Timer.periodic(interval, (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      if (_generationCompleted) {
+      if (!mounted || _generationCompleted) {
         timer.cancel();
         return;
       }
@@ -89,13 +104,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
       setState(() {
         generatingProgress = progress.clamp(startProgress, maxProgress);
+        generatingText = (tick < 400 && generatingFinished == 0)
+            ? '紫薯小編尋找資料中…'
+            : '紫薯小編編寫劇本中…';
       });
 
-      if (generatingProgress >= maxProgress) {
-        setState(() {
-          generatingProgress = maxProgress;
-        });
-
+      if (tick >= totalTicks) {
         timer.cancel();
       }
     });
@@ -159,6 +173,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
     setState(() {
       generatingProgress = 1.0;
+      generatingFinished = generatingTotal;
       generatingText = '劇本生成完成';
     });
     await Future.delayed(const Duration(milliseconds: 450));
@@ -244,13 +259,13 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     if (isGenerating) {
       return;
     }
-
+    partySize = peopleCount;
     setState(() {
-      partySize = peopleCount;
       isGenerating = true;
       generatingProgress = 0.01;
-      generatingProgress = 0.01;
-      generatingText = '正在整理旅程線索';
+      generatingText = '正在尋找資料中';
+      generatingTotal = 0;
+      generatingFinished = 0;
       _generationCompleted = false;
     });
 
@@ -258,10 +273,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     _startGeneratingProgress();
 
     try {
-      setState(() {
-        generatingText = '正在分析隊伍偏好';
-      });
-
       final Map<String, dynamic> result =
           await StoryApi.generateScriptBlueprint(
             cityName: widget.cityName,
@@ -271,8 +282,16 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             travelerCount: peopleCount,
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
-          );
+            maxTravelMinutes: maxTravelMinutes.round(),
+            onProgress: (total, finished) {
+              if (!mounted) return;
 
+              setState(() {
+                generatingTotal = total;
+                generatingFinished = finished;
+              });
+            },
+          );
       if (!mounted) {
         return;
       }
@@ -441,7 +460,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 45,
+                            top: 40,
                             child: Center(
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -452,7 +471,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                     height: 27,
                                     fit: BoxFit.contain,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 5),
                                   _OutlinedTitle(text: '組隊集結'),
                                 ],
                               ),
@@ -461,7 +480,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 85,
+                            top: 78,
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -491,9 +510,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           ),
                           Positioned(
                             left: 13,
-                            top: 130,
+                            top: 120,
                             width: 334,
-                            height: 475,
+                            height: 500,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(5),
                               child: Image.asset(
@@ -504,7 +523,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           ),
                           Positioned(
                             left: 39,
-                            top: 157,
+                            top: 150,
                             width: 282,
                             child: _FormContent(
                               peopleController: peopleController,
@@ -513,6 +532,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                               onPreferenceTap: togglePreference,
                               onTransportTap: toggleTransport,
                               onGenerate: generateScript,
+                              maxTravelMinutes: maxTravelMinutes,
+                              onMaxTravelChanged: (value) {
+                                setState(() {
+                                  maxTravelMinutes = value;
+                                });
+                              },
                             ),
                           ),
                         ],
@@ -530,6 +555,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             child: ScriptGeneratingOverlay(
               message: generatingText,
               progress: generatingProgress,
+              detail: generatingDetail,
+              stage: generatingText.contains('尋找') ? 0 : 1,
             ),
           ),
       ],
@@ -572,6 +599,8 @@ class _FormContent extends StatelessWidget {
   final ValueChanged<String> onPreferenceTap;
   final ValueChanged<String> onTransportTap;
   final VoidCallback onGenerate;
+  final double maxTravelMinutes;
+  final ValueChanged<double> onMaxTravelChanged;
 
   const _FormContent({
     required this.peopleController,
@@ -580,6 +609,8 @@ class _FormContent extends StatelessWidget {
     required this.onPreferenceTap,
     required this.onTransportTap,
     required this.onGenerate,
+    required this.maxTravelMinutes,
+    required this.onMaxTravelChanged,
   });
 
   Widget choice({
@@ -646,7 +677,6 @@ class _FormContent extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
         Text(
           '偏好(可複選)',
           style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
@@ -695,7 +725,7 @@ class _FormContent extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 8),
         Text(
           '交通方式(可複選)',
           style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
@@ -732,7 +762,40 @@ class _FormContent extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 15),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              '接受的最長交通時間',
+              style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
+            ),
+            const Spacer(),
+            Text(
+              '${maxTravelMinutes.round()} 分鐘',
+              style: AppTextStyles.bodySmallBold.copyWith(color: _optionColor),
+            ),
+          ],
+        ),
+        SizedBox(
+          height: 30,
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              activeTrackColor: _optionColor,
+              inactiveTrackColor: _optionColor.withOpacity(0.25),
+              thumbColor: _redrawCenter,
+              overlayColor: _redrawCenter.withOpacity(0.15),
+            ),
+            child: Slider(
+              value: maxTravelMinutes,
+              min: 10,
+              max: 60,
+              divisions: 10,
+              onChanged: onMaxTravelChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
         Align(
           alignment: Alignment.center,
           child: _GenerateButton(text: '生成專屬劇本', onPressed: onGenerate),

@@ -137,7 +137,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     return List.generate(nodes.length, (index) {
       final Map<String, dynamic> node = nodes[index];
       final String url = node['image_url']?.toString().trim() ?? '';
-      final String name = node['place_name']?.toString().trim() ?? '';
+      final String name = node['location_codename']?.toString().trim() ?? '';
 
       return _PolaroidPhoto(
         imageUrl: url,
@@ -149,10 +149,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
   String _nodeDisplayName(Map<String, dynamic> node, int index) {
     if (index == 0) {
-      return node['location_codename']?.toString() ?? '';
+      return node['place_name']?.toString() ?? '';
     }
 
-    return node['place_name']?.toString() ?? '';
+    return node['location_codename']?.toString() ?? '';
   }
 
   // ============================================================

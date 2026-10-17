@@ -211,7 +211,7 @@ class _SelectionPageState extends State<SelectionPage> {
         }),
       );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= 200 && response.statusCode < 400) {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
         if (data['isSuccess'] == true) {
@@ -372,7 +372,7 @@ class _SelectionPageState extends State<SelectionPage> {
     setState(() {
       isGeneratingStory = true;
       generatingProgress = 0.01;
-      generatingText = '正在整理旅程線索';
+      generatingText = '紫薯小編尋找資料中…';
     });
 
     const int totalTicks = 600;
@@ -392,7 +392,7 @@ class _SelectionPageState extends State<SelectionPage> {
           0.97,
         );
 
-        if (tick == 50) generatingText = '正在分析你的旅程想法';
+        generatingText = tick < 300 ? '紫薯小編尋找資料中…' : '紫薯小編編寫劇本中…';
       });
 
       if (tick >= totalTicks) timer.cancel();
@@ -611,6 +611,8 @@ class _SelectionPageState extends State<SelectionPage> {
             child: ScriptGeneratingOverlay(
               message: generatingText,
               progress: generatingProgress,
+              detail: '${(generatingProgress * 100).round()}%',
+              stage: generatingText.contains('尋找') ? 0 : 1,
             ),
           ),
       ],

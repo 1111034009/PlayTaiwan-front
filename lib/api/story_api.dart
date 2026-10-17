@@ -72,6 +72,8 @@ class StoryApi {
     required List<String> preferences,
     required List<String> transportation,
     int isNight = 1,
+    int maxTravelMinutes = 30,
+    void Function(int total, int finished)? onProgress,
   }) async {
     final String cleanCityName = cityName.trim();
 
@@ -79,11 +81,7 @@ class StoryApi {
       throw Exception('city_name 不能為空');
     }
 
-    final String? token = AppSession.token;
-
-    if (token == null || token.isEmpty) {
-      throw Exception('登入資訊已失效，請重新登入');
-    }
+    _requireToken();
 
     final location = await geocodeLocation(
       cityName: cleanCityName,
@@ -97,30 +95,37 @@ class StoryApi {
       'transportation': transportation,
       'preferences': preferences,
       'is_night_mode': isNight,
+      'max_travel_minutes': maxTravelMinutes.clamp(10, 60).toInt(),
     };
+
     debugPrint('requestBody: $requestBody');
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/Story/GenerateGameStory'),
-      headers: {
-        'accept': 'text/plain',
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(requestBody),
+
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/GenerateGameStory',
+      failMessage: '劇本生成失敗，請稍後再試',
+      body: requestBody,
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    final Map<String, dynamic> job = await _pollJob(
+      first: data,
+      path: '/api/Story/GenerateGameStory',
+      failMessage: '劇本生成失敗，請稍後再試',
+      onProgress: (job) {
+        onProgress?.call(
+          int.tryParse(job['total_count']?.toString() ?? '') ?? 0,
+          int.tryParse(job['finished_count']?.toString() ?? '') ?? 0,
+        );
+      },
+    );
+
+    final dynamic stories = job['stories'];
+
+    if (stories is! List || stories.isEmpty) {
       throw Exception('劇本生成失敗，請稍後再試');
     }
 
-    final Map<String, dynamic> data =
-        jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (data['isSuccess'] != true) {
-      throw Exception(data['message']?.toString() ?? '劇本生成失敗');
-    }
-
-    return data;
+    return {'isSuccess': true, 'message': '劇本生成成功', 'Result': stories};
   }
 
   static Future<String> _downloadAudio(String audioUrl) async {
@@ -220,6 +225,62 @@ class StoryApi {
     );
 
     return position != null ? '語音等待中（排第 $position 位）…' : '語音等待中…';
+  }
+
+  static const Duration _jobPollInterval = Duration(seconds: 2);
+  static const Duration _jobTimeout = Duration(minutes: 10);
+
+  static Future<Map<String, dynamic>> _pollJob({
+    required Map<String, dynamic> first,
+    required String path,
+    required String failMessage,
+    void Function(Map<String, dynamic> job)? onProgress,
+  }) async {
+    Map<String, dynamic> job = _voiceResult(first);
+
+    final String jobId = job['job_id']?.toString().trim() ?? '';
+
+    if (jobId.isEmpty) {
+      throw Exception('$failMessage：沒有回傳 job_id');
+    }
+
+    final DateTime deadline = DateTime.now().add(_jobTimeout);
+
+    bool polled = false;
+
+    while (true) {
+      onProgress?.call(job);
+
+      final String status = job['status']?.toString().trim() ?? '';
+
+      if (status == 'done') {
+        return job;
+      }
+
+      if (status == 'failed') {
+        final String error = job['error']?.toString().trim() ?? '';
+
+        throw Exception(error.isNotEmpty ? error : failMessage);
+      }
+
+      if (DateTime.now().isAfter(deadline)) {
+        throw Exception('$failMessage：等待逾時，請重新送出');
+      }
+
+      if (polled) {
+        await Future.delayed(_jobPollInterval);
+      }
+
+      polled = true;
+
+      job = _voiceResult(
+        await _storyRequest(
+          method: 'GET',
+          path: '$path/${Uri.encodeComponent(jobId)}',
+          failMessage: failMessage,
+        ),
+      );
+    }
   }
 
   static Future<String> preparePrologueVoice({required String storyId}) async {
@@ -492,13 +553,17 @@ class StoryApi {
       body: {'user_prompt': prompt},
     );
 
-    final dynamic result = data['Result'];
+    final Map<String, dynamic> job = await _pollJob(
+      first: data,
+      path: '/api/Story/GenerateByText',
+      failMessage: '劇本生成失敗，稍後嘗試',
+    );
 
-    if (result is! Map) {
-      throw Exception('劇本生成失敗，稍後嘗試 ');
+    if (job['data'] is! Map) {
+      throw Exception('劇本生成失敗，稍後嘗試');
     }
 
-    return Map<String, dynamic>.from(result);
+    return job;
   }
 
   static Future<Map<String, dynamic>> _resultMap(
