@@ -1,11 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../core/app_session.dart';
+
+class StoryBadRequest implements Exception {
+  final String message;
+
+  StoryBadRequest(this.message);
+
+  @override
+  String toString() => message;
+}
 
 class StoryApi {
   static String get _baseUrl {
@@ -100,12 +110,18 @@ class StoryApi {
 
     debugPrint('requestBody: $requestBody');
 
-    final Map<String, dynamic> data = await _storyRequest(
-      method: 'POST',
-      path: '/api/Story/GenerateGameStory',
-      failMessage: '劇本生成失敗，請稍後再試',
-      body: requestBody,
-    );
+    final Map<String, dynamic> data;
+
+    try {
+      data = await _storyRequest(
+        method: 'POST',
+        path: '/api/Story/GenerateGameStory',
+        failMessage: '劇本生成失敗，請稍後再試',
+        body: requestBody,
+      );
+    } on StoryBadRequest catch (e) {
+      throw Exception('請調整「到景點最遠時間」或換個地區後再試');
+    }
 
     final Map<String, dynamic> job = await _pollJob(
       first: data,
@@ -176,18 +192,25 @@ class StoryApi {
     void Function(String status)? onStatus,
   }) async {
     Map<String, dynamic> result = _voiceResult(data);
-    final String taskId = result['task_id']?.toString().trim() ?? '';
+    final String jobId = result['job_id']?.toString().trim() ?? '';
     final DateTime deadline = DateTime.now().add(_voiceTimeout);
 
     while (true) {
+      final String status = result['status']?.toString().trim() ?? '';
       final String audioUrl = result['audio_url']?.toString().trim() ?? '';
+
+      if (status == 'failed') {
+        final String error = result['error']?.toString().trim() ?? '';
+
+        throw Exception(error.isNotEmpty ? error : failMessage);
+      }
 
       if (audioUrl.isNotEmpty) {
         return _downloadAudio(audioUrl);
       }
 
-      if (taskId.isEmpty) {
-        throw Exception('$failMessage：沒有回傳 task_id');
+      if (jobId.isEmpty) {
+        throw Exception('$failMessage：沒有回傳 job_id');
       }
 
       if (DateTime.now().isAfter(deadline)) {
@@ -197,11 +220,10 @@ class StoryApi {
       onStatus?.call(_voiceStatusText(result));
       await Future.delayed(_voicePollInterval);
 
-      // 生成失敗時後端回 isSuccess = false，_storyRequest 會丟出失敗原因
       result = _voiceResult(
         await _storyRequest(
           method: 'GET',
-          path: '/api/Npc/Speak/${Uri.encodeComponent(taskId)}',
+          path: '/api/Npc/Speak/${Uri.encodeComponent(jobId)}',
           failMessage: failMessage,
         ),
       );
@@ -216,15 +238,17 @@ class StoryApi {
 
   /// 語音進度給玩家看的文字：等待中（排第幾位）、生成中
   static String _voiceStatusText(Map<String, dynamic> result) {
-    if (result['status'] != 'waiting') {
-      return '語音生成中…';
-    }
-
     final int? position = int.tryParse(
       result['queue_position']?.toString() ?? '',
     );
 
-    return position != null ? '語音等待中（排第 $position 位）…' : '語音等待中…';
+    if (position != null && position > 0) {
+      return '語音排隊中（前面還有 $position 個）…';
+    }
+
+    final String stage = result['stage']?.toString().trim() ?? '';
+
+    return stage.isNotEmpty ? '$stage…' : '語音生成中…';
   }
 
   static const Duration _jobPollInterval = Duration(seconds: 2);
@@ -310,6 +334,20 @@ class StoryApi {
       throw Exception('NPC 語音文字不能為空');
     }
 
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String cacheKey =
+        'npc_voice_${base64Url.encode(utf8.encode('$cleanNpcName|$cleanText'))}';
+
+    final String cachedPath = prefs.getString(cacheKey) ?? '';
+
+    if (cachedPath.isNotEmpty) {
+      final File cachedFile = File(cachedPath);
+
+      if (await cachedFile.exists() && await cachedFile.length() > 0) {
+        return cachedPath;
+      }
+    }
+
     final Map<String, dynamic> data = await _storyRequest(
       method: 'POST',
       path: '/api/Npc/Speak',
@@ -321,7 +359,15 @@ class StoryApi {
       },
     );
 
-    return _downloadResultAudio(data, 'NPC 語音產生失敗', onStatus: onStatus);
+    final String path = await _downloadResultAudio(
+      data,
+      'NPC 語音產生失敗',
+      onStatus: onStatus,
+    );
+
+    await prefs.setString(cacheKey, path);
+
+    return path;
   }
 
   static Future<Map<String, dynamic>> getCurrentPlaying() async {
@@ -453,6 +499,20 @@ class StoryApi {
         ? await http.get(uri, headers: headers)
         : await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
 
+    if (response.statusCode == 400) {
+      String message = '';
+
+      try {
+        final dynamic body = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (body is Map) {
+          message = body['message']?.toString().trim() ?? '';
+        }
+      } catch (_) {}
+
+      throw StoryBadRequest(message.isNotEmpty ? message : '條件不符');
+    }
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('$failMessage：HTTP ${response.statusCode}');
     }
@@ -564,6 +624,101 @@ class StoryApi {
     }
 
     return job;
+  }
+
+  static Future<({String city, String town})> currentCityTown() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw Exception('請開啟手機的位置服務');
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception('需要位置權限才能推薦附近地點');
+    }
+
+    final Position position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
+
+    final Uri uri = Uri.https('nominatim.openstreetmap.org', '/reverse', {
+      'lat': '${position.latitude}',
+      'lon': '${position.longitude}',
+      'format': 'jsonv2',
+      'zoom': '16',
+      'addressdetails': '1',
+      'accept-language': 'zh-TW',
+    });
+
+    final response = await http.get(
+      uri,
+      headers: {'User-Agent': 'playtaiwan-app/1.0'},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('無法判斷目前所在的縣市');
+    }
+
+    final dynamic body = jsonDecode(utf8.decode(response.bodyBytes));
+
+    final Map<String, dynamic> address = body is Map && body['address'] is Map
+        ? Map<String, dynamic>.from(body['address'] as Map)
+        : {};
+
+    String pick(List<String> keys) {
+      for (final String key in keys) {
+        final String value = address[key]?.toString().trim() ?? '';
+
+        if (value.isNotEmpty) return value;
+      }
+
+      return '';
+    }
+
+    final String city = pick(['city', 'county', 'state']).replaceAll('台', '臺');
+    final String town = pick([
+      'city_district',
+      'suburb',
+      'town',
+      'village',
+      'district',
+    ]);
+
+    if (city.isEmpty) {
+      throw Exception('無法判斷目前所在的縣市');
+    }
+
+    return (city: city, town: town);
+  }
+
+  static Future<Map<String, dynamic>> spinRecommendation({
+    required String inputText,
+  }) async {
+    final String text = inputText.trim();
+
+    if (text.isEmpty) {
+      throw Exception('請輸入想說的話');
+    }
+
+    final area = await currentCityTown();
+
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'POST',
+      path: '/api/Story/spin',
+      failMessage: '推薦生成失敗，請稍後再試',
+      body: {
+        'input_text': text,
+        'city_name': area.city,
+        if (area.town.isNotEmpty) 'town_name': area.town,
+      },
+    );
+
+    return _resultMap(data, '推薦生成失敗，請稍後再試');
   }
 
   static Future<Map<String, dynamic>> _resultMap(

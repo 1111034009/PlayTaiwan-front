@@ -1,5 +1,12 @@
+import 'dart:math' as math;
+import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../api/nearby_cache.dart';
+import '../api/story_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
@@ -12,40 +19,6 @@ class _Entry {
   final _Sender sender;
   final Widget child;
   const _Entry(this.sender, this.child);
-}
-
-/// 已加入探員行事曆的行程資料
-class _CalendarEvent {
-  final String title;
-  final String spots;
-  final String date;
-  const _CalendarEvent({
-    required this.title,
-    required this.spots,
-    required this.date,
-  });
-}
-
-class _Category {
-  final String label;
-  final IconData icon;
-  final List<_Destination> destinations;
-  const _Category({
-    required this.label,
-    required this.icon,
-    required this.destinations,
-  });
-}
-
-class _Destination {
-  final String title;
-  final String spots;
-  final String date;
-  const _Destination({
-    required this.title,
-    required this.spots,
-    required this.date,
-  });
 }
 
 class _ChoiceOption {
@@ -64,99 +37,68 @@ class AiTalkPage extends StatefulWidget {
 class _AiTalkPageState extends State<AiTalkPage> {
   static const String _npcName = '小精靈';
   static const String _npcSubtitle = '探員隨身尋找';
+  static const String _questLabel = '接個隨機地點';
+  static const String _questDefaultText = '我想找個附近好玩的地方';
+  static const String _busyText = '正在對話中，請等待生成';
+  static const String _cacheKey = 'ai_talk_history_v1';
+  static const Duration _cacheLife = Duration(days: 7);
 
-  final List<_Entry> _entries = [];
-  final ScrollController _scrollController = ScrollController();
-  final TextEditingController _inputController = TextEditingController();
-  final List<_CalendarEvent> _calendarEvents = [];
-
-  static const List<_Category> _categories = [
-    _Category(
-      label: '吃喝',
-      icon: Icons.restaurant,
-      destinations: [
-        _Destination(
-          title: '度小月擔仔麵',
-          spots: '國華街本店，招牌擔仔麵、蝦捲',
-          date: '營業時間：11:00 ～ 20:30',
-        ),
-        _Destination(
-          title: '窄門咖啡',
-          spots: '府中街巷弄老宅咖啡，招牌桂花拿鐵',
-          date: '營業時間：10:00 ～ 18:00',
-        ),
-        _Destination(
-          title: '正興街冰品店',
-          spots: '在地排隊冰品，芒果雪花冰必吃',
-          date: '營業時間：12:00 ～ 21:00',
-        ),
-      ],
-    ),
-    _Category(
-      label: '休息',
-      icon: Icons.self_improvement,
-      destinations: [
-        _Destination(
-          title: '林默娘公園',
-          spots: '河堤景觀綠地，適合吹風賞夕陽',
-          date: '開放時間：全天開放',
-        ),
-        _Destination(
-          title: '不只是圖書館',
-          spots: '老屋改建的靜謐閱讀空間，可小憩片刻',
-          date: '營業時間：10:00 ～ 18:00',
-        ),
-        _Destination(
-          title: '神農街老宅茶館',
-          spots: '古厝改建茶館，品茶放空',
-          date: '營業時間：13:00 ～ 20:00',
-        ),
-      ],
-    ),
-    _Category(
-      label: '逛街',
-      icon: Icons.shopping_bag,
-      destinations: [
-        _Destination(
-          title: '正興街商圈',
-          spots: '文創小店、選物店林立',
-          date: '營業時間：11:00 ～ 21:00',
-        ),
-        _Destination(
-          title: '神農街文創聚落',
-          spots: '老屋改建工作室與選物店',
-          date: '營業時間：11:00 ～ 19:00',
-        ),
-        _Destination(
-          title: '林百貨',
-          spots: '複合式百貨，文創商品與伴手禮',
-          date: '營業時間：10:30 ～ 21:00',
-        ),
-      ],
-    ),
+  static const List<String> _foodKeywords = [
+    '餐',
+    '麵',
+    '飯',
+    '食',
+    '小吃',
+    '咖啡',
+    'cafe',
+    'coffee',
+    '茶',
+    '飲',
+    '冰',
+    '甜',
+    '餅',
+    '糕',
+    '麥',
+    '火鍋',
+    '燒',
+    '烤',
+    '酒',
+    '廚',
+    '鍋',
+    '粥',
+    '滷',
+    '肉',
+    '雞',
+    '魚',
+    '牛',
+    '豬',
+    '豆花',
+    '便當',
+    '早餐',
+    '宵夜',
   ];
 
-  static const Map<String, List<String>> _categoryKeywords = {
-    '吃喝': ['吃', '喝', '美食', '小吃', '咖啡', '甜點', '宵夜', '餓', '奶茶'],
-    '休息': ['休息', '累', '放空', '涼快', '冷氣', '吹冷氣', '避暑', '太熱', '熱', '發呆', '喘口氣'],
-    '逛街': ['逛街', '購物', '買', '商圈', '百貨', '逛逛'],
-  };
+  final List<_Entry> _entries = [];
+  final List<Map<String, dynamic>> _records = [];
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _inputController = TextEditingController();
+  final math.Random _random = math.Random();
 
-  _Category? _matchCategory(String text) {
-    for (final category in _categories) {
-      final keywords = _categoryKeywords[category.label] ?? const [];
-      for (final kw in keywords) {
-        if (text.contains(kw)) return category;
-      }
-    }
-    return null;
+  List<NearbyPlaceData> _pool = [];
+  int _poolIndex = 0;
+  bool _busy = false;
+  _Entry? _typing;
+
+  bool _isFood(NearbyPlaceData place) {
+    final String name = place.title.toLowerCase();
+
+    return _foodKeywords.any((keyword) => name.contains(keyword));
   }
 
   @override
   void initState() {
     super.initState();
-    _npcText('探員閣下您好，今日想找我做點甚麼呢?');
-    _showMainMenu();
+    _restore();
   }
 
   @override
@@ -166,9 +108,102 @@ class _AiTalkPageState extends State<AiTalkPage> {
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------
-  // 對話輔助方法
-  // ---------------------------------------------------------------------
+  Future<void> _restore() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String raw = prefs.getString(_cacheKey) ?? '';
+
+      if (raw.isNotEmpty) {
+        final dynamic list = jsonDecode(raw);
+        final int oldest = DateTime.now()
+            .subtract(_cacheLife)
+            .millisecondsSinceEpoch;
+
+        if (list is List) {
+          for (final dynamic item in list) {
+            if (item is! Map) continue;
+
+            final Map<String, dynamic> record = Map<String, dynamic>.from(item);
+            final int ts = (record['ts'] as num?)?.toInt() ?? 0;
+
+            if (ts < oldest) continue;
+
+            final Widget? built = _widgetFor(record);
+
+            if (built == null) continue;
+
+            _records.add(record);
+            _entries.add(
+              _Entry(record['t'] == 'user' ? _Sender.user : _Sender.npc, built),
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    if (_records.isEmpty) {
+      _npcText('探員閣下您好，今日想找我做點甚麼呢?');
+    } else {
+      setState(() {});
+      _scrollToBottom();
+    }
+
+    _showMainMenu();
+    _save();
+  }
+
+  Widget? _widgetFor(Map<String, dynamic> record) {
+    final dynamic type = record['t'];
+
+    if (type == 'npc') {
+      return _NpcBubble(child: Text('${record['text']}', style: _npcTextStyle));
+    }
+
+    if (type == 'user') {
+      return _UserBubble(
+        child: Text('${record['text']}', style: _userTextStyle),
+      );
+    }
+
+    if (type == 'spin' && record['data'] is Map) {
+      return _SpinResultCard(
+        data: Map<String, dynamic>.from(record['data'] as Map),
+      );
+    }
+
+    if (type == 'nearby' && record['places'] is List) {
+      final List<NearbyPlaceData> places = (record['places'] as List)
+          .whereType<Map>()
+          .map(
+            (p) => NearbyPlaceData(
+              title: '${p['title']}',
+              lat: (p['lat'] as num).toDouble(),
+              lon: (p['lon'] as num).toDouble(),
+              distanceM: (p['d'] as num).toDouble(),
+            ),
+          )
+          .toList();
+
+      return places.isEmpty ? null : _NearbyListCard(places: places);
+    }
+
+    return null;
+  }
+
+  void _remember(Map<String, dynamic> record) {
+    _records.add({...record, 'ts': DateTime.now().millisecondsSinceEpoch});
+    _save();
+  }
+
+  Future<void> _save() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString(_cacheKey, jsonEncode(_records));
+    } catch (_) {}
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -181,19 +216,60 @@ class _AiTalkPageState extends State<AiTalkPage> {
     });
   }
 
-  void _addEntry(_Sender sender, Widget child) {
+  void _addEntry(_Sender sender, Widget child, {Map<String, dynamic>? record}) {
     setState(() => _entries.add(_Entry(sender, child)));
+
+    if (record != null) {
+      _remember(record);
+    }
+
     _scrollToBottom();
   }
 
+  void _showTyping() {
+    final _Entry entry = _Entry(_Sender.npc, const _TypingBubble());
+
+    _typing = entry;
+
+    setState(() => _entries.add(entry));
+    _scrollToBottom();
+  }
+
+  void _hideTyping() {
+    final _Entry? entry = _typing;
+
+    if (entry == null) return;
+
+    _typing = null;
+
+    if (mounted) {
+      setState(() => _entries.remove(entry));
+    }
+  }
+
+  bool _guardBusy() {
+    if (!_busy) return false;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text(_busyText)));
+
+    return true;
+  }
+
   void _npcText(String text) {
-    _addEntry(_Sender.npc, _NpcBubble(child: Text(text, style: _npcTextStyle)));
+    _addEntry(
+      _Sender.npc,
+      _NpcBubble(child: Text(text, style: _npcTextStyle)),
+      record: {'t': 'npc', 'text': text},
+    );
   }
 
   void _userText(String text) {
     _addEntry(
       _Sender.user,
       _UserBubble(child: Text(text, style: _userTextStyle)),
+      record: {'t': 'user', 'text': text},
     );
   }
 
@@ -206,18 +282,13 @@ class _AiTalkPageState extends State<AiTalkPage> {
   Future<void> _delay([int ms = 500]) =>
       Future.delayed(Duration(milliseconds: ms));
 
-  // ---------------------------------------------------------------------
-  // 主選單 / 三個開場選項
-  // ---------------------------------------------------------------------
-
   void _showMainMenu() {
     _addEntry(
       _Sender.npc,
       _ChoiceGroup(
         options: const [
-          _ChoiceOption(icon: Icons.auto_stories, label: '開一個劇本給我'),
+          _ChoiceOption(icon: Icons.bolt, label: _questLabel),
           _ChoiceOption(icon: Icons.explore, label: '我想找點附近去晃晃……'),
-          _ChoiceOption(icon: Icons.chat_bubble_outline, label: '只是想找你聊聊天'),
         ],
         onSelected: _handleMainMenuChoice,
       ),
@@ -225,175 +296,187 @@ class _AiTalkPageState extends State<AiTalkPage> {
   }
 
   void _handleMainMenuChoice(int index) {
-    switch (index) {
-      case 0:
-        _handleOpenQuest();
-        break;
-      case 1:
-        _handleFindPlaces();
-        break;
-      case 2:
-        _handleCasualChat();
-        break;
+    if (_guardBusy()) return;
+
+    if (index == 0) {
+      _userText('幫我接一個附近的隨機地點吧！');
+      _runSpin(_questDefaultText);
+    } else {
+      _handleNearby();
     }
   }
 
-  // ---------------------------------------------------------------------
-  // 選項一：開一個劇本給我
-  // ---------------------------------------------------------------------
+  Future<void> _runSpin(String text) async {
+    _busy = true;
 
-  Future<void> _handleOpenQuest() async {
-    _userText('幫我開一個新的劇本吧！');
-    await _delay();
+    await _delay(200);
     if (!mounted) return;
-    _addEntry(
-      _Sender.npc,
-      const _QuestScrollCard(
-        title: '古都密令：失落的印記',
-        objective: '前往指定地點尋找三個隱藏印記，並拍照回報給我確認。',
-        reward: '獎勵：探索積分 x30、限定明信片一張',
-      ),
-    );
-    await _delay(400);
-    if (!mounted) return;
-    _npcText('劇本卷軸已經交給您了，完成後記得回來找我回報喔！');
-    await _delay(400);
-    if (!mounted) return;
-    _showMainMenu();
-  }
 
-  // ---------------------------------------------------------------------
-  // 選項二：我想找點地方去晃晃……（吃喝 / 休息 / 逛街）
-  // ---------------------------------------------------------------------
+    _showTyping();
 
-  Future<void> _handleFindPlaces() async {
-    _userText('我想找點地方去晃晃……');
-    await _delay();
-    if (!mounted) return;
-    _npcText('您現在比較想做些什麼呢？');
-    await _delay(300);
-    if (!mounted) return;
-    _addEntry(
-      _Sender.npc,
-      _ChoiceGroup(
-        options: _categories
-            .map((c) => _ChoiceOption(icon: c.icon, label: c.label))
-            .toList(),
-        onSelected: _handleCategoryChoice,
-      ),
-    );
-  }
-
-  Future<void> _handleCategoryChoice(int index) async {
-    final category = _categories[index];
-    _userText('我想找點${category.label}的地方～');
-    await _delay();
-    if (!mounted) return;
-    _npcText('這是我推薦的幾個地方，您可以參考看看：');
-    await _delay(300);
-    if (!mounted) return;
-    _addEntry(
-      _Sender.npc,
-      _ChoiceGroup(
-        options: category.destinations
-            .map((d) => _ChoiceOption(icon: Icons.place, label: d.title))
-            .toList(),
-        onSelected: (i) => _handleDestinationChoice(category, i),
-      ),
-    );
-  }
-
-  Future<void> _handleDestinationChoice(_Category category, int index) async {
-    final dest = category.destinations[index];
-    _userText('我想去【${dest.title}】看看！');
-    await _delay();
-    if (!mounted) return;
-    _addEntry(
-      _Sender.npc,
-      _TripCard(destination: dest, onConfirm: () => _confirmTrip(dest)),
-    );
-  }
-
-  Future<void> _confirmTrip(_Destination dest) async {
-    setState(() {
-      _calendarEvents.add(
-        _CalendarEvent(title: dest.title, spots: dest.spots, date: dest.date),
+    try {
+      final Map<String, dynamic> result = await StoryApi.spinRecommendation(
+        inputText: text,
       );
-    });
+
+      if (!mounted) return;
+
+      _hideTyping();
+
+      _addEntry(
+        _Sender.npc,
+        _SpinResultCard(data: result),
+        record: {'t': 'spin', 'data': result},
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _hideTyping();
+      _npcText(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      _busy = false;
+    }
+
     await _delay(300);
     if (!mounted) return;
-    _addEntry(
-      _Sender.system,
-      _SystemNotice(
-        title: '已成功加入探員行事曆！',
-        message: '「${dest.title}」已排定至您的專屬任務清單中。',
-        totalEvents: _calendarEvents.length,
-      ),
-    );
-    await _delay(400);
-    if (!mounted) return;
-    _npcText('探員還想繼續規劃，還是找我聊點別的呢？');
-    await _delay(300);
-    if (!mounted) return;
+
     _showMainMenu();
   }
 
-  // ---------------------------------------------------------------------
-  // 選項三：只是想找你聊聊天
-  // ---------------------------------------------------------------------
-
-  Future<void> _handleCasualChat() async {
-    _userText('只是想找你聊聊天～');
+  Future<void> _handleNearby() async {
+    _userText('我想找點附近去晃晃……');
     await _delay();
     if (!mounted) return;
-    _npcText('當然可以!探員辛苦了！我一直都在您身邊，隨時可以問我路線、劇本或周邊小情報喔。');
-    await _delay(500);
+
+    _npcText('您現在比較想找哪一類呢？');
+    await _delay(300);
     if (!mounted) return;
-    _showMainMenu();
+
+    _addEntry(
+      _Sender.npc,
+      _ChoiceGroup(
+        options: const [
+          _ChoiceOption(icon: Icons.restaurant, label: '吃喝'),
+          _ChoiceOption(icon: Icons.local_see, label: '其他'),
+        ],
+        onSelected: _handleNearbyCategory,
+      ),
+    );
   }
 
-  // ---------------------------------------------------------------------
-  // 自由輸入對話框
-  // ---------------------------------------------------------------------
+  Future<void> _handleNearbyCategory(int index) async {
+    if (_guardBusy()) return;
+
+    final bool food = index == 0;
+
+    _userText(food ? '吃喝' : '其他');
+
+    if (!NearbyCache.instance.hasData) {
+      _busy = true;
+      _showTyping();
+
+      try {
+        await NearbyCache.instance.refresh();
+      } catch (e) {
+        _hideTyping();
+        _busy = false;
+
+        if (!mounted) return;
+
+        _npcText(e.toString().replaceFirst('Exception: ', ''));
+        _showMainMenu();
+        return;
+      }
+
+      _hideTyping();
+      _busy = false;
+    }
+
+    await _delay(300);
+    if (!mounted) return;
+
+    final List<NearbyPlaceData> all = NearbyCache.instance.places;
+
+    List<NearbyPlaceData> pool = all
+        .where((place) => _isFood(place) == food)
+        .toList();
+
+    if (pool.isEmpty) {
+      pool = List.of(all);
+    }
+
+    if (pool.isEmpty) {
+      _npcText('附近兩公里內暫時沒有找到地方，換個地方再試試吧！');
+      _showMainMenu();
+      return;
+    }
+
+    pool.shuffle(_random);
+
+    _pool = pool;
+    _poolIndex = 0;
+
+    _showNextNearby();
+  }
+
+  void _showNextNearby() {
+    if (_poolIndex >= _pool.length) {
+      _pool.shuffle(_random);
+      _poolIndex = 0;
+      _npcText('這一帶我都推薦過一輪了，再隨機挑給您：');
+    }
+
+    final int end = math.min(_poolIndex + 5, _pool.length);
+    final List<NearbyPlaceData> batch = _pool.sublist(_poolIndex, end);
+
+    _poolIndex = end;
+
+    _addEntry(
+      _Sender.npc,
+      _NearbyListCard(places: batch),
+      record: {
+        't': 'nearby',
+        'places': [
+          for (final NearbyPlaceData p in batch)
+            {'title': p.title, 'lat': p.lat, 'lon': p.lon, 'd': p.distanceM},
+        ],
+      },
+    );
+
+    _addEntry(
+      _Sender.npc,
+      _ChoiceGroup(
+        options: const [
+          _ChoiceOption(icon: Icons.refresh, label: '還有嗎?'),
+          _ChoiceOption(icon: Icons.home_outlined, label: '回主選單'),
+        ],
+        onSelected: (index) {
+          if (_guardBusy()) return;
+
+          if (index == 0) {
+            _userText('還有嗎?');
+            _showNextNearby();
+          } else {
+            _userText('回主選單');
+            _showMainMenu();
+          }
+        },
+      ),
+    );
+  }
 
   void _sendFreeText() {
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
+    if (_guardBusy()) return;
     _inputController.clear();
     _handleFreeText(text);
   }
 
   Future<void> _handleFreeText(String text) async {
     _userText(text);
-    await _delay();
-    if (!mounted) return;
-
-    final matched = _matchCategory(text);
-    if (matched != null) {
-      _npcText('聽起來您想找地方${matched.label}一下，這是我推薦的幾個地方：');
-      await _delay(300);
-      if (!mounted) return;
-      _addEntry(
-        _Sender.npc,
-        _ChoiceGroup(
-          options: matched.destinations
-              .map((d) => _ChoiceOption(icon: Icons.place, label: d.title))
-              .toList(),
-          onSelected: (i) => _handleDestinationChoice(matched, i),
-        ),
-      );
-      return;
-    }
-
-    _npcText('探員說的是「$text」呀，這部分我還在學習中，您可以參考上面的選項，或告訴我想找吃喝、休息還是逛街的地方！');
-    await _delay(300);
-    if (!mounted) return;
-    _showMainMenu();
+    await _runSpin(text);
   }
-
-  // ---------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -782,94 +865,85 @@ class _ChoiceButton extends StatelessWidget {
   }
 }
 
-// ===========================================================================
-// UI 元件：劇本卷軸卡片
-// ===========================================================================
+Future<void> _openUrl(BuildContext context, String url) async {
+  final bool ok = await launchUrl(
+    Uri.parse(url),
+    mode: LaunchMode.externalApplication,
+  );
 
-class _QuestScrollCard extends StatelessWidget {
-  final String title;
-  final String objective;
-  final String reward;
-  const _QuestScrollCard({
-    required this.title,
-    required this.objective,
-    required this.reward,
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('無法開啟')));
+  }
+}
+
+Future<void> _openMap(BuildContext context, String query) {
+  return _openUrl(
+    context,
+    'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}',
+  );
+}
+
+String _distanceText(double meters) {
+  return meters >= 1000
+      ? '${(meters / 1000).toStringAsFixed(1)} 公里'
+      : '${meters.round()} 公尺';
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.filled,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return _NpcBubble(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+    final Color color = filled ? AppColors.paper : AppColors.primaryDark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: filled ? AppColors.primary : AppColors.questionBackground,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: filled ? AppColors.darkBorder : AppColors.postcardLine,
+              width: 1.4,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.auto_stories,
-                size: 18,
-                color: AppColors.primaryDark,
-              ),
+              Icon(icon, size: 17, color: color),
               const SizedBox(width: 6),
               Text(
-                '新劇本已解鎖',
-                style: AppTextStyles.captionBold.copyWith(
-                  color: AppColors.primaryDark,
-                ),
+                label,
+                style: AppTextStyles.bodySmallBold.copyWith(color: color),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.postcard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.postcardLine, width: 1.4),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.subtitleMedium.copyWith(
-                    color: AppColors.darkBrown,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  objective,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  reward,
-                  style: AppTextStyles.captionBold.copyWith(
-                    color: AppColors.deepRed,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ===========================================================================
-// UI 元件：地點建議卡片（含確認並加入行事曆）
-// ===========================================================================
+class _NearbyListCard extends StatelessWidget {
+  final List<NearbyPlaceData> places;
 
-class _TripCard extends StatelessWidget {
-  final _Destination destination;
-  final VoidCallback onConfirm;
-  const _TripCard({required this.destination, required this.onConfirm});
+  const _NearbyListCard({required this.places});
 
   @override
   Widget build(BuildContext context) {
@@ -879,7 +953,119 @@ class _TripCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '這裡是詳細資訊：',
+            '這是我推薦的幾個地方：',
+            style: AppTextStyles.captionBold.copyWith(
+              color: AppColors.softBrown,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (int i = 0; i < places.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            _PlaceRow(place: places[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceRow extends StatelessWidget {
+  final NearbyPlaceData place;
+
+  const _PlaceRow({required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openMap(context, '${place.lat},${place.lon}'),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.postcard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.postcardLine, width: 1.4),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.place, size: 20, color: AppColors.primaryDark),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.title,
+                      style: AppTextStyles.bodyBold.copyWith(
+                        color: AppColors.darkBrown,
+                      ),
+                    ),
+                    Text(
+                      '距離約 ${_distanceText(place.distanceM)}',
+                      style: AppTextStyles.captionSmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '前往',
+                style: AppTextStyles.captionBold.copyWith(
+                  color: AppColors.deepRed,
+                ),
+              ),
+              const SizedBox(width: 3),
+              const Icon(Icons.near_me, size: 14, color: AppColors.deepRed),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SpinResultCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _SpinResultCard({required this.data});
+
+  Map<String, dynamic> _map(dynamic value) {
+    return value is Map ? Map<String, dynamic>.from(value) : {};
+  }
+
+  String _text(dynamic value) {
+    return value?.toString().trim() ?? '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, dynamic> agent = _map(data['agent_result']);
+    final Map<String, dynamic> spot = _map(
+      _map(agent['phase_3_graph_rag'])['recommended_spot'],
+    );
+    final Map<String, dynamic> tools = _map(agent['phase_4_action_and_tools']);
+
+    final String name = _text(spot['name']);
+    final String address = _text(spot['address']);
+    final String description = _text(spot['description']);
+    final String calendarUrl = _text(tools['tool_1_calendar_sync']);
+    final double? distance = double.tryParse(_text(spot['distance_m']));
+    final dynamic rawTags = spot['tags'];
+    final List<String> tags = rawTags is List
+        ? rawTags.map(_text).where((tag) => tag.isNotEmpty).toList()
+        : [];
+
+    return _NpcBubble(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '為您找到這裡：',
             style: AppTextStyles.captionBold.copyWith(
               color: AppColors.softBrown,
             ),
@@ -898,69 +1084,97 @@ class _TripCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  destination.title,
+                  name,
                   style: AppTextStyles.subtitleMedium.copyWith(
                     color: AppColors.darkBrown,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  destination.spots,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.4,
+                if (address.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    address,
+                    style: AppTextStyles.captionSmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  destination.date,
-                  style: AppTextStyles.captionBold.copyWith(
-                    color: AppColors.deepRed,
+                ],
+                if (distance != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '目前距離約 ${_distanceText(distance)}',
+                    style: AppTextStyles.captionBold.copyWith(
+                      color: AppColors.deepRed,
+                    ),
                   ),
-                ),
+                ],
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final String tag in tags)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.postcardLine),
+                          ),
+                          child: Text(
+                            tag,
+                            style: AppTextStyles.captionSmall.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '請按下方按鈕確認加入您的探員行事曆：',
-            style: AppTextStyles.captionSmall.copyWith(
-              color: AppColors.softBrown,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onConfirm,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.darkBorder, width: 1.6),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (calendarUrl.isNotEmpty) ...[
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.event_available,
+                    label: '加入行事曆',
+                    filled: false,
+                    onTap: () => _openUrl(context, calendarUrl),
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.beenhere,
-                      size: 18,
-                      color: AppColors.paper,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '確認並加入行事曆',
-                      style: AppTextStyles.bodyBold.copyWith(
-                        color: AppColors.paper,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.near_me,
+                  label: '前往',
+                  filled: true,
+                  onTap: () => _openMap(
+                    context,
+                    address.isNotEmpty ? '$name $address' : name,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -968,67 +1182,45 @@ class _TripCard extends StatelessWidget {
   }
 }
 
-// ===========================================================================
-// UI 元件：系統提示（成功加入行事曆）
-// ===========================================================================
+class _TypingBubble extends StatefulWidget {
+  const _TypingBubble();
 
-class _SystemNotice extends StatelessWidget {
-  final String title;
-  final String message;
-  final int totalEvents;
-  const _SystemNotice({
-    required this.title,
-    required this.message,
-    required this.totalEvents,
-  });
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble> {
+  Timer? _timer;
+  int _dots = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 450), (_) {
+      if (mounted) {
+        setState(() => _dots = _dots % 3 + 1);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.merchantPaper,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.progressValue, width: 1.6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final TextStyle style = AppTextStyles.body.copyWith(
+      color: AppColors.textPrimary,
+    );
+
+    return _NpcBubble(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.event_available,
-                size: 18,
-                color: AppColors.progressValue,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTextStyles.bodyBold.copyWith(
-                    color: AppColors.progressValue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textPrimary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '探員行事曆目前共有 $totalEvents 筆行程',
-            style: AppTextStyles.captionSmall.copyWith(
-              color: AppColors.softBrown,
-            ),
-          ),
+          Text('正在尋找', style: style),
+          SizedBox(width: 24, child: Text('.' * _dots, style: style)),
         ],
       ),
     );

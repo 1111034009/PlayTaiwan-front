@@ -113,7 +113,7 @@ class _StoryEndPageState extends State<StoryEndPage> {
                     child: Center(
                       child: Transform.scale(
                         scale: 1.07,
-                        child: _OutlinedTitle(text: '府城儒生的失落卷'),
+                        child: _OutlinedTitle(text: '完成遊戲關卡'),
                       ),
                     ),
                   ),
@@ -900,8 +900,8 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                     child: Transform.scale(
                       scale: 0.2 + badgeT * 0.8,
                       child: Container(
-                        width: 105,
-                        height: 105,
+                        width: 160,
+                        height: 160,
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -919,19 +919,31 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                           ],
                         ),
                         child: ClipOval(
-                          child: _badgeImage.isEmpty
-                              ? Image.asset(_badgeAsset, fit: BoxFit.contain)
-                              : Image.network(
-                                  _badgeImage,
-                                  fit: BoxFit.contain,
-                                  filterQuality: FilterQuality.high,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      _badgeAsset,
-                                      fit: BoxFit.contain,
-                                    );
-                                  },
-                                ),
+                          child: Transform.scale(
+                            scale: 1.2,
+                            child: _badgeImage.isEmpty
+                                ? Image.asset(
+                                    _badgeAsset,
+                                    fit: BoxFit.contain,
+                                    width: 150,
+                                    height: 150,
+                                  )
+                                : Image.network(
+                                    _badgeImage,
+                                    fit: BoxFit.contain,
+                                    width: 150,
+                                    height: 150,
+                                    filterQuality: FilterQuality.high,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        _badgeAsset,
+                                        fit: BoxFit.contain,
+                                        width: 150,
+                                        height: 150,
+                                      );
+                                    },
+                                  ),
+                          ),
                         ),
                       ),
                     ),
@@ -1177,12 +1189,10 @@ class _EndResultCard extends StatelessWidget {
 
     final String series = _text(badge['b_fication']);
     final String name = _text(badge['b_name']);
-    final String thing = _text(badge['b_thing']);
 
     return [
       if (series.isNotEmpty) '徽章系列：$series',
       if (name.isNotEmpty) '徽章名稱：$name',
-      if (thing.isNotEmpty) '徽章說明：$thing',
       '獲得狀態：${data['is_new'] == false ? '已擁有' : '新徽章'}',
     ];
   }

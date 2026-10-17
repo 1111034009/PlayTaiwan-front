@@ -94,6 +94,14 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   String get _hours => _joinList(_place['operating_hours'], '\n');
 
   String get _imageUrl {
+    final String direct = _firstNonEmpty([
+      _override['image_url'],
+      _place['image_url'],
+      widget.result['image_url'],
+    ]);
+
+    if (direct.startsWith('http')) return direct;
+
     for (final item in _asList(_place['images'])) {
       final url = item is Map ? _str(item['url']) : _str(item);
       if (url.startsWith('http')) return url;

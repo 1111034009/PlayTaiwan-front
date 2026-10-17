@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/story_play_page.dart';
@@ -19,6 +20,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   AuthGuard.init();
+  await AudioPlayer.global.setAudioContext(
+    AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers).build(),
+  );
   await BgmService.instance.init();
   runApp(const PlayTaiwanApp());
 }

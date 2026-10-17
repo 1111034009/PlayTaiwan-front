@@ -8,7 +8,12 @@ class BgmService with WidgetsBindingObserver {
   static final BgmService instance = BgmService._();
 
   final AudioPlayer _player = AudioPlayer();
+  double _volume = 0.5;
+  static const double _duckVolume = 0.12;
 
+  Future<void> duck() => _player.setVolume(_duckVolume);
+
+  Future<void> unduck() => _player.setVolume(_volume);
   static const Map<BgmTrack, String> _paths = {
     BgmTrack.login: 'audio/login_music.mp3',
     BgmTrack.main: 'audio/music.mp3',
@@ -20,8 +25,8 @@ class BgmService with WidgetsBindingObserver {
 
   Future<void> init() async {
     WidgetsBinding.instance.addObserver(this);
-    await _player.setReleaseMode(ReleaseMode.loop); // 循環播放
-    await _player.setVolume(0.35);
+    await _player.setReleaseMode(ReleaseMode.loop);
+    await _player.setVolume(_volume);
   }
 
   Future<void> play(BgmTrack track) async {

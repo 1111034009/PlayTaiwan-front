@@ -72,7 +72,9 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
 
       int? playingId;
       try {
-        final playing = await Api.instance.get('/api/Story/CurrentPlaying') as Map<String, dynamic>?;
+        final playing =
+            await Api.instance.get('/api/Story/CurrentPlaying')
+                as Map<String, dynamic>?;
         playingId = (playing?['story_id'] as num?)?.toInt();
       } catch (_) {
         // 查不到正在進行的劇本就用最新的那一個
@@ -80,7 +82,9 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
 
       if (!mounted) return;
       setState(() {
-        _story = stories.where((s) => s.storyId == playingId).firstOrNull ?? stories.firstOrNull;
+        _story =
+            stories.where((s) => s.storyId == playingId).firstOrNull ??
+            stories.firstOrNull;
         _message = _story == null ? '還沒有劇本，先到首頁開一個劇本吧。' : null;
         _loading = false;
       });
@@ -121,91 +125,117 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
             final topBarWidth = topBarDesignWidth * scale;
             final topBarHeight = topBarDesignHeight * scale;
 
-            return Column(children: [
-              // 上列：跟原本的地圖頁同一個排法
-              Container(
-                height: topOffset + topBarHeight,
-                width: double.infinity,
-                color: AppColors.paper,
-                alignment: Alignment.bottomCenter,
-                child: SizedBox(
-                  width: topBarWidth,
-                  height: topBarHeight,
-                  child: FittedBox(
-                    fit: BoxFit.fill,
-                    alignment: Alignment.topCenter,
-                    child: SizedBox(
-                      width: topBarDesignWidth,
-                      height: topBarDesignHeight,
-                      child: TopBar(
-                        locationCurrent: _cleared,
-                        locationTotal: _total,
-                        postcardCurrent: _postcardCurrent,
-                        postcardTotal: _postcardTotal,
+            return Column(
+              children: [
+                // 上列：跟原本的地圖頁同一個排法
+                Container(
+                  height: topOffset + topBarHeight,
+                  width: double.infinity,
+                  color: AppColors.paper,
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    width: topBarWidth,
+                    height: topBarHeight,
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: topBarDesignWidth,
+                        height: topBarDesignHeight,
+                        child: TopBar(
+                          locationCurrent: _cleared,
+                          locationTotal: _total,
+                          postcardCurrent: _postcardCurrent,
+                          postcardTotal: _postcardTotal,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: story == null
-                    ? _placeholder()
-                    // 地圖頁有自己的配色（羊皮紙、朱砂紅），字型用這個 App 的
-                    : Theme(
-                        data: buildTheme(fontFamily: AppTextStyles.body.fontFamily),
-                        child: TreasureMap(
-                          key: ValueKey(story.storyId),
-                          story: story,
-                          embedded: true,
-                          // 比賽展示用：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，模擬的位置會當成真的定位送給後端。
-                          // 正式上線前把這一行拿掉
-                          demoTools: true,
-                          // 右下角那隻貓當地圖上的 NPC：提醒的泡泡從牠旁邊跳出來，點牠一樣是開 AI 對話
-                          npcAvatar: const AiTalkButton(),
-                          // 「做任務」：開這一關的答題頁（配色跟地圖頁同一套），破關了它會自己關掉。
-                          // 關掉回來之後地圖會自己更新進度；這一次在拍照任務交的照片先留著，破關的明信片要用
-                          onDoTasks: (node, myLocation) async {
-                            final result = await Navigator.of(context).push(MaterialPageRoute<StoryTaskResult>(
-                              builder: (_) => Theme(
-                                data: buildTheme(fontFamily: AppTextStyles.body.fontFamily),
-                                child: StoryTaskPage(node: node, myLocation: myLocation),
-                              ),
-                            ));
-                            final photo = result?.photo;
-                            if (photo != null) _taskPhotos[node.nodeId] = photo;
-                          },
-                          // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，先播破關劇情，播完自動跳出這一關的明信片
-                          onStageCleared: (node, next) {
-                            _afterClear = _afterClear.then((_) async {
-                              // 劇情或明信片哪一個沒做成，都不影響另一個和之後的
-                              try {
-                                if (mounted) await _playStageStory(node, next);
-                              } catch (_) {}
-                              try {
-                                if (mounted) await _makePostcard(story, node, _taskPhotos.remove(node.nodeId));
-                              } catch (_) {}
-                            });
-                          },
-                          onPostcards: (have, total) {
-                            if (mounted && (have != _postcardCurrent || total != _postcardTotal)) {
-                              setState(() {
-                                _postcardCurrent = have;
-                                _postcardTotal = total;
+                Expanded(
+                  child: story == null
+                      ? _placeholder()
+                      // 地圖頁有自己的配色（羊皮紙、朱砂紅），字型用這個 App 的
+                      : Theme(
+                          data: buildTheme(
+                            fontFamily: AppTextStyles.body.fontFamily,
+                          ),
+                          child: TreasureMap(
+                            key: ValueKey(story.storyId),
+                            story: story,
+                            embedded: true,
+                            // 比賽展示用：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，模擬的位置會當成真的定位送給後端。
+                            // 正式上線前把這一行拿掉
+                            demoTools: true,
+                            // 右下角那隻貓當地圖上的 NPC：提醒的泡泡從牠旁邊跳出來，點牠一樣是開 AI 對話
+                            npcAvatar: const AiTalkButton(),
+                            // 「做任務」：開這一關的答題頁（配色跟地圖頁同一套），破關了它會自己關掉。
+                            // 關掉回來之後地圖會自己更新進度；這一次在拍照任務交的照片先留著，破關的明信片要用
+                            onDoTasks: (node, myLocation) async {
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute<StoryTaskResult>(
+                                  builder: (_) => Theme(
+                                    data: buildTheme(
+                                      fontFamily: AppTextStyles.body.fontFamily,
+                                    ),
+                                    child: StoryTaskPage(
+                                      node: node,
+                                      myLocation: myLocation,
+                                    ),
+                                  ),
+                                ),
+                              );
+                              final photo = result?.photo;
+                              if (photo != null)
+                                _taskPhotos[node.nodeId] = photo;
+                            },
+                            // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，先播破關劇情，播完自動跳出這一關的明信片
+                            onStageCleared: (node, next) {
+                              _afterClear = _afterClear.then((_) async {
+                                try {
+                                  if (mounted)
+                                    await _makePostcard(
+                                      story,
+                                      node,
+                                      _taskPhotos.remove(node.nodeId),
+                                    );
+                                } catch (_) {}
+                                try {
+                                  if (mounted) await _playStageStory(node);
+                                } catch (_) {}
                               });
-                            }
-                          },
-                          onProgress: (cleared, total) {
-                            if (mounted && (cleared != _cleared || total != _total)) {
-                              setState(() {
-                                _cleared = cleared;
-                                _total = total;
+                            },
+                            onNodeArrived: (node) {
+                              _afterClear = _afterClear.then((_) async {
+                                try {
+                                  if (mounted) await _playNodeOpening(node);
+                                } catch (_) {}
                               });
-                            }
-                          },
+                            },
+                            onPostcards: (have, total) {
+                              if (mounted &&
+                                  (have != _postcardCurrent ||
+                                      total != _postcardTotal)) {
+                                setState(() {
+                                  _postcardCurrent = have;
+                                  _postcardTotal = total;
+                                });
+                              }
+                            },
+                            onProgress: (cleared, total) {
+                              if (mounted &&
+                                  (cleared != _cleared || total != _total)) {
+                                setState(() {
+                                  _cleared = cleared;
+                                  _total = total;
+                                });
+                              }
+                            },
+                          ),
                         ),
-                      ),
-              ),
-            ]);
+                ),
+              ],
+            );
           },
         ),
         bottomNavigationBar: const AppNavigationBar(currentIndex: 1),
@@ -218,43 +248,74 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   /// - 開場白：GET /api/Map/Node/{下一關}/Interact 的 npc_dialogue（剛解鎖、還沒抵達也拿得到），由劇本的 NPC 說
   /// 背景是那一站的情境圖（Interact 的 scene_image_url）：這一關抵達過是景點照片，下一關還沒到是迷霧圖。
   /// 最後一關破關就只有完成劇情；兩段都拿不到就不播
-  Future<void> _playStageStory(MapNode cleared, MapNode? next) async {
+  Future<void> _playStageStory(MapNode cleared) async {
     final responses = await Future.wait([
       _tryGet('/api/Task/Node/${cleared.nodeId}'),
       _tryGet('/api/Map/Node/${cleared.nodeId}/Interact'),
-      if (next != null) _tryGet('/api/Map/Node/${next.nodeId}/Interact'),
     ]);
     final play = responses[0];
-    final clearedScene = responses[1];
-    final nextScene = next == null ? null : responses[2];
+    final scene = responses[1];
     final npc = play?['npc'] as Map<String, dynamic>?;
+    final npcName = _text(npc?['npc_name']) ?? _text(scene?['npc_name']);
 
-    final lines = [
-      ...splitStoryLines(
-        _text((play?['node'] as Map<String, dynamic>?)?['success_text']) ?? '',
-        speaker: _text(npc?['npc_name']) ?? '旁白',
-        voice: _text(npc?['npc_voice']),
-        backgroundUrl: _text(clearedScene?['scene_image_url']),
-      ),
-      ...splitStoryLines(
-        _text(nextScene?['npc_dialogue']) ?? '',
-        speaker: _text(nextScene?['npc_name']) ?? '旁白',
-        voice: _text(nextScene?['npc_voice']),
-        backgroundUrl: _text(nextScene?['scene_image_url']),
-      ),
-    ];
+    final lines = splitStoryLines(
+      _text((play?['node'] as Map<String, dynamic>?)?['success_text']) ?? '',
+      speaker: npcName ?? '旁白',
+      voice: _text(npc?['npc_voice']),
+      npcName: npcName,
+      backgroundUrl: _text(scene?['scene_image_url']),
+    );
     if (lines.isEmpty || !mounted) return;
 
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (page) => StoryPage(
-        lines: lines,
-        locationCurrent: _cleared,
-        locationTotal: _total,
-        postcardCurrent: _postcardCurrent,
-        postcardTotal: _postcardTotal,
-        onFinish: () => Navigator.of(page).pop(),
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (page) => StoryPage(
+          lines: lines,
+          locationCurrent: _cleared,
+          locationTotal: _total,
+          postcardCurrent: _postcardCurrent,
+          postcardTotal: _postcardTotal,
+          onFinish: () => Navigator.of(page).pop(),
+        ),
       ),
-    ));
+    );
+  }
+
+  Future<void> _playNodeOpening(MapNode node) async {
+    final responses = await Future.wait([
+      _tryGet('/api/Task/Node/${node.nodeId}'),
+      _tryGet('/api/Map/Node/${node.nodeId}/Interact'),
+    ]);
+    final play = responses[0];
+    final scene = responses[1];
+    final npc = play?['npc'] as Map<String, dynamic>?;
+    final npcName = _text(scene?['npc_name']) ?? _text(npc?['npc_name']);
+    final opening =
+        _text((play?['node'] as Map<String, dynamic>?)?['opening_text']) ??
+        _text(scene?['npc_dialogue']) ??
+        '';
+
+    final lines = splitStoryLines(
+      opening,
+      speaker: npcName ?? '旁白',
+      voice: _text(scene?['npc_voice']) ?? _text(npc?['npc_voice']),
+      npcName: npcName,
+      backgroundUrl: _text(scene?['scene_image_url']),
+    );
+    if (lines.isEmpty || !mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (page) => StoryPage(
+          lines: lines,
+          locationCurrent: _cleared,
+          locationTotal: _total,
+          postcardCurrent: _postcardCurrent,
+          postcardTotal: _postcardTotal,
+          onFinish: () => Navigator.of(page).pop(),
+        ),
+      ),
+    );
   }
 
   /// 拿不到（例如還沒抵達、連不到後端）就是 null
@@ -275,7 +336,11 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   /// 破關時自動跳出來的明信片：用這一關拍照任務交的照片；沒有的話請玩家拍一張或從相簿選（也可以先不要）。
   /// 照片和這一關的景點名稱、劇本、節點交給明信片頁去做（POST /api/PostcardCatalog/GenerateAi），
   /// 做好之後後端算的明信片張數會加一
-  Future<void> _makePostcard(RouteStory story, MapNode node, XFile? photo) async {
+  Future<void> _makePostcard(
+    RouteStory story,
+    MapNode node,
+    XFile? photo,
+  ) async {
     photo ??= await _pickPostcardPhoto(node);
     if (photo == null || !mounted) return;
 
@@ -289,17 +354,21 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
     if (!mounted) return;
 
     // 後端看副檔名認圖片，有些瀏覽器給的檔名沒有副檔名
-    final name = photo.name.contains('.') ? photo.name : '${photo.name.isEmpty ? 'photo' : photo.name}.jpg';
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (page) => StoryPostcardPage(
-        imageBytes: bytes,
-        imageName: name,
-        spotName: node.label,
-        storyId: story.storyId,
-        nodeId: node.nodeId,
-        onNext: () => Navigator.of(page).pop(),
+    final name = photo.name.contains('.')
+        ? photo.name
+        : '${photo.name.isEmpty ? 'photo' : photo.name}.jpg';
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (page) => StoryPostcardPage(
+          imageBytes: bytes,
+          imageName: name,
+          spotName: node.label,
+          storyId: story.storyId,
+          nodeId: node.nodeId,
+          onNext: () => Navigator.of(page).pop(),
+        ),
       ),
-    ));
+    );
   }
 
   /// 這一關沒有拍照任務的照片可以用：請玩家現場拍一張，或從相簿選；按「先不要」就不做明信片
@@ -310,15 +379,28 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
         title: const Text('做一張這一關的明信片'),
         content: Text('拍一張「${node.label}」的照片，或從相簿選一張，做成這一關的專屬明信片。'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialog).pop(), child: const Text('先不要')),
-          TextButton(onPressed: () => Navigator.of(dialog).pop(ImageSource.gallery), child: const Text('從相簿選')),
-          FilledButton(onPressed: () => Navigator.of(dialog).pop(ImageSource.camera), child: const Text('拍照')),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: const Text('先不要'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(ImageSource.gallery),
+            child: const Text('從相簿選'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialog).pop(ImageSource.camera),
+            child: const Text('拍照'),
+          ),
         ],
       ),
     );
     if (source == null) return null;
     try {
-      return await ImagePicker().pickImage(source: source, maxWidth: 1920, imageQuality: 85);
+      return await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1920,
+        imageQuality: 85,
+      );
     } catch (e) {
       if (mounted) _snack('開不了相機或相簿：$e');
       return null;
@@ -333,15 +415,25 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
 
   /// 還在找劇本，或沒有劇本、連不到後端
   Widget _placeholder() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    if (_loading)
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_message ?? '', textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: AppColors.paper)),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: _load, child: const Text('重試')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _message ?? '',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: AppColors.paper),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: _load, child: const Text('重試')),
+          ],
+        ),
       ),
     );
   }

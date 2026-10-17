@@ -1,16 +1,18 @@
-import '../core/app_colors.dart';
-import '../core/app_text_styles.dart';
-import '../core/app_responsive.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 import '../api/story_api.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
+import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
+import '../core/app_text_styles.dart';
+import '../core/bgm_service.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _topColor = AppColors.paper;
@@ -22,24 +24,21 @@ const Color _skipBorder = Color(0xB8E3D1A4);
 
 const Color _storyRed = AppColors.primaryAccent;
 
-/// 劇情播放頁：一次一句，NPC 把台詞唸出來，點對話框看下一句，右上可以跳過。
-/// - 前傳：確認劇本、隊伍出發後播。[generatedScript] 是劇本詳情（{'story_id', 'data'}），
-///   播劇本前傳和第一關的開場白，播完進地圖頁
-/// - 破關劇情：地圖頁直接給要播的台詞（[lines]），播完或跳過時叫 [onFinish]
+/// 劇情播放頁：一次一句，NPC 唸出台詞，點對話框看下一句，右上可跳過。
+/// - 前傳：[generatedScript] 的劇本前傳與第一關開場白，播完進地圖頁
+/// - 破關劇情：[lines] 直接給台詞，播完或跳過時呼叫 [onFinish]
 class StoryPage extends StatefulWidget {
   final Map<String, dynamic>? generatedScript;
 
   /// 要播的台詞；有給就不看 [generatedScript]
   final List<StoryLine>? lines;
 
-  /// 上列的地點探索度、明信片收集；沒給就用劇本的站數算（剛開始都是 0）
   final int? locationCurrent;
   final int? locationTotal;
   final int? postcardCurrent;
   final int? postcardTotal;
 
-  /// 播完或跳過時；沒給就進地圖頁。
-  /// 有給的時候不顯示下面的導覽列：這一頁是疊在地圖頁上面的，從這裡切去別頁會留下底下那一頁
+  /// 播完或跳過時的回呼；有給時不顯示導覽列
   final VoidCallback? onFinish;
 
   const StoryPage({
@@ -64,22 +63,26 @@ class _StoryPageState extends State<StoryPage> {
   static const double maxScale = 1.15;
   static const double topSpacePercent = 0.05;
 
-  /// 語音同時準備幾句
+  /// 語音同時準備的句數
   static const int voiceWorkers = 3;
 
+  /// 單句語音的等待上限，逾時該句只顯示文字
+  static const Duration voiceTimeout = Duration(seconds: 45);
+
   final AudioPlayer _npcAudioPlayer = AudioPlayer();
+  StreamSubscription<void>? _completeSub;
 
   bool _isSpeaking = false;
   bool _isPreparing = true;
   bool _isDisposed = false;
   bool _isFinished = false;
+  bool _advancing = false;
 
   String _loadingText = '正在準備劇情資訊…';
 
   double _voiceProgress = 0.0;
 
   int currentIndex = 1;
-
   int storyIndex = 0;
 
   bool skipHovering = false;
@@ -87,7 +90,6 @@ class _StoryPageState extends State<StoryPage> {
 
   final math.Random _random = math.Random();
 
-  /// 台詞沒有指定背景圖時用的背景
   late String backgroundUrl;
 
   List<StoryLine> _storyLines = [];
@@ -142,20 +144,12 @@ class _StoryPageState extends State<StoryPage> {
     return npc is Map ? Map<String, dynamic>.from(npc) : null;
   }
 
-  String get _npcName {
-    final String name = _npc?['name']?.toString().trim() ?? '';
-
-    return name.isNotEmpty ? name : 'NPC';
-  }
-
-  /// 唸前傳的 NPC（劇本的 NPC）；沒有時後端用薯光
   String? get _npcSpeaker {
     final String name = _npc?['name']?.toString().trim() ?? '';
 
     return name.isNotEmpty ? name : null;
   }
 
-  /// 劇本 NPC 的聲線；沒有時後端用預設聲線
   String? get _npcVoice {
     final String voice = _npc?['voice']?.toString().trim() ?? '';
 
@@ -167,41 +161,92 @@ class _StoryPageState extends State<StoryPage> {
   int get _postcardCurrent => widget.postcardCurrent ?? 0;
   int get _postcardTotal => widget.postcardTotal ?? _nodes.length;
 
-  /// 前傳要播的台詞：劇本前傳（旁白），接著第一關的開場白。
-  /// 第一關一開始就解鎖了，所以開場白在這裡播；之後每破一關，地圖頁會播下一關的開場白
+  /// 單一關卡指定欄位的台詞，說話者優先用該關 NPC
+  List<StoryLine> _nodeLines(Map<String, dynamic> node, List<String> keys) {
+    final String npc = node['npc_name']?.toString().trim() ?? '';
+    final String? name = npc.isNotEmpty ? npc : _npcSpeaker;
+    final List<StoryLine> result = [];
+
+    for (final String key in keys) {
+      final String text = node[key]?.toString() ?? '';
+
+      if (text.trim().isEmpty) continue;
+
+      result.addAll(
+        splitStoryLines(
+          text,
+          speaker: name ?? 'NPC',
+          voice: _npcVoice,
+          npcName: name,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  /// 前傳：劇本前傳（旁白）＋第一關開場白
   List<StoryLine> _buildPrologueLines() {
     final String preface = _scriptData?['preface']?.toString() ?? '';
 
-    final List<Map<String, dynamic>> nodes = _nodes;
-    final Map<String, dynamic>? first = nodes.isEmpty ? null : nodes.first;
-    final String firstNpc = first?['npc_name']?.toString().trim() ?? '';
+    final List<StoryLine> result = splitStoryLines(
+      preface,
+      speaker: '旁白',
+      voice: _npcVoice,
+      npcName: _npcSpeaker,
+    );
 
-    return [
-      ...splitStoryLines(
-        preface,
-        speaker: '旁白',
-        voice: _npcVoice,
-        npcName: _npcSpeaker,
-      ),
-      if (first != null)
-        ...splitStoryLines(
-          first['opening']?.toString() ?? '',
-          speaker: firstNpc.isNotEmpty ? firstNpc : _npcName,
-          voice: _npcVoice,
-          npcName: firstNpc.isNotEmpty ? firstNpc : _npcSpeaker,
-        ),
-    ];
+    final List<Map<String, dynamic>> nodes = _nodes;
+
+    if (nodes.isNotEmpty) {
+      result.addAll(_nodeLines(nodes.first, ['opening']));
+    }
+
+    return result;
   }
 
-  /// 每一句先轉成語音（POST /api/Npc/Speak，排隊做好後下載）再開始播。幾句同時準備，
-  /// 排隊時讀取畫面顯示「語音等待中／生成中」；哪一句沒做成，那一句就只顯示文字，不影響其他句
+  /// 之後關卡會用到的台詞，背景預先準備語音
+  List<StoryLine> _buildExtraLines() {
+    final List<Map<String, dynamic>> nodes = _nodes;
+    final List<StoryLine> extra = [];
+
+    for (int i = 0; i < nodes.length; i++) {
+      extra.addAll(
+        _nodeLines(
+          nodes[i],
+          i == 0
+              ? ['success_text', 'success']
+              : ['opening', 'success_text', 'success'],
+        ),
+      );
+    }
+
+    return extra;
+  }
+
+  /// 把一句台詞轉成語音檔；失敗或逾時回傳 null
+  Future<String?> _prepareVoice(
+    StoryLine line, {
+    void Function(String status)? onStatus,
+  }) async {
+    try {
+      return await StoryApi.prepareNpcVoice(
+        text: line.text,
+        voice: line.voice,
+        npcName: line.npcName,
+        onStatus: (String status) => onStatus?.call(status),
+      ).timeout(voiceTimeout);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _prepareAllVoices() async {
     final List<StoryLine> lines = widget.lines ?? _buildPrologueLines();
 
     if (lines.isEmpty) {
       setState(() {
         _storyLines = [const StoryLine(name: '旁白', text: '目前尚未取得劇本內容。')];
-
         _voiceProgress = 1.0;
         _isPreparing = false;
       });
@@ -209,10 +254,16 @@ class _StoryPageState extends State<StoryPage> {
       return;
     }
 
-    // 台詞的背景圖先載好，換到下一段時才不會閃一下
     for (final String url
-        in lines.map((line) => line.backgroundUrl).whereType<String>().toSet()) {
-      precacheImage(NetworkImage(url), context, onError: (error, stackTrace) {});
+        in lines
+            .map((line) => line.backgroundUrl)
+            .whereType<String>()
+            .toSet()) {
+      precacheImage(
+        NetworkImage(url),
+        context,
+        onError: (error, stackTrace) {},
+      );
     }
 
     setState(() {
@@ -228,23 +279,19 @@ class _StoryPageState extends State<StoryPage> {
       while (next < lines.length && !_isDisposed) {
         final int i = next++;
 
-        try {
-          final String localPath = await StoryApi.prepareNpcVoice(
-            text: lines[i].text,
-            voice: lines[i].voice,
-            npcName: lines[i].npcName,
-            onStatus: (status) {
-              if (mounted && !_isDisposed) {
-                setState(() {
-                  _loadingText = status;
-                });
-              }
-            },
-          );
+        final String? path = await _prepareVoice(
+          lines[i],
+          onStatus: (status) {
+            if (mounted && !_isDisposed) {
+              setState(() {
+                _loadingText = status;
+              });
+            }
+          },
+        );
 
-          preparedLines[i] = lines[i].copyWith(audioPath: localPath);
-        } catch (_) {
-          // 這一句沒有語音，只顯示文字
+        if (path != null) {
+          preparedLines[i] = lines[i].copyWith(audioPath: path);
         }
 
         done++;
@@ -272,7 +319,26 @@ class _StoryPageState extends State<StoryPage> {
       _isPreparing = false;
     });
 
+    if (widget.lines == null) {
+      _preloadVoices(_buildExtraLines());
+    }
+
     await _playCurrentVoice();
+  }
+
+  /// 背景預先準備後續關卡的語音，不阻擋劇情播放
+  Future<void> _preloadVoices(List<StoryLine> extra) async {
+    int next = 0;
+
+    Future<void> worker() async {
+      while (next < extra.length && !_isDisposed) {
+        await _prepareVoice(extra[next++]);
+      }
+    }
+
+    await Future.wait([
+      for (int k = 0; k < math.min(voiceWorkers, extra.length); k++) worker(),
+    ]);
   }
 
   Future<void> _playCurrentVoice() async {
@@ -283,16 +349,17 @@ class _StoryPageState extends State<StoryPage> {
       return;
     }
 
-    final StoryLine line = _storyLines[storyIndex];
-
-    final String audioPath = line.audioPath?.trim() ?? '';
+    final String audioPath = _storyLines[storyIndex].audioPath?.trim() ?? '';
 
     if (audioPath.isEmpty) {
+      BgmService.instance.unduck();
       return;
     }
 
     try {
       await _npcAudioPlayer.stop();
+
+      BgmService.instance.duck();
 
       if (mounted) {
         setState(() {
@@ -302,6 +369,8 @@ class _StoryPageState extends State<StoryPage> {
 
       await _npcAudioPlayer.play(DeviceFileSource(audioPath));
     } catch (_) {
+      BgmService.instance.unduck();
+
       if (mounted) {
         setState(() {
           _isSpeaking = false;
@@ -310,10 +379,15 @@ class _StoryPageState extends State<StoryPage> {
     }
   }
 
-  Future<void> _stopNpcVoice() async {
+  /// 停止配音；[restoreMusic] 為 false 時保持背景音樂壓低（接著要播下一句）
+  Future<void> _stopNpcVoice({bool restoreMusic = true}) async {
     try {
       await _npcAudioPlayer.stop();
     } catch (_) {}
+
+    if (restoreMusic) {
+      BgmService.instance.unduck();
+    }
 
     if (mounted) {
       setState(() {
@@ -325,26 +399,32 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   Future<void> nextStory() async {
-    if (_isPreparing || _storyLines.isEmpty) {
+    if (_isPreparing || _storyLines.isEmpty || _advancing) {
       return;
     }
 
-    await _stopNpcVoice();
+    _advancing = true;
 
-    if (!mounted) {
-      return;
+    try {
+      await _stopNpcVoice(restoreMusic: false);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (storyIndex + 1 >= _storyLines.length) {
+        finishStory();
+        return;
+      }
+
+      setState(() {
+        storyIndex++;
+      });
+
+      await _playCurrentVoice();
+    } finally {
+      _advancing = false;
     }
-
-    if (storyIndex + 1 >= _storyLines.length) {
-      finishStory();
-      return;
-    }
-
-    setState(() {
-      storyIndex++;
-    });
-
-    await _playCurrentVoice();
   }
 
   Future<void> skipStory() async {
@@ -353,12 +433,13 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   void finishStory() {
-    // 最後一句和跳過連按時只結束一次，不然會多關掉底下的頁面
     if (!mounted || _isFinished) {
       return;
     }
 
     _isFinished = true;
+
+    BgmService.instance.unduck();
 
     if (widget.onFinish != null) {
       widget.onFinish!();
@@ -366,18 +447,6 @@ class _StoryPageState extends State<StoryPage> {
     }
 
     Navigator.pushReplacementNamed(context, '/story-map');
-  }
-
-  void onNavigationTap(int index) {
-    setState(() {
-      currentIndex = index;
-    });
-
-    if (index == 0) {
-      _stopNpcVoice();
-
-      Navigator.pushReplacementNamed(context, '/home');
-    }
   }
 
   double _getScale(double width, double height) {
@@ -396,10 +465,12 @@ class _StoryPageState extends State<StoryPage> {
 
     backgroundUrl = backgroundImages[_random.nextInt(backgroundImages.length)];
 
-    _npcAudioPlayer.onPlayerComplete.listen((_) {
+    _completeSub = _npcAudioPlayer.onPlayerComplete.listen((_) {
       if (!mounted || _isDisposed) {
         return;
       }
+
+      BgmService.instance.unduck();
 
       setState(() {
         _isSpeaking = false;
@@ -416,7 +487,6 @@ class _StoryPageState extends State<StoryPage> {
       ),
     );
 
-    // 第一個畫面出來之後才開始：要用 context 預先載背景圖
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _prepareAllVoices();
     });
@@ -426,8 +496,11 @@ class _StoryPageState extends State<StoryPage> {
   void dispose() {
     _isDisposed = true;
 
+    _completeSub?.cancel();
     _npcAudioPlayer.stop();
     _npcAudioPlayer.dispose();
+
+    BgmService.instance.unduck();
 
     super.dispose();
   }
@@ -456,15 +529,10 @@ class _StoryPageState extends State<StoryPage> {
         body: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double screenWidth = constraints.maxWidth;
-
             final double screenHeight = constraints.maxHeight;
-
             final double scale = _getScale(screenWidth, screenHeight);
-
             final double topOffset = screenHeight * topSpacePercent;
-
             final double actualTopBarWidth = topBarDesignWidth * scale;
-
             final double actualTopBarHeight = topBarDesignHeight * scale;
 
             return Stack(
@@ -587,6 +655,7 @@ class _StoryLoadingPage extends StatefulWidget {
 class _StoryLoadingPageState extends State<_StoryLoadingPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  final Tween<double> _tween = Tween<double>();
 
   double _displayProgress = 0.0;
 
@@ -595,11 +664,22 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
     super.initState();
 
     _displayProgress = widget.progress.clamp(0.0, 1.0);
+    _tween.begin = _displayProgress;
+    _tween.end = _displayProgress;
 
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
+    _controller =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 450),
+        )..addListener(() {
+          if (!mounted) return;
+
+          setState(() {
+            _displayProgress = _tween.transform(
+              Curves.easeOutCubic.transform(_controller.value),
+            );
+          });
+        });
   }
 
   @override
@@ -607,26 +687,9 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
     super.didUpdateWidget(oldWidget);
 
     if (widget.progress != oldWidget.progress) {
-      final double start = _displayProgress;
-      final double end = widget.progress.clamp(0.0, 1.0);
-
-      _controller.stop();
-      _controller.reset();
-
-      final Animation<double> animation = Tween<double>(begin: start, end: end)
-          .animate(
-            CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-          );
-
-      animation.addListener(() {
-        if (!mounted) return;
-
-        setState(() {
-          _displayProgress = animation.value;
-        });
-      });
-
-      _controller.forward();
+      _tween.begin = _displayProgress;
+      _tween.end = widget.progress.clamp(0.0, 1.0);
+      _controller.forward(from: 0);
     }
   }
 
@@ -639,7 +702,6 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
   @override
   Widget build(BuildContext context) {
     final double progress = _displayProgress.clamp(0.0, 1.0);
-
     final int percent = (progress * 100).round().clamp(0, 100);
 
     return Scaffold(
@@ -655,20 +717,15 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
               },
             ),
           ),
-
           Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.30)),
+            child: Container(color: Colors.black.withValues(alpha: 0.30)),
           ),
-
           Center(
             child: SizedBox(
               width: 330,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // =========================
-                  // 劇情框
-                  // =========================
                   SizedBox(
                     height: 245,
                     child: Stack(
@@ -682,7 +739,7 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 decoration: BoxDecoration(
-                                  color: _topColor.withOpacity(0.94),
+                                  color: _topColor.withValues(alpha: 0.94),
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
                                     color: _storyRed,
@@ -693,7 +750,6 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                             },
                           ),
                         ),
-
                         Positioned(
                           bottom: 18,
                           right: 25,
@@ -709,7 +765,6 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                             },
                           ),
                         ),
-
                         Positioned(
                           left: 24,
                           top: 30,
@@ -724,12 +779,7 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 22),
-
-                  // =========================
-                  // 百分比
-                  // =========================
                   Text(
                     '$percent%',
                     style: AppTextStyles.titleMediumBold.copyWith(
@@ -737,23 +787,18 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                       fontSize: 28,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // =========================
-                  // 長條進度條
-                  // =========================
                   Container(
                     width: double.infinity,
                     height: 22,
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.40),
+                      color: Colors.black.withValues(alpha: 0.40),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: _skipBorder, width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.20),
+                          color: Colors.black.withValues(alpha: 0.20),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -778,21 +823,14 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // =========================
-                  // 狀態文字
-                  // =========================
                   Text(
                     widget.text,
                     style: AppTextStyles.bodySmallBold.copyWith(
                       color: _topColor,
                     ),
                   ),
-
                   const SizedBox(height: 18),
-
                   const SizedBox(
                     width: 22,
                     height: 22,
@@ -829,7 +867,6 @@ class _GameViewport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double viewportWidth = designWidth * scale;
-
     final double viewportHeight = designHeight * scale;
 
     return Positioned(
@@ -872,7 +909,6 @@ class _StoryGameContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const double storyBottom = 78.0;
-
     const double navigationReserve = 76.0;
 
     return SizedBox(
@@ -883,7 +919,7 @@ class _StoryGameContent extends StatelessWidget {
         children: [
           Positioned(
             right: -20,
-            bottom: storyBottom + navigationReserve - 18,
+            bottom: storyBottom + navigationReserve - 30,
             child: IgnorePointer(
               child: Image.asset(
                 'img/npc_.png',
@@ -901,7 +937,7 @@ class _StoryGameContent extends StatelessWidget {
           Positioned(
             left: 9,
             right: 9,
-            bottom: storyBottom,
+            bottom: storyBottom - 15,
             child: _StoryDialog(
               story: story,
               onTap: onNextStory,
@@ -966,15 +1002,10 @@ class _BackgroundImage extends StatelessWidget {
 class _SkipStoryButton extends StatelessWidget {
   final bool hovering;
   final bool pressing;
-
   final VoidCallback onHoverEnter;
-
   final VoidCallback onHoverExit;
-
   final VoidCallback onPress;
-
   final VoidCallback onRelease;
-
   final VoidCallback onTap;
 
   const _SkipStoryButton({
@@ -996,20 +1027,12 @@ class _SkipStoryButton extends StatelessWidget {
         : 1.0;
 
     return MouseRegion(
-      onEnter: (_) {
-        onHoverEnter();
-      },
-      onExit: (_) {
-        onHoverExit();
-      },
+      onEnter: (_) => onHoverEnter(),
+      onExit: (_) => onHoverExit(),
       child: GestureDetector(
         onTap: onTap,
-        onTapDown: (_) {
-          onPress();
-        },
-        onTapUp: (_) {
-          onRelease();
-        },
+        onTapDown: (_) => onPress(),
+        onTapUp: (_) => onRelease(),
         onTapCancel: onRelease,
         child: AnimatedScale(
           scale: buttonScale,
@@ -1033,7 +1056,7 @@ class _SkipStoryButton extends StatelessWidget {
                   border: Border.all(color: _skipBorder, width: 1.1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.18),
+                      color: Colors.black.withValues(alpha: 0.18),
                       blurRadius: 7,
                       offset: const Offset(0, 3),
                     ),
@@ -1201,10 +1224,8 @@ class _StoryDialog extends StatelessWidget {
   }
 }
 
-/// 劇情的一句話：誰說的（名牌上的名字）、說了什麼。
-/// voice 是唸這句的聲線（NPC 的 npc_voice，沒有時後端用預設聲線）；
-/// npcName 是唸這句的 NPC（後端用它決定聲音，沒有時用薯光）；
-/// backgroundUrl 是這句的背景圖（沒有就用劇情頁隨機挑的那張）；audioPath 是準備好的語音檔
+/// 劇情的一句話：name 是名牌，text 是台詞，voice／npcName 決定配音，
+/// backgroundUrl 是這句的背景圖，audioPath 是準備好的語音檔
 class StoryLine {
   final String name;
   final String text;
@@ -1244,11 +1265,34 @@ class StoryLine {
 /// 一句話：到。！？為止，後面緊接的引號、括號算同一句
 final RegExp _sentencePattern = RegExp(r'[^。！？!?]+(?:[。！？!?]+[」』”’）)]*)?');
 
-/// 一行開頭寫明是誰說的，例如「薯光：」「薯光說：」
+/// 一行開頭寫明說話者，例如「薯光：」「薯光說：」
 final RegExp _speakerPattern = RegExp(r'^\s*([^\s：:，,。！？!?「」]{1,8}?)說?[：:]\s*');
 
-/// 把一段劇情拆成一句一句，劇情頁一次顯示、唸一句。換行也算一句結束；
-/// 一行開頭寫明「某某：」或「某某說：」的，那一行算那個人說的，其他算 [speaker] 說的
+final RegExp _commaPattern = RegExp(r'[，,]');
+
+/// 一句內逗號超過 4 個時，每 4 個逗號切成一句
+List<String> _splitByComma(String sentence) {
+  final List<String> parts = [];
+  String rest = sentence;
+
+  while (true) {
+    final List<RegExpMatch> commas = _commaPattern.allMatches(rest).toList();
+
+    if (commas.length <= 4) break;
+
+    final int cut = commas[3].end;
+
+    parts.add(rest.substring(0, cut).trim());
+    rest = rest.substring(cut).trim();
+  }
+
+  if (rest.isNotEmpty) parts.add(rest);
+
+  return parts;
+}
+
+/// 把一段劇情拆成一句一句；換行也算一句結束，
+/// 開頭寫明「某某：」的那行算某某說的，其他算 [speaker] 說的
 List<StoryLine> splitStoryLines(
   String text, {
   required String speaker,
@@ -1271,16 +1315,18 @@ List<StoryLine> splitStoryLines(
     for (final RegExpMatch match in _sentencePattern.allMatches(paragraph)) {
       final String sentence = match.group(0)!.trim();
 
-      if (sentence.isNotEmpty) {
-        lines.add(
-          StoryLine(
-            name: name,
-            text: sentence,
-            voice: voice,
-            npcName: npcName,
-            backgroundUrl: backgroundUrl,
-          ),
-        );
+      for (final String part in _splitByComma(sentence)) {
+        if (part.isNotEmpty) {
+          lines.add(
+            StoryLine(
+              name: name,
+              text: part,
+              voice: voice,
+              npcName: npcName,
+              backgroundUrl: backgroundUrl,
+            ),
+          );
+        }
       }
     }
   }

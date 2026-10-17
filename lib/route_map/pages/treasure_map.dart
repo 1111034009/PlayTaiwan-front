@@ -40,6 +40,7 @@ class TreasureMap extends StatefulWidget {
     this.demoTools = false,
     this.onDoTasks,
     this.onStageCleared,
+    this.onNodeArrived,
   });
 
   final RouteStory story;
@@ -49,6 +50,8 @@ class TreasureMap extends StatefulWidget {
 
   /// 進度變了（載入、破關、重來）：破了幾關、總共幾關。給外面的上列顯示用
   final void Function(int cleared, int total)? onProgress;
+
+  final void Function(MapNode node)? onNodeArrived;
 
   /// 這份劇本的明信片：拿到幾張、總共可以拿幾張（後端跟著進度一起給）。給外面的上列顯示用
   final void Function(int have, int total)? onPostcards;
@@ -350,6 +353,7 @@ class _TreasureMapState extends State<TreasureMap> {
       _enterStage();
     } else if (!wasArrived && (_currentNode?.arrived ?? false)) {
       _snack('已抵達「${_currentNode!.label}」。把這一關的任務做完，下一關才會解鎖', Pal.gold);
+      widget.onNodeArrived?.call(_currentNode!);
     } else if (asked && !_finished) {
       _snack('這一關的任務還沒全部完成，完成後下一關才會解鎖', Pal.inkSoft);
     }
@@ -1893,7 +1897,12 @@ class _TreasureMapState extends State<TreasureMap> {
                       ? null
                       : (
                           label: '回顧劇情 >>',
-                          onTap: () => showStoryReview(context, cardNode),
+                          onTap: () => showStoryReview(
+                            context,
+                            cardNode,
+                            locationCurrent: _stage,
+                            locationTotal: _nodes.length,
+                          ),
                         ),
                 ),
               ),
