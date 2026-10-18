@@ -14,7 +14,7 @@ import 'core/app_text_styles.dart';
 import 'core/auth_guard.dart';
 import 'core/bgm_service.dart';
 import 'block/app_shell.dart';
-import 'admin/visitor_dashboard_page.dart';
+import 'admin/admin_shell.dart';
 import 'api/vlog_watcher.dart';
 
 Future<void> main() async {
@@ -68,7 +68,7 @@ class PlayTaiwanApp extends StatelessWidget {
         '/past': (context) => const PastPage(),
         '/merchant-home': (context) => const MerchantHomePage(),
         '/register': (context) => const RegisterPage(),
-        '/admin': (context) => const AudienceDashboardPage(),
+        '/admin': (context) => const AdminShell(),
       },
     );
   }
