@@ -328,13 +328,15 @@ class StoryApi {
   }) async {
     final String cleanText = text.trim();
     final String cleanVoice = voice?.trim() ?? '';
-    final String cleanNpcName = npcName?.trim() ?? '';
-
     if (cleanText.isEmpty) {
       throw Exception('NPC 語音文字不能為空');
     }
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String chosenNpc = prefs.getString('selected_npc')?.trim() ?? '';
+    final String cleanNpcName = chosenNpc.isNotEmpty
+        ? chosenNpc
+        : (npcName?.trim() ?? '');
     final String cacheKey =
         'npc_voice_${base64Url.encode(utf8.encode('$cleanNpcName|$cleanText'))}';
 
@@ -368,6 +370,23 @@ class StoryApi {
     await prefs.setString(cacheKey, path);
 
     return path;
+  }
+
+  static Future<List<Map<String, dynamic>>> getNpcOptions() async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/Npc/Options',
+      failMessage: '取得 NPC 選單失敗',
+    );
+
+    final dynamic result = data['Result'];
+
+    if (result is! List) return [];
+
+    return result
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
   }
 
   static Future<Map<String, dynamic>> getCurrentPlaying() async {
@@ -760,11 +779,23 @@ class StoryApi {
     return _resultMap(data, '旁白草稿產生失敗');
   }
 
+  static Future<Map<String, dynamic>> getVlogOptions() async {
+    final Map<String, dynamic> data = await _storyRequest(
+      method: 'GET',
+      path: '/api/VisitorVlog/Options',
+      failMessage: '取得 Vlog 選項失敗',
+    );
+
+    return _resultMap(data, '取得 Vlog 選項失敗');
+  }
+
   static Future<Map<String, dynamic>> createFinalVisitorVlog({
     required String storyId,
     required String finalScript,
     required String promoCopy,
     required List<String> seoKeywords,
+    String bgmMood = 'auto',
+    String userMemoryText = '',
   }) async {
     final Map<String, dynamic> data = await _storyRequest(
       method: 'POST',
@@ -775,6 +806,10 @@ class StoryApi {
         'final_script': finalScript,
         'promo_copy': promoCopy,
         'seo_keywords': seoKeywords,
+        'bgm_mood': bgmMood,
+        'video_orientation': 'portrait',
+        if (userMemoryText.trim().isNotEmpty)
+          'user_memory_text': userMemoryText.trim(),
       },
     );
 

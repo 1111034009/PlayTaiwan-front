@@ -98,9 +98,9 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
   String get _preface {
     final String preface = _scriptData?['preface']?.toString().trim() ?? '';
 
-    final String synopsis = _scriptData?['synopsis']?.toString().trim() ?? '';
+    // final String synopsis = _scriptData?['synopsis']?.toString().trim() ?? '';
 
-    return '$preface$synopsis';
+    return '$preface';
   }
 
   List<Map<String, dynamic>> get _nodes {

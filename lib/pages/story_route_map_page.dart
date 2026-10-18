@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../api/story_api.dart';
 import '../block/ai_talk_button.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
@@ -53,6 +54,8 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   /// 破關的劇情和明信片一關一關來：上一關的還開著時又破一關（例如隊友做完的），等它關掉再輪到下一關
   Future<void> _afterClear = Future.value();
 
+  final Set<String> _prefetched = {};
+
   @override
   void initState() {
     super.initState();
@@ -71,21 +74,26 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
           .toList();
 
       int? playingId;
+      bool noPlaying = false;
       try {
         final playing =
             await Api.instance.get('/api/Story/CurrentPlaying')
                 as Map<String, dynamic>?;
         playingId = (playing?['story_id'] as num?)?.toInt();
+        noPlaying = playing == null;
       } catch (_) {
         // 查不到正在進行的劇本就用最新的那一個
       }
 
       if (!mounted) return;
       setState(() {
-        _story =
-            stories.where((s) => s.storyId == playingId).firstOrNull ??
-            stories.firstOrNull;
-        _message = _story == null ? '還沒有劇本，先到首頁開一個劇本吧。' : null;
+        _story = noPlaying
+            ? null
+            : (stories.where((s) => s.storyId == playingId).firstOrNull ??
+                  stories.firstOrNull);
+        _message = _story == null
+            ? (noPlaying ? '尚未開始探險，請前往選擇劇本' : '還沒有劇本，先到首頁開一個劇本吧。')
+            : null;
         _loading = false;
       });
     } catch (e) {
@@ -202,14 +210,19 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                                 } catch (_) {}
                                 try {
                                   if (mounted) await _playStageStory(node);
-                                } catch (_) {}
+                                } catch (e) {
+                                  if (mounted) _snack('完成劇情播放失敗：$e');
+                                }
                               });
                             },
                             onNodeArrived: (node) {
+                              _prefetchVoices(story);
                               _afterClear = _afterClear.then((_) async {
                                 try {
                                   if (mounted) await _playNodeOpening(node);
-                                } catch (_) {}
+                                } catch (e) {
+                                  if (mounted) _snack('開場劇情播放失敗：$e');
+                                }
                               });
                             },
                             onPostcards: (have, total) {
@@ -229,6 +242,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                                   _cleared = cleared;
                                   _total = total;
                                 });
+                                _prefetchVoices(story);
                               }
                             },
                           ),
@@ -243,31 +257,59 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
     );
   }
 
-  /// 破關劇情：剛破的這一關的完成劇情，接著跟著解鎖的下一關的開場白，在劇情頁一句一句播、NPC 唸出來。
+  /// 破關劇情：剛破的這一關的完成劇情，在劇情頁一句一句播、NPC 唸出來。
   /// - 完成劇情：GET /api/Task/Node/{這一關} 的 node.success_text，由這一站的 NPC（npc）說
-  /// - 開場白：GET /api/Map/Node/{下一關}/Interact 的 npc_dialogue（剛解鎖、還沒抵達也拿得到），由劇本的 NPC 說
-  /// 背景是那一站的情境圖（Interact 的 scene_image_url）：這一關抵達過是景點照片，下一關還沒到是迷霧圖。
-  /// 最後一關破關就只有完成劇情；兩段都拿不到就不播
-  Future<void> _playStageStory(MapNode cleared) async {
+  /// - 開場白：GET /api/Map/Node/{這一關}/Interact 的 npc_dialogue（沒有 opening_text 時用）
+  /// - 語音：每一句交給 StoryApi.prepareNpcVoice（POST /api/Npc/Speak，再查 GET /api/Npc/Speak/{job_id}），做好的語音存在暫存區
+  Future<List<StoryLine>> _successLines(MapNode node) async {
     final responses = await Future.wait([
-      _tryGet('/api/Task/Node/${cleared.nodeId}'),
-      _tryGet('/api/Map/Node/${cleared.nodeId}/Interact'),
+      _tryGet('/api/Task/Node/${node.nodeId}'),
+      _tryGet('/api/Map/Node/${node.nodeId}/Interact'),
     ]);
     final play = responses[0];
     final scene = responses[1];
     final npc = play?['npc'] as Map<String, dynamic>?;
     final npcName = _text(npc?['npc_name']) ?? _text(scene?['npc_name']);
+    final successNode = play?['node'] as Map<String, dynamic>?;
 
-    final lines = splitStoryLines(
-      _text((play?['node'] as Map<String, dynamic>?)?['success_text']) ?? '',
+    return splitStoryLines(
+      _text(successNode?['success_text']) ??
+          _text(successNode?['success']) ??
+          '',
       speaker: npcName ?? '旁白',
       voice: _text(npc?['npc_voice']),
       npcName: npcName,
       backgroundUrl: _text(scene?['scene_image_url']),
     );
-    if (lines.isEmpty || !mounted) return;
+  }
 
-    await Navigator.of(context).push(
+  Future<List<StoryLine>> _openingLines(MapNode node) async {
+    final responses = await Future.wait([
+      _tryGet('/api/Task/Node/${node.nodeId}'),
+      _tryGet('/api/Map/Node/${node.nodeId}/Interact'),
+    ]);
+    final play = responses[0];
+    final scene = responses[1];
+    final npc = play?['npc'] as Map<String, dynamic>?;
+    final npcName = _text(scene?['npc_name']) ?? _text(npc?['npc_name']);
+    final openingNode = play?['node'] as Map<String, dynamic>?;
+    final opening =
+        _text(openingNode?['opening_text']) ??
+        _text(openingNode?['opening']) ??
+        _text(scene?['npc_dialogue']) ??
+        '';
+
+    return splitStoryLines(
+      opening,
+      speaker: npcName ?? '旁白',
+      voice: _text(scene?['npc_voice']) ?? _text(npc?['npc_voice']),
+      npcName: npcName,
+      backgroundUrl: _text(scene?['scene_image_url']),
+    );
+  }
+
+  Future<void> _showLines(List<StoryLine> lines) {
+    return Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (page) => StoryPage(
           lines: lines,
@@ -281,41 +323,65 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
     );
   }
 
+  Future<void> _playStageStory(MapNode cleared) async {
+    final lines = await _successLines(cleared);
+    if (!mounted) return;
+    if (lines.isEmpty) {
+      // _snack('這一關沒有取得完成劇情文字');
+      return;
+    }
+    await _showLines(lines);
+  }
+
   Future<void> _playNodeOpening(MapNode node) async {
-    final responses = await Future.wait([
-      _tryGet('/api/Task/Node/${node.nodeId}'),
-      _tryGet('/api/Map/Node/${node.nodeId}/Interact'),
-    ]);
-    final play = responses[0];
-    final scene = responses[1];
-    final npc = play?['npc'] as Map<String, dynamic>?;
-    final npcName = _text(scene?['npc_name']) ?? _text(npc?['npc_name']);
-    final opening =
-        _text((play?['node'] as Map<String, dynamic>?)?['opening_text']) ??
-        _text(scene?['npc_dialogue']) ??
-        '';
+    final lines = await _openingLines(node);
+    if (!mounted) return;
+    if (lines.isEmpty) {
+      // _snack('這一關沒有取得開場劇情文字');
+      return;
+    }
+    await _showLines(lines);
+  }
 
-    final lines = splitStoryLines(
-      opening,
-      speaker: npcName ?? '旁白',
-      voice: _text(scene?['npc_voice']) ?? _text(npc?['npc_voice']),
-      npcName: npcName,
-      backgroundUrl: _text(scene?['scene_image_url']),
-    );
-    if (lines.isEmpty || !mounted) return;
+  /// 先在背景把「目前這一關的開場、完成劇情」和「下一關的開場」的語音做好存起來，播劇情時直接用
+  Future<void> _prefetchVoices(RouteStory story) async {
+    try {
+      final result =
+          await Api.instance.get('/api/Map/${story.storyId}')
+              as Map<String, dynamic>;
+      final nodes = TreasureMapData.fromJson(result).nodes;
+      final index = nodes.indexWhere((n) => n.current);
+      if (index < 0 || !mounted) return;
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (page) => StoryPage(
-          lines: lines,
-          locationCurrent: _cleared,
-          locationTotal: _total,
-          postcardCurrent: _postcardCurrent,
-          postcardTotal: _postcardTotal,
-          onFinish: () => Navigator.of(page).pop(),
-        ),
-      ),
-    );
+      final key = '${nodes[index].nodeId}-${nodes[index].arrived}';
+      if (!_prefetched.add(key)) return;
+
+      final lines = <StoryLine>[];
+      lines.addAll(await _openingLines(nodes[index]));
+      lines.addAll(await _successLines(nodes[index]));
+      if (index + 1 < nodes.length) {
+        lines.addAll(await _openingLines(nodes[index + 1]));
+      }
+
+      int next = 0;
+      Future<void> worker() async {
+        while (next < lines.length && mounted) {
+          final line = lines[next++];
+          try {
+            await StoryApi.prepareNpcVoice(
+              text: line.text,
+              voice: line.voice,
+              npcName: line.npcName,
+            ).timeout(const Duration(minutes: 2));
+          } catch (_) {}
+        }
+      }
+
+      await Future.wait([
+        for (int k = 0; k < (lines.length < 3 ? lines.length : 3); k++)
+          worker(),
+      ]);
+    } catch (_) {}
   }
 
   /// 拿不到（例如還沒抵達、連不到後端）就是 null
@@ -431,7 +497,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
               style: AppTextStyles.body.copyWith(color: AppColors.paper),
             ),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('重試')),
+            FilledButton(onPressed: _load, child: const Text('選擇劇本後，按此嘗試')),
           ],
         ),
       ),

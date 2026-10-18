@@ -15,6 +15,7 @@ import 'core/auth_guard.dart';
 import 'core/bgm_service.dart';
 import 'block/app_shell.dart';
 import 'admin/visitor_dashboard_page.dart';
+import 'api/vlog_watcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,7 @@ class PlayTaiwanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: AuthGuard.navigatorKey,
+      scaffoldMessengerKey: rootMessengerKey,
       navigatorObservers: [AuthGuard.observer],
       title: '日遊所思，夜遊所夢',
       debugShowCheckedModeBanner: false,

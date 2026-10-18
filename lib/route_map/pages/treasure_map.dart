@@ -313,7 +313,35 @@ class _TreasureMapState extends State<TreasureMap> {
 
   /// 後端回來新的進度：破關了就進下一關；只是抵達，提示還要完成任務。
   /// [asked] 是使用者自己按按鈕問的，沒有變化時要回一句話；定時檢查的不用
-  void _onProgress(TreasureMapData data, {bool asked = false}) {
+  Future<bool> _tasksAllPassed(MapNode node) async {
+    try {
+      final play =
+          await Api.instance.get('/api/Task/Node/${node.nodeId}')
+              as Map<String, dynamic>;
+      final tasks = ((play['tasks'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>();
+      return tasks.every((t) => t['pass'] == 1);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> _onProgress(TreasureMapData data, {bool asked = false}) async {
+    final int incoming = (() {
+      final i = data.nodes.indexWhere((n) => n.current);
+      return i >= 0 ? i : data.nodes.length;
+    })();
+    if (!_demo &&
+        _nodes.isNotEmpty &&
+        incoming > _stage &&
+        _stage < _nodes.length) {
+      final bool passed = await _tasksAllPassed(_nodes[_stage]);
+      if (!mounted) return;
+      if (!passed) {
+        if (asked) _snack('這一關還有任務沒完成，完成後才會破關', Pal.inkSoft);
+        return;
+      }
+    }
     final before = _stage;
     final wasArrived = _currentNode?.arrived ?? false;
     setState(() => _applyMap(data));
@@ -337,7 +365,9 @@ class _TreasureMapState extends State<TreasureMap> {
         Pal.moss,
       );
       _enterStage();
+      if (!_demo && !wasArrived) widget.onNodeArrived?.call(cleared);
       widget.onStageCleared?.call(cleared, next);
+      if (_demo && next != null) widget.onNodeArrived?.call(next);
     } else if (after < before) {
       // 進度被重設（示範模式的重來）
       _stopSim();
@@ -373,7 +403,8 @@ class _TreasureMapState extends State<TreasureMap> {
       final result =
           await Api.instance.get('/api/Map/${_story.storyId}')
               as Map<String, dynamic>;
-      if (mounted && !_advancing) _onProgress(TreasureMapData.fromJson(result));
+      if (mounted && !_advancing)
+        await _onProgress(TreasureMapData.fromJson(result));
     } catch (_) {}
   }
 
@@ -404,7 +435,7 @@ class _TreasureMapState extends State<TreasureMap> {
         result = await Api.instance.get('/api/Map/${_story.storyId}');
       }
       if (mounted)
-        _onProgress(
+        await _onProgress(
           TreasureMapData.fromJson(result as Map<String, dynamic>),
           asked: true,
         );
@@ -435,7 +466,9 @@ class _TreasureMapState extends State<TreasureMap> {
     try {
       final result = await Api.instance.get('/api/Map/${_story.storyId}');
       if (mounted)
-        _onProgress(TreasureMapData.fromJson(result as Map<String, dynamic>));
+        await _onProgress(
+          TreasureMapData.fromJson(result as Map<String, dynamic>),
+        );
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -2879,12 +2912,13 @@ class _LineSample extends CustomPainter {
       var i = 0;
       while (x < size.width) {
         final len = segments[i % segments.length];
-        if (i.isEven)
+        if (i.isEven) {
           canvas.drawLine(
             Offset(x, y),
             Offset((x + len * 0.6).clamp(0, size.width), y),
             paint,
           );
+        }
         x += len * 0.6;
         i++;
       }

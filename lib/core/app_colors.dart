@@ -20,7 +20,7 @@ abstract final class AppColors {
   static const Color card = Color(0xFFF8F4EC);
   static const Color darkBorder = Color(0xFF551308);
   static const Color dialogBarrier = Color(0xCC000000);
-  static const Color navigationBackground = Color(0xccF4F2F1);
+  static const Color navigationBackground = Color.fromARGB(255, 244, 242, 241);
   static const Color navigationButton = Color(0xddF4F2F1);
   static const Color progressTrack = Color(0xFFC5B27C);
   static const Color progressValue = Color(0xFF93412E);

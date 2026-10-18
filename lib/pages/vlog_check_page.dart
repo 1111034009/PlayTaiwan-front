@@ -32,6 +32,10 @@ class VlogCheckPage extends StatefulWidget {
 class _VlogCheckPageState extends State<VlogCheckPage> {
   final TextEditingController _scriptController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
+  final TextEditingController _memoryController = TextEditingController();
+  List<Map<String, dynamic>> _moods = [];
+  String _mood = 'auto';
+  int _memoryMax = 3000;
 
   _Stage _stage = _Stage.loading;
   String _error = '';
@@ -58,6 +62,7 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
   void dispose() {
     _scriptController.dispose();
     _promoController.dispose();
+    _memoryController.dispose();
     super.dispose();
   }
 
@@ -125,6 +130,25 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
         storyId: widget.storyId,
       );
 
+      try {
+        final Map<String, dynamic> options = await StoryApi.getVlogOptions();
+        final dynamic raw = options['bgm_moods'];
+
+        if (raw is List) {
+          _moods = raw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+
+          for (final Map<String, dynamic> mood in _moods) {
+            if (mood['is_default'] == true) _mood = _text(mood['value']);
+          }
+        }
+
+        _memoryMax =
+            int.tryParse(_text(options['user_memory_text_max_length'])) ?? 3000;
+      } catch (_) {}
+
       if (!mounted) return;
 
       setState(() {
@@ -161,16 +185,25 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
         finalScript: script,
         promoCopy: _promoController.text.trim(),
         seoKeywords: _keywords,
+        bgmMood: _mood,
+        userMemoryText: _memoryController.text,
       );
+
+      final String taskId = _text(result['task_id']);
+      if (taskId.isEmpty) {
+        throw Exception('後端沒有回傳 Vlog 任務編號');
+      }
+      if (!mounted) return;
+
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
 
       VlogWatcher.start(
         storyId: widget.storyId,
-        taskId: _text(result['task_id']),
+        taskId: taskId,
+        messenger: messenger,
       );
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (e) {
       if (!mounted) return;
 
@@ -294,6 +327,15 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
         _buildField(title: '旁白', controller: _scriptController, lines: 4),
         const SizedBox(height: 14),
         _buildField(title: '宣傳文案', controller: _promoController, lines: 3),
+        const SizedBox(height: 14),
+        _buildMoods(),
+        const SizedBox(height: 14),
+        _buildField(
+          title: '旅遊感想（選填）',
+          controller: _memoryController,
+          lines: 3,
+          maxLength: _memoryMax,
+        ),
         const SizedBox(height: 24),
         _VlogButton(text: '確認並製作 Vlog', onTap: _confirm),
       ],
@@ -377,10 +419,64 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
     );
   }
 
+  Widget _buildMoods() {
+    if (_moods.isEmpty) return const SizedBox.shrink();
+
+    String description = '';
+
+    for (final Map<String, dynamic> mood in _moods) {
+      if (_text(mood['value']) == _mood) {
+        description = _text(mood['description']);
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _cardBorder, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '配樂風格',
+            style: AppTextStyles.bodyBold.copyWith(color: _darkText),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final Map<String, dynamic> mood in _moods)
+                ChoiceChip(
+                  label: Text(_text(mood['label'])),
+                  selected: _mood == _text(mood['value']),
+                  selectedColor: AppColors.primaryLight,
+                  backgroundColor: _cardColor,
+                  onSelected: (_) =>
+                      setState(() => _mood = _text(mood['value'])),
+                ),
+            ],
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              description,
+              style: AppTextStyles.caption.copyWith(color: _darkText),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildField({
     required String title,
     required TextEditingController controller,
     required int lines,
+    int? maxLength,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
@@ -397,6 +493,7 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
             controller: controller,
             minLines: lines,
             maxLines: lines + 3,
+            maxLength: maxLength,
             cursorColor: AppColors.primaryAccent,
             style: AppTextStyles.caption.copyWith(
               color: _darkText,

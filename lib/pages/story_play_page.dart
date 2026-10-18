@@ -331,7 +331,7 @@ class _StoryPageState extends State<StoryPage> {
     int next = 0;
 
     Future<void> worker() async {
-      while (next < extra.length && !_isDisposed) {
+      while (next < extra.length) {
         await _prepareVoice(extra[next++]);
       }
     }

@@ -36,6 +36,62 @@ String _formatDate(dynamic value) {
   return '${date.year} / $month / $day';
 }
 
+const List<String> _dayOrder = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+const Map<String, String> _dayLabel = {
+  'Monday': '週一',
+  'Tuesday': '週二',
+  'Wednesday': '週三',
+  'Thursday': '週四',
+  'Friday': '週五',
+  'Saturday': '週六',
+  'Sunday': '週日',
+};
+
+/// 週一到週日各一行；同一天多個時段用頓號串起，沒資料的日子顯示公休，
+/// 結束時間不晚於開始時間代表次日
+String _formatHours(dynamic value) {
+  final List<Map<String, dynamic>> items = _asList(
+    value,
+  ).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
+  if (items.isEmpty) return '';
+
+  final List<String> lines = [];
+
+  for (final String day in _dayOrder) {
+    final List<Map<String, dynamic>> slots =
+        items.where((h) => _str(h['day_of_week']) == day).toList()..sort(
+          (a, b) => _str(a['open_time']).compareTo(_str(b['open_time'])),
+        );
+
+    final String text = slots.isEmpty
+        ? '公休'
+        : slots
+              .map((s) {
+                final String open = _str(s['open_time']);
+                final String close = _str(s['close_time']);
+
+                return close.compareTo(open) <= 0
+                    ? '$open–次日$close'
+                    : '$open–$close';
+              })
+              .join('、');
+
+    lines.add('${_dayLabel[day]}　$text');
+  }
+
+  return lines.join('\n');
+}
+
 class NfcInformationPage extends StatefulWidget {
   const NfcInformationPage({super.key, required this.result});
 
@@ -91,7 +147,11 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
   String get _categories => _joinList(_place['categories'], '  ·  ');
 
-  String get _hours => _joinList(_place['operating_hours'], '\n');
+  String get _hours {
+    final String top = _formatHours(widget.result['operating_hours']);
+
+    return top.isNotEmpty ? top : _formatHours(_place['operating_hours']);
+  }
 
   String get _imageUrl {
     final String direct = _firstNonEmpty([

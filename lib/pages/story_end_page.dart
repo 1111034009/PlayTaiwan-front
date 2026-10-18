@@ -919,31 +919,28 @@ class _FullScreenRewardOverlayState extends State<_FullScreenRewardOverlay>
                           ],
                         ),
                         child: ClipOval(
-                          child: Transform.scale(
-                            scale: 1.2,
-                            child: _badgeImage.isEmpty
-                                ? Image.asset(
-                                    _badgeAsset,
-                                    fit: BoxFit.contain,
-                                    width: 150,
-                                    height: 150,
-                                  )
-                                : Image.network(
-                                    _badgeImage,
-                                    fit: BoxFit.contain,
-                                    width: 150,
-                                    height: 150,
-                                    filterQuality: FilterQuality.high,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Image.asset(
-                                        _badgeAsset,
-                                        fit: BoxFit.contain,
-                                        width: 150,
-                                        height: 150,
-                                      );
-                                    },
-                                  ),
-                          ),
+                          child: _badgeImage.isEmpty
+                              ? Image.asset(
+                                  _badgeAsset,
+                                  fit: BoxFit.contain,
+                                  width: 150,
+                                  height: 175,
+                                )
+                              : Image.network(
+                                  _badgeImage,
+                                  fit: BoxFit.contain,
+                                  width: 160,
+                                  height: 160,
+                                  filterQuality: FilterQuality.high,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      _badgeAsset,
+                                      fit: BoxFit.contain,
+                                      width: 160,
+                                      height: 160,
+                                    );
+                                  },
+                                ),
                         ),
                       ),
                     ),
