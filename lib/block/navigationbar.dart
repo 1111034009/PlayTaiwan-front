@@ -33,41 +33,40 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
   }
 
   Future<void> _handleNavigation(int index) async {
-    if (_isNavigating) {
-      return;
-    }
+    if (_isNavigating) return;
 
-    if (index == _selectedIndex) {
-      return;
-    }
+    final String route = switch (index) {
+      0 => '/home',
+      1 => '/story-map',
+      2 => '/collection',
+      3 => '/past',
+      _ => '/home',
+    };
 
     setState(() {
-      _selectedIndex = index;
       _isNavigating = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 180));
+    try {
+      // 不等待動畫，避免等待期間狀態不同步
+      if (!mounted) return;
 
-    if (!mounted) {
-      return;
-    }
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushNamedAndRemoveUntil(route, (Route<dynamic> route) => false);
 
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
-
-      case 1:
-        Navigator.pushReplacementNamed(context, '/story-map');
-        break;
-
-      case 2:
-        Navigator.pushReplacementNamed(context, '/collection');
-        break;
-
-      case 3:
-        Navigator.pushReplacementNamed(context, '/past');
-        break;
+      setState(() {
+        _selectedIndex = index;
+      });
+    } catch (e) {
+      debugPrint('導覽失敗：$e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isNavigating = false;
+        });
+      }
     }
   }
 

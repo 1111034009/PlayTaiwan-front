@@ -22,6 +22,12 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController accountController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  final ScrollController scrollController = ScrollController();
+  final FocusNode accountFocus = FocusNode();
+  final FocusNode passwordFocus = FocusNode();
+  final GlobalKey accountKey = GlobalKey();
+  final GlobalKey passwordKey = GlobalKey();
+
   static const Color pageColor = AppColors.background;
   static const Color darkText = AppColors.textPrimary;
   static const Color lineColor = AppColors.inputLine;
@@ -37,9 +43,31 @@ class _LoginPageState extends State<LoginPage> {
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
   }
 
+  void scrollToField(GlobalKey key) {
+    // 等鍵盤動畫結束、可捲動範圍變大後再捲
+    Future.delayed(const Duration(milliseconds: 350), () {
+      final ctx = key.currentContext;
+      if (!mounted || ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.3,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    accountFocus.addListener(() {
+      if (accountFocus.hasFocus) scrollToField(accountKey);
+    });
+    passwordFocus.addListener(() {
+      if (passwordFocus.hasFocus) scrollToField(passwordKey);
+    });
+
     BgmService.instance.play(BgmTrack.login);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -56,6 +84,9 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     accountController.dispose();
     passwordController.dispose();
+    scrollController.dispose();
+    accountFocus.dispose();
+    passwordFocus.dispose();
     super.dispose();
   }
 
@@ -262,159 +293,191 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: pageColor,
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
+      resizeToAvoidBottomInset: false,
+      body: LayoutBuilder(
+        builder: (context, c) => SingleChildScrollView(
+          controller: scrollController,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
           child: SizedBox(
-            width: designWidth,
-            height: designHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(child: Container(color: pageColor)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 45,
-                  height: 195,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Image.asset(
-                        'img/login_top_npc.png',
-                        width: 292.5,
-                        height: 266.5,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 13,
-                  right: 13,
-                  top: 184,
-                  height: 430,
-                  child: Image.asset('img/notepaper.png', fit: BoxFit.fill),
-                ),
-                Positioned(
-                  top: 198,
-                  left: 30,
-                  width: 137,
-                  height: 42,
-                  child: Image.asset(
-                    'img/stamp.png',
-                    width: 137,
-                    height: 42,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                Positioned(
-                  top: 263,
-                  left: 20,
-                  right: 20,
-                  child: Center(
-                    child: Text(
-                      '日遊所思，夜遊所夢',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.titleLarge.copyWith(
-                        color: const Color(0xFF292522),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 292,
-                  left: 20,
-                  right: 20,
-                  child: Center(
-                    child: Text(
-                      'Play Taiwan',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySmallBold.copyWith(
-                        color: const Color(0xFF66615C),
-                      ),
-                    ),
-                  ),
-                ),
-                sectionTitle(icon: 'img/user.png', title: '探險代號', top: 325),
-                Positioned(
-                  left: 46,
-                  right: 46,
-                  top: 356,
-                  height: 40,
-                  child: TextField(
-                    controller: accountController,
-                    textAlign: TextAlign.center,
-                    textInputAction: TextInputAction.next,
-                    autofillHints: const [AutofillHints.username],
-                    style: AppTextStyles.bodySmall.copyWith(color: darkText),
-                    cursorColor: cursorColor,
-                    decoration: inputDecoration(hintText: '請輸入帳號'),
-                  ),
-                ),
-                sectionTitle(icon: 'img/password.png', title: '通行密碼', top: 412),
-                Positioned(
-                  left: 46,
-                  right: 46,
-                  top: 443,
-                  height: 40,
-                  child: TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    textAlign: TextAlign.center,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.password],
-                    style: AppTextStyles.bodySmall.copyWith(color: darkText),
-                    cursorColor: cursorColor,
-                    onSubmitted: (_) => login(),
-                    decoration: inputDecoration(hintText: '請輸入密碼'),
-                  ),
-                ),
-                Positioned(
-                  top: 484,
-                  right: 45,
-                  child: Center(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _showForgotPasswordDialog,
-                      child: Text(
-                        '忘記密碼',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.primary,
+            width: c.maxWidth,
+            height: c.maxHeight,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: designWidth,
+                  height: designHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(child: Container(color: pageColor)),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 45,
+                        height: 195,
+                        child: IgnorePointer(
+                          child: Center(
+                            child: Image.asset(
+                              'img/login_top_npc.png',
+                              width: 292.5,
+                              height: 266.5,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 515,
-                  left: 0,
-                  right: 0,
-                  height: 49,
-                  child: Center(
-                    child: SizedBox(
-                      width: 100,
-                      height: 80,
-                      child: _LoginButton(
-                        onPressed: login,
-                        isLoading: isLoading,
+                      Positioned(
+                        left: 13,
+                        right: 13,
+                        top: 184,
+                        height: 440,
+                        child: Image.asset(
+                          'img/notepaper.png',
+                          fit: BoxFit.fill,
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        top: 198,
+                        left: 30,
+                        width: 137,
+                        height: 42,
+                        child: Image.asset(
+                          'img/stamp.png',
+                          width: 137,
+                          height: 42,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      Positioned(
+                        top: 250,
+                        left: 20,
+                        right: 20,
+                        child: Center(
+                          child: Text(
+                            '日遊所思，夜遊所夢',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.titleLarge.copyWith(
+                              color: const Color(0xFF292522),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 292,
+                        left: 20,
+                        right: 20,
+                        child: Center(
+                          child: Text(
+                            'Play Taiwan',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySmallBold.copyWith(
+                              color: const Color(0xFF66615C),
+                            ),
+                          ),
+                        ),
+                      ),
+                      sectionTitle(
+                        icon: 'img/user.png',
+                        title: '探險帳號',
+                        top: 325,
+                      ),
+                      Positioned(
+                        left: 46,
+                        right: 46,
+                        top: 356,
+                        height: 40,
+                        child: TextField(
+                          key: accountKey,
+                          focusNode: accountFocus,
+                          controller: accountController,
+                          textAlign: TextAlign.center,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.username],
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: darkText,
+                          ),
+                          cursorColor: cursorColor,
+                          decoration: inputDecoration(hintText: '請輸入帳號名稱'),
+                        ),
+                      ),
+                      sectionTitle(
+                        icon: 'img/password.png',
+                        title: '通行密碼',
+                        top: 412,
+                      ),
+                      Positioned(
+                        left: 46,
+                        right: 46,
+                        top: 443,
+                        height: 40,
+                        child: TextField(
+                          key: passwordKey,
+                          focusNode: passwordFocus,
+                          controller: passwordController,
+                          obscureText: true,
+                          textAlign: TextAlign.center,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: darkText,
+                          ),
+                          cursorColor: cursorColor,
+                          onSubmitted: (_) => login(),
+                          decoration: inputDecoration(hintText: '請輸入密碼'),
+                        ),
+                      ),
+                      Positioned(
+                        top: 484,
+                        right: 45,
+                        child: Center(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _showForgotPasswordDialog,
+                            child: Text(
+                              '忘記密碼',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 515,
+                        left: 0,
+                        right: 0,
+                        height: 49,
+                        child: Center(
+                          child: SizedBox(
+                            width: 100,
+                            height: 80,
+                            child: _LoginButton(
+                              onPressed: login,
+                              isLoading: isLoading,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 575,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _RegisterLink(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/register');
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  top: 575,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _RegisterLink(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -535,7 +598,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       color: Colors.transparent,
       child: SizedBox(
         width: width,
-        height: 265,
+        height: 255,
         child: Stack(
           clipBehavior: Clip.none,
           children: [

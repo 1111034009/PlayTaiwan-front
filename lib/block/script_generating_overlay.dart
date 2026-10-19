@@ -10,6 +10,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
   final double progress;
   final String? detail;
   final int? stage;
+  final List<double>? segments;
 
   const ScriptGeneratingOverlay({
     super.key,
@@ -17,6 +18,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
     required this.progress,
     this.detail,
     this.stage,
+    this.segments,
   });
 
   @override
@@ -121,60 +123,33 @@ class _ScriptGeneratingOverlayState extends State<ScriptGeneratingOverlay>
                     ),
                   ),
                 const SizedBox(height: 22),
-                Text(
-                  '劇本撰寫中',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Text(
                     widget.message,
                     key: ValueKey(widget.message),
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmallBold.copyWith(
+                    style: AppTextStyles.titleLarge.copyWith(
                       color: AppColors.darkBrown,
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    height: 10,
-                    width: double.infinity,
-                    color: const Color(0xFFD0C0A8),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
-                        begin: 0,
-                        end: widget.progress.clamp(0.0, 1.0),
-                      ),
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      builder: (context, value, child) {
-                        return FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: value,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  AppColors.primaryLight,
-                                  AppColors.primary,
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+
+                if (widget.segments != null)
+                  Row(
+                    children: [
+                      for (int i = 0; i < widget.segments!.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 4),
+                        Expanded(
+                          child: _ProgressBar(value: widget.segments![i]),
+                        ),
+                      ],
+                    ],
+                  )
+                else
+                  _ProgressBar(value: widget.progress),
+
                 if (widget.detail != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -434,6 +409,39 @@ class _LoadingDot extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  final double value;
+  const _ProgressBar({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 10,
+        width: double.infinity,
+        color: const Color(0xFFD0C0A8),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: value.clamp(0.0, 1.0)),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          builder: (context, v, _) => FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: v,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryLight, AppColors.primary],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

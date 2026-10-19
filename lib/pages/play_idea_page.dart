@@ -195,25 +195,53 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
       backgroundColor: _pageColor,
       extendBody: true,
       resizeToAvoidBottomInset: false,
-
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: SizedBox.expand(
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: designWidth,
-                height: designHeight,
-                child: _buildDesignPage(),
+      body: Stack(
+        children: [
+          SafeArea(
+            top: false,
+            bottom: false,
+            child: SizedBox.expand(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: designWidth,
+                    height: designHeight,
+                    child: _buildDesignPage(),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.pop(context),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 10, 12, 10),
+                  child: Text(
+                    '<< 返回',
+                    style: AppTextStyles.bodySmallBold
+                        .copyWith(color: const Color(0xFFFAF7F1))
+                        .copyWith(
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x66000000),
+                              offset: Offset(1.2, 1.5),
+                              blurRadius: 1.5,
+                            ),
+                          ],
+                        ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
     );
   }
@@ -236,7 +264,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
           Positioned(
             left: 0,
             right: 0,
-            top: 50,
+            top: 40,
             child: Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -261,7 +289,7 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
           Positioned(
             left: 0,
             right: 0,
-            top: 91,
+            top: 80,
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(

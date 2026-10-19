@@ -38,9 +38,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int currentIndex = 1;
   Timer? _progressTimer;
 
-  double generatingProgress = 0.0;
-
-  bool _generationCompleted = false;
+  List<double> segmentProgress = [0, 0, 0];
+  DateTime _segStart = DateTime.now();
+  int _lastFinished = 0;
 
   final TextEditingController peopleController = TextEditingController();
 
@@ -52,141 +52,41 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int generatingTotal = 0;
   int generatingFinished = 0;
 
-  String get generatingDetail {
-    final int percent = (generatingProgress * 100).round().clamp(0, 100);
-
-    if (generatingTotal <= 0) {
-      return '$percent%';
-    }
-
-    final int remaining = (generatingTotal - generatingFinished).clamp(
-      0,
-      generatingTotal,
-    );
-
-    return '還剩 $remaining 本・$percent%';
-  }
+  String get generatingDetail => generatingFinished <= 0
+      ? ''
+      : '已完成 $generatingFinished/${generatingTotal > 0 ? generatingTotal : 3} 本';
 
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
   Map<String, dynamic>? generatedScript;
   int partySize = 1;
 
-  void _startGeneratingProgress() {
+  void _startSegments() {
     _progressTimer?.cancel();
+    _segStart = DateTime.now();
+    _lastFinished = 0;
+    setState(() => segmentProgress = [0, 0, 0]);
 
-    setState(() {
-      generatingProgress = 0.01;
-      _generationCompleted = false;
-    });
-
-    const Duration totalDuration = Duration(seconds: 100);
-    const Duration interval = Duration(milliseconds: 100);
-
-    const double startProgress = 0.01;
-    const double maxProgress = 0.99;
-
-    final int totalTicks =
-        totalDuration.inMilliseconds ~/ interval.inMilliseconds;
-
-    int tick = 0;
-
-    _progressTimer = Timer.periodic(interval, (timer) {
-      if (!mounted || _generationCompleted) {
-        timer.cancel();
-        return;
-      }
-
-      tick++;
-
-      final double progress =
-          startProgress + (maxProgress - startProgress) * (tick / totalTicks);
-
-      setState(() {
-        generatingProgress = progress.clamp(startProgress, maxProgress);
-        generatingText = (tick < 400 && generatingFinished == 0)
-            ? '紫薯小編尋找資料中…'
-            : '紫薯小編編寫劇本中…';
-      });
-
-      if (tick >= totalTicks) {
-        timer.cancel();
-      }
-    });
-  }
-
-  Future<void> _finishGeneratingProgress() async {
-    _progressTimer?.cancel();
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _generationCompleted = true;
-      generatingText = '劇本生成完成';
-    });
-
-    final double currentProgress = generatingProgress;
-
-    if (currentProgress < 0.97) {
-      const int fastSteps = 10;
-      final double difference = 0.97 - currentProgress;
-
-      for (int i = 1; i <= fastSteps; i++) {
-        if (!mounted) {
-          return;
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      final next = List<double>.from(segmentProgress);
+      for (int i = 0; i < next.length; i++) {
+        if (i < generatingFinished) {
+          next[i] = (next[i] + 0.12).clamp(0.0, 1.0);
+        } else if (i == generatingFinished) {
+          final double t =
+              DateTime.now().difference(_segStart).inMilliseconds / 60000;
+          final double target = (t * 0.95).clamp(0.0, 0.95);
+          if (target > next[i]) next[i] = target;
         }
-
-        await Future.delayed(const Duration(milliseconds: 50));
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          generatingProgress = currentProgress + (difference * (i / fastSteps));
-        });
       }
-    }
-    const int finishSteps = 12;
-
-    for (int i = 1; i <= finishSteps; i++) {
-      if (!mounted) {
-        return;
-      }
-
-      await Future.delayed(const Duration(milliseconds: 70));
-
-      if (!mounted) {
-        return;
-      }
-
       setState(() {
-        generatingProgress = 0.97 + (0.03 * (i / finishSteps));
+        segmentProgress = next;
+        generatingText = (generatingFinished == 0 && next[0] < 0.5)
+            ? '紫薯編找資料中…'
+            : '紫薯編寫劇本中…';
       });
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      generatingProgress = 1.0;
-      generatingFinished = generatingTotal;
-      generatingText = '劇本生成完成';
     });
-    await Future.delayed(const Duration(milliseconds: 450));
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      isGenerating = false;
-    });
-
-    _showScriptCompleteDialog();
   }
 
   @override
@@ -259,18 +159,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     if (isGenerating) {
       return;
     }
+
     partySize = peopleCount;
+
     setState(() {
       isGenerating = true;
-      generatingProgress = 0.01;
       generatingText = '正在尋找資料中';
       generatingTotal = 0;
       generatingFinished = 0;
-      _generationCompleted = false;
     });
 
-    // 開始 60 秒進度條
-    _startGeneratingProgress();
+    _startSegments();
 
     try {
       final Map<String, dynamic> result =
@@ -285,24 +184,37 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             maxTravelMinutes: maxTravelMinutes.round(),
             onProgress: (total, finished) {
               if (!mounted) return;
-
+              if (finished != _lastFinished) {
+                _lastFinished = finished;
+                _segStart = DateTime.now();
+              }
               setState(() {
                 generatingTotal = total;
                 generatingFinished = finished;
               });
             },
           );
+
       if (!mounted) {
         return;
       }
 
       setState(() {
         generatedScript = result;
-        generatingText = '劇本生成完成';
-        _generationCompleted = true;
       });
 
-      await _finishGeneratingProgress();
+      _progressTimer?.cancel();
+      setState(() {
+        segmentProgress = [1, 1, 1];
+        generatingText = '劇本生成完成';
+      });
+
+      await Future.delayed(const Duration(milliseconds: 600));
+
+      if (!mounted) return;
+
+      setState(() => isGenerating = false);
+      _showScriptCompleteDialog();
     } catch (e) {
       _progressTimer?.cancel();
 
@@ -312,8 +224,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
       setState(() {
         isGenerating = false;
-        generatingProgress = 0.0;
-        _generationCompleted = false;
+        segmentProgress = [0, 0, 0];
       });
 
       _showMessage('劇本生成失敗，請稍後再試');
@@ -460,7 +371,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 40,
+                            top: 10,
                             child: Center(
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -480,7 +391,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            top: 78,
+                            top: 60,
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -512,7 +423,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                             left: 13,
                             top: 120,
                             width: 334,
-                            height: 500,
+                            height: 530,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(5),
                               child: Image.asset(
@@ -554,8 +465,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           Positioned.fill(
             child: ScriptGeneratingOverlay(
               message: generatingText,
-              progress: generatingProgress,
-              detail: generatingDetail,
+              progress: 0,
+              segments: segmentProgress,
+              detail: generatingDetail.isEmpty ? null : generatingDetail,
               stage: generatingText.contains('尋找') ? 0 : 1,
             ),
           ),

@@ -18,6 +18,15 @@ class StoryBadRequest implements Exception {
 }
 
 class StoryApi {
+  static const String _npcAvatarKey = 'story_npc_avatar_url';
+
+  static Future<String?> getNpcAvatar() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String value = prefs.getString(_npcAvatarKey)?.trim() ?? '';
+
+    return value.isEmpty ? null : value;
+  }
+
   static String get _baseUrl {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
 
@@ -243,7 +252,7 @@ class StoryApi {
     );
 
     if (position != null && position > 0) {
-      return '語音排隊中（前面還有 $position 個）…';
+      return '努力生成中，前面還有 $position 個進行中…';
     }
 
     final String stage = result['stage']?.toString().trim() ?? '';
@@ -435,7 +444,25 @@ class StoryApi {
         jsonDecode(response.body) as Map<String, dynamic>;
 
     if (data['isSuccess'] != true) {
-      throw Exception(data['message']?.toString() ?? '取得完整劇本失敗');
+      throw Exception(data['message']?.toString() ?? '劇本確認失敗');
+    }
+
+    final dynamic result = data['Result'];
+    final dynamic npc = result is Map ? result['npc'] : null;
+    String avatar = npc is Map
+        ? (npc['avatar_url']?.toString().trim() ?? '')
+        : '';
+
+    if (avatar.startsWith('/')) {
+      avatar = '$_baseUrl$avatar';
+    }
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (avatar.isNotEmpty) {
+      await prefs.setString(_npcAvatarKey, avatar);
+    } else {
+      await prefs.remove(_npcAvatarKey);
     }
 
     return data;
@@ -475,6 +502,26 @@ class StoryApi {
 
     if (data['isSuccess'] != true) {
       throw Exception(data['message']?.toString() ?? '劇本確認失敗');
+    }
+
+    // 取得 NPC 頭像網址
+    final dynamic result = data['Result'];
+    final dynamic npc = result is Map ? result['npc'] : null;
+
+    String avatar = npc is Map
+        ? (npc['avatar_url']?.toString().trim() ?? '')
+        : '';
+
+    if (avatar.startsWith('/')) {
+      avatar = '$_baseUrl$avatar';
+    }
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (avatar.isNotEmpty) {
+      await prefs.setString(_npcAvatarKey, avatar);
+    } else {
+      await prefs.remove(_npcAvatarKey);
     }
 
     return data;

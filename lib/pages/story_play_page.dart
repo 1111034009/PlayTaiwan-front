@@ -77,7 +77,7 @@ class _StoryPageState extends State<StoryPage> {
   bool _isDisposed = false;
   bool _isFinished = false;
   bool _advancing = false;
-
+  String? _npcAvatar;
   String _loadingText = '正在準備劇情資訊…';
 
   double _voiceProgress = 0.0;
@@ -449,6 +449,19 @@ class _StoryPageState extends State<StoryPage> {
     Navigator.pushReplacementNamed(context, '/story-map');
   }
 
+  Future<void> _initNpcAvatar() async {
+    final String fromScript = _npc?['avatar_url']?.toString().trim() ?? '';
+    final String? avatar = fromScript.isNotEmpty
+        ? fromScript
+        : await StoryApi.getNpcAvatar();
+
+    if (mounted && avatar != null && avatar.isNotEmpty) {
+      setState(() {
+        _npcAvatar = avatar;
+      });
+    }
+  }
+
   double _getScale(double width, double height) {
     return AppResponsive.scale(
       availableWidth: width,
@@ -488,7 +501,9 @@ class _StoryPageState extends State<StoryPage> {
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _prepareAllVoices();
+      if (!mounted) return;
+      _initNpcAvatar();
+      _prepareAllVoices();
     });
   }
 
@@ -508,7 +523,11 @@ class _StoryPageState extends State<StoryPage> {
   @override
   Widget build(BuildContext context) {
     if (_isPreparing) {
-      return _StoryLoadingPage(text: _loadingText, progress: _voiceProgress);
+      return _StoryLoadingPage(
+        text: _loadingText,
+        progress: _voiceProgress,
+        npcAvatar: _npcAvatar,
+      );
     }
 
     final StoryLine story = _storyLines.isNotEmpty
@@ -628,6 +647,7 @@ class _StoryPageState extends State<StoryPage> {
                     onNextStory: nextStory,
                     isSpeaking: _isSpeaking,
                     isLast: storyIndex >= _storyLines.length - 1,
+                    npcAvatar: _npcAvatar,
                   ),
                 ),
               ],
@@ -645,9 +665,13 @@ class _StoryPageState extends State<StoryPage> {
 class _StoryLoadingPage extends StatefulWidget {
   final String text;
   final double progress;
+  final String? npcAvatar;
 
-  const _StoryLoadingPage({required this.text, required this.progress});
-
+  const _StoryLoadingPage({
+    required this.text,
+    required this.progress,
+    this.npcAvatar,
+  });
   @override
   State<_StoryLoadingPage> createState() => _StoryLoadingPageState();
 }
@@ -753,16 +777,10 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
                         Positioned(
                           bottom: 18,
                           right: 25,
-                          child: Image.asset(
-                            'img/npc_.png',
+                          child: _NpcImage(
+                            url: widget.npcAvatar,
                             width: 145,
                             height: 205,
-                            fit: BoxFit.contain,
-                            alignment: Alignment.bottomCenter,
-                            filterQuality: FilterQuality.high,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const SizedBox(width: 145, height: 205);
-                            },
                           ),
                         ),
                         Positioned(
@@ -898,12 +916,14 @@ class _StoryGameContent extends StatelessWidget {
   final VoidCallback onNextStory;
   final bool isSpeaking;
   final bool isLast;
+  final String? npcAvatar;
 
   const _StoryGameContent({
     required this.story,
     required this.onNextStory,
     required this.isSpeaking,
     required this.isLast,
+    this.npcAvatar,
   });
 
   @override
@@ -919,19 +939,9 @@ class _StoryGameContent extends StatelessWidget {
         children: [
           Positioned(
             right: -20,
-            bottom: storyBottom + navigationReserve - 30,
+            bottom: storyBottom + navigationReserve + 10,
             child: IgnorePointer(
-              child: Image.asset(
-                'img/npc_.png',
-                width: 200,
-                height: 285,
-                fit: BoxFit.contain,
-                alignment: Alignment.bottomCenter,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) {
-                  return const SizedBox(width: 200, height: 285);
-                },
-              ),
+              child: _NpcImage(url: npcAvatar, width: 200, height: 285),
             ),
           ),
           Positioned(
@@ -947,6 +957,56 @@ class _StoryGameContent extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _NpcImage extends StatelessWidget {
+  final String? url;
+  final double width;
+  final double height;
+
+  const _NpcImage({
+    required this.url,
+    required this.width,
+    required this.height,
+  });
+
+  Widget _fallback() {
+    return Image.asset(
+      'img/npc_.png',
+      width: width,
+      height: height,
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) {
+        return SizedBox(width: width, height: height);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String link = url?.trim() ?? '';
+
+    if (link.isEmpty) {
+      return _fallback();
+    }
+
+    return Image.network(
+      link,
+      width: width,
+      height: height,
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      filterQuality: FilterQuality.high,
+      loadingBuilder: (context, child, loadingProgress) {
+        return loadingProgress == null
+            ? child
+            : SizedBox(width: width, height: height);
+      },
+      errorBuilder: (context, error, stackTrace) => _fallback(),
     );
   }
 }

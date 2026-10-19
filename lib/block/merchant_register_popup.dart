@@ -258,10 +258,11 @@ class StorySearchPopup extends StatelessWidget {
               image: DecorationImage(
                 image: AssetImage('img/long_papper.png'),
                 fit: BoxFit.fill,
+                alignment: Alignment.center,
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(27, 28, 27, 25),
+              padding: const EdgeInsets.fromLTRB(35, 40, 35, 35),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1133,11 +1134,11 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 460,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: MediaQuery.of(context).size.height * 0.90,
         ),
         child: Container(
           decoration: const BoxDecoration(
@@ -1147,7 +1148,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(27, 25, 27, 22),
+            padding: const EdgeInsets.fromLTRB(35, 40, 35, 35),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

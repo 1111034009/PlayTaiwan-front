@@ -195,74 +195,94 @@ class _ChooseScriptPageState extends State<ChooseScriptPage> {
                           Positioned.fill(
                             child: ScrollConfiguration(
                               behavior: const _NoScrollbarScrollBehavior(),
-                              child: ListView(
-                                physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.only(
-                                  left: 15,
-                                  right: 15,
-                                  top: 50,
-                                  bottom: 75,
-                                ),
-                                children: [
-                                  Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Image.asset(
-                                          'img/Scroll.png',
-                                          width: 27,
-                                          height: 27,
-                                          fit: BoxFit.contain,
-                                        ),
-                                        const SizedBox(width: 7),
-                                        _OutlinedTitle(text: '劇本檔案館'),
-                                      ],
+                              child: LayoutBuilder(
+                                builder: (context, viewportConstraints) {
+                                  return SingleChildScrollView(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.only(
+                                      left: 15,
+                                      right: 15,
+                                      top: 50,
+                                      bottom: 75,
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 6,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minHeight:
+                                            viewportConstraints.maxHeight - 125,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFFE9DDC6,
-                                        ).withOpacity(0.88),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: const Color(
-                                            0xFF8A7163,
-                                          ).withOpacity(0.30),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '選擇您感興趣的劇本，點選車票獲得地圖',
-                                        textAlign: TextAlign.center,
-                                        style: AppTextStyles.bodySmallBold
-                                            .copyWith(color: _darkBrown),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Center(
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Image.asset(
+                                                  'img/Scroll.png',
+                                                  width: 27,
+                                                  height: 27,
+                                                  fit: BoxFit.contain,
+                                                ),
+                                                const SizedBox(width: 7),
+                                                _OutlinedTitle(text: '劇本檔案館'),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Center(
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xFFE9DDC6,
+                                                ).withOpacity(0.88),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFF8A7163,
+                                                  ).withOpacity(0.30),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '選擇感興趣的劇本，點選查看',
+                                                textAlign: TextAlign.center,
+                                                style: AppTextStyles
+                                                    .bodySmallBold
+                                                    .copyWith(
+                                                      color: _darkBrown,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          for (final script in scripts)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 10,
+                                              ),
+                                              child: _ScriptTicket(
+                                                script: script,
+                                                onTap: () {
+                                                  openScriptDetail(script);
+                                                },
+                                                onSeeMore: () {
+                                                  openScriptDetail(script);
+                                                },
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  for (final script in scripts)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 10,
-                                      ),
-                                      child: _ScriptTicket(
-                                        script: script,
-                                        onTap: () {
-                                          openScriptDetail(script);
-                                        },
-                                        onSeeMore: () {
-                                          openScriptDetail(script);
-                                        },
-                                      ),
-                                    ),
-                                ],
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -417,7 +437,7 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                       Expanded(
                         child: _TicketChip(
                           text: widget.script.location,
-                          maxWidth: double.infinity,
+                          maxWidth: 80,
                         ),
                       ),
                       const SizedBox(width: 5),
@@ -523,16 +543,16 @@ class _SeeMoreButtonState extends State<_SeeMoreButton> {
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
           child: SizedBox(
-            width: 72,
+            width: 82,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.max,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '觀看更多',
                   style: AppTextStyles.label.copyWith(color: _seeMoreColor),
                 ),
-                const SizedBox(width: 1),
+                const SizedBox(width: 0),
                 Image.asset(
                   'img/see_more.png',
                   width: 13,

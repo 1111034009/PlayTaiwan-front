@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/story_play_page.dart';
@@ -39,6 +40,15 @@ class PlayTaiwanApp extends StatelessWidget {
       navigatorObservers: [AuthGuard.observer],
       title: '日遊所思，夜遊所夢',
       debugShowCheckedModeBanner: false,
+
+      // 設定繁體中文
+      locale: const Locale('zh', 'TW'),
+      supportedLocales: const [Locale('zh', 'TW'), Locale('en', 'US')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: const ColorScheme.light(

@@ -652,7 +652,7 @@ class _HomePageState extends State<HomePage> {
                 child: Container(height: 1, color: const Color(0xFF51473F)),
               ),
               Positioned(
-                top: 56,
+                top: 45,
                 left: 0,
                 right: 0,
                 child: Center(
@@ -680,7 +680,7 @@ class _HomePageState extends State<HomePage> {
               ),
               Positioned(
                 left: 14,
-                top: 94,
+                top: 85,
                 width: 60,
                 child: _OverviewNumber(
                   title: '明信片',
@@ -690,7 +690,7 @@ class _HomePageState extends State<HomePage> {
               ),
               Positioned(
                 left: 74,
-                top: 94,
+                top: 85,
                 width: 60,
                 child: _OverviewNumber(
                   title: '徽章',
@@ -700,7 +700,7 @@ class _HomePageState extends State<HomePage> {
               ),
               Positioned(
                 left: 134,
-                top: 94,
+                top: 85,
                 width: 60,
                 child: _OverviewNumber(
                   title: 'VLOG',

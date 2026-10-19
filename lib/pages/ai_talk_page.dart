@@ -37,7 +37,7 @@ class AiTalkPage extends StatefulWidget {
 class _AiTalkPageState extends State<AiTalkPage> {
   static const String _npcName = '小精靈';
   static const String _npcSubtitle = '探員隨身尋找';
-  static const String _questLabel = '接個隨機地點';
+  static const String _questLabel = '找個隨機地點';
   static const String _questDefaultText = '我想找個附近好玩的地方';
   static const String _busyText = '正在對話中，請等待生成';
   static const String _cacheKey = 'ai_talk_history_v1';
@@ -288,7 +288,7 @@ class _AiTalkPageState extends State<AiTalkPage> {
       _ChoiceGroup(
         options: const [
           _ChoiceOption(icon: Icons.bolt, label: _questLabel),
-          _ChoiceOption(icon: Icons.explore, label: '我想找點附近去晃晃……'),
+          _ChoiceOption(icon: Icons.explore, label: '我想去附近晃晃……'),
         ],
         onSelected: _handleMainMenuChoice,
       ),
@@ -299,7 +299,7 @@ class _AiTalkPageState extends State<AiTalkPage> {
     if (_guardBusy()) return;
 
     if (index == 0) {
-      _userText('幫我接一個附近的隨機地點吧！');
+      _userText('幫我找一個附近的隨機地點，讓我遊玩吧！');
       _runSpin(_questDefaultText);
     } else {
       _handleNearby();

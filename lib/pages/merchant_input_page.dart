@@ -285,13 +285,11 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: _pageColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final scale = [
-            constraints.maxWidth / designWidth,
-            constraints.maxHeight / designHeight,
-          ].reduce((a, b) => a < b ? a : b);
+          final scale = constraints.maxWidth / designWidth;
 
           return Center(
             child: SizedBox(
@@ -328,7 +326,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                       Positioned(
                         left: 0,
                         right: 0,
-                        top: 82,
+                        top: 85,
                         child: Center(
                           child: Text(
                             '輸入資訊，生成專屬推廣短影音',
@@ -350,9 +348,9 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                       ),
                       Positioned(
                         left: 22,
-                        top: 108,
+                        top: 110,
                         width: 318,
-                        height: 515,
+                        height: 545,
                         child: _InputPaper(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +372,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   ),
                                   cursorColor: _red,
                                   decoration: InputDecoration(
-                                    hintText: '未填寫則使用商家資訊，請勿輸入無註冊的店家名稱',
+                                    hintText: '請勿輸入無註冊的店家名稱',
                                     hintStyle: AppTextStyles.captionSmall
                                         .copyWith(color: _hintColor),
                                     contentPadding: const EdgeInsets.only(
@@ -397,7 +395,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 9),
+                              const SizedBox(height: 10),
                               Text(
                                 '敘事語氣',
                                 style: AppTextStyles.bodySmallBold.copyWith(
@@ -406,14 +404,14 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                               ),
                               const SizedBox(height: 5),
                               _buildToneRow(),
-                              const SizedBox(height: 11),
+                              const SizedBox(height: 10),
                               Text(
                                 '推廣資訊',
                                 style: AppTextStyles.bodySmallBold.copyWith(
                                   color: _darkText,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 5),
                               Container(
                                 width: double.infinity,
                                 height: 94,
@@ -443,7 +441,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Row(
                                 children: [
                                   Text(
@@ -461,7 +459,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                                 files: uploadedFiles,
                                 onRemove: removeFile,
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 15),
                               Center(
                                 child: _GenerateButton(
                                   text: _mmId == null ? '生成推薦' : '重新生成',
