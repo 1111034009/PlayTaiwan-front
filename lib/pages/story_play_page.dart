@@ -449,9 +449,16 @@ class _StoryPageState extends State<StoryPage> {
     Navigator.pushReplacementNamed(context, '/story-map');
   }
 
+  /// 讀取畫面和沒帶 NPC 圖的台詞用的 NPC 圖：台詞帶的（那一站的 NPC）優先，再來是劇本的 NPC，
+  /// 都沒有才用上次確認劇本時記下的（用配對碼加入的隊友、重裝 App 後沒有記錄，會是預設圖）
   Future<void> _initNpcAvatar() async {
+    final String fromLines = (widget.lines ?? const <StoryLine>[])
+        .map((line) => line.npcAvatarUrl?.trim() ?? '')
+        .firstWhere((url) => url.isNotEmpty, orElse: () => '');
     final String fromScript = _npc?['avatar_url']?.toString().trim() ?? '';
-    final String? avatar = fromScript.isNotEmpty
+    final String? avatar = fromLines.isNotEmpty
+        ? fromLines
+        : fromScript.isNotEmpty
         ? fromScript
         : await StoryApi.getNpcAvatar();
 
@@ -647,7 +654,7 @@ class _StoryPageState extends State<StoryPage> {
                     onNextStory: nextStory,
                     isSpeaking: _isSpeaking,
                     isLast: storyIndex >= _storyLines.length - 1,
-                    npcAvatar: _npcAvatar,
+                    npcAvatar: story.npcAvatarUrl ?? _npcAvatar,
                   ),
                 ),
               ],
@@ -1285,13 +1292,15 @@ class _StoryDialog extends StatelessWidget {
 }
 
 /// 劇情的一句話：name 是名牌，text 是台詞，voice／npcName 決定配音，
-/// backgroundUrl 是這句的背景圖，audioPath 是準備好的語音檔
+/// backgroundUrl 是這句的背景圖，npcAvatarUrl 是這句站在右下的 NPC 圖（破關、開場劇情帶那一站的 NPC），
+/// audioPath 是準備好的語音檔
 class StoryLine {
   final String name;
   final String text;
   final String? voice;
   final String? npcName;
   final String? backgroundUrl;
+  final String? npcAvatarUrl;
   final String? audioPath;
 
   const StoryLine({
@@ -1300,6 +1309,7 @@ class StoryLine {
     this.voice,
     this.npcName,
     this.backgroundUrl,
+    this.npcAvatarUrl,
     this.audioPath,
   });
 
@@ -1309,6 +1319,7 @@ class StoryLine {
     String? voice,
     String? npcName,
     String? backgroundUrl,
+    String? npcAvatarUrl,
     String? audioPath,
   }) {
     return StoryLine(
@@ -1317,6 +1328,7 @@ class StoryLine {
       voice: voice ?? this.voice,
       npcName: npcName ?? this.npcName,
       backgroundUrl: backgroundUrl ?? this.backgroundUrl,
+      npcAvatarUrl: npcAvatarUrl ?? this.npcAvatarUrl,
       audioPath: audioPath ?? this.audioPath,
     );
   }
@@ -1359,6 +1371,7 @@ List<StoryLine> splitStoryLines(
   String? voice,
   String? npcName,
   String? backgroundUrl,
+  String? npcAvatarUrl,
 }) {
   final List<StoryLine> lines = [];
 
@@ -1384,6 +1397,7 @@ List<StoryLine> splitStoryLines(
               voice: voice,
               npcName: npcName,
               backgroundUrl: backgroundUrl,
+              npcAvatarUrl: npcAvatarUrl,
             ),
           );
         }

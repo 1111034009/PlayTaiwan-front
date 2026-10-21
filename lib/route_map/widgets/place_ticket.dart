@@ -170,18 +170,23 @@ class PlaceTicket extends StatelessWidget {
           );
 
     if (compact) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _photo(photos.isEmpty ? null : photos.first, width: 104, height: 72, icon: locked ? Icons.lock_outline : null),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [title, const SizedBox(height: 2), info]),
-          ),
-        ]),
-        const SizedBox(height: 6),
-        actions,
-        ?more,
-      ]);
+      // 卡片窄的時候（手機上右邊要讓出地圖的工具列）照片跟著縮，名稱和說明才放得下
+      return LayoutBuilder(builder: (context, constraints) {
+        final photoWidth = (constraints.maxWidth * 0.38).clamp(76.0, 104.0);
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _photo(photos.isEmpty ? null : photos.first,
+                width: photoWidth, height: photoWidth * 72 / 104, icon: locked ? Icons.lock_outline : null),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [title, const SizedBox(height: 2), info]),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          actions,
+          ?more,
+        ]);
+      });
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [

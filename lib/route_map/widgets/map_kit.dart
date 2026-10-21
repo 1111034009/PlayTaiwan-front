@@ -32,12 +32,14 @@ const _sepia = ColorFilter.matrix(<double>[
   0,
 ]);
 
-/// 藏寶圖底圖（OpenStreetMap + 泛黃濾鏡）
-Widget treasureTiles() => TileLayer(
-  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
-  tileBuilder: (context, tile, _) =>
-      ColorFiltered(colorFilter: _sepia, child: tile),
+/// 藏寶圖底圖（OpenStreetMap + 泛黃濾鏡）。
+/// 濾鏡整個圖層套一次，不要每一塊圖磚各包一層：畫面上幾十塊圖磚就多幾十層合成，地圖開久了手機會發燙
+Widget treasureTiles() => ColorFiltered(
+  colorFilter: _sepia,
+  child: TileLayer(
+    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
+  ),
 );
 
 Widget osmAttribution() => const SimpleAttributionWidget(

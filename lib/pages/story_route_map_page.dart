@@ -280,6 +280,9 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
       voice: _text(npc?['npc_voice']),
       npcName: npcName,
       backgroundUrl: _text(scene?['scene_image_url']),
+      // 站在右下的是說這段話的 NPC（這一站的 NPC），不靠手機裡記的那一張
+      npcAvatarUrl:
+          _text(npc?['npc_avatar_url']) ?? _text(scene?['npc_avatar_url']),
     );
   }
 
@@ -305,6 +308,8 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
       voice: _text(scene?['npc_voice']) ?? _text(npc?['npc_voice']),
       npcName: npcName,
       backgroundUrl: _text(scene?['scene_image_url']),
+      npcAvatarUrl:
+          _text(scene?['npc_avatar_url']) ?? _text(npc?['npc_avatar_url']),
     );
   }
 

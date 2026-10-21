@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -92,10 +93,14 @@ class _TreasureMapState extends State<TreasureMap> {
   static const _revealVisited = 1200.0;
   static const _revealPath = 1000.0;
 
-  /// 走了這麼遠（公尺）就重新查一次周邊好去
-  static const _nearbyRefreshMeters = 150.0;
+  /// 周邊好去的兩種：「吃的」查飲食、「拍照」查景點等其他地點（後端 /Nearby 的 category）
+  static const _foodKind = '飲食';
+  static const _photoKind = '其他';
 
   static const _distance = Distance();
+
+  /// 地圖右上工具列每一格的寬度（見 _mapControls）。手機上景點卡片要讓出這麼寬，才不會蓋住工具列
+  static const _toolbarWidth = 56.0;
 
   final _map = MapController();
 
@@ -181,11 +186,16 @@ class _TreasureMapState extends State<TreasureMap> {
   /// null = 依螢幕寬度決定（寬螢幕展開、手機收起）
   bool? _legendOpen;
 
-  // 周邊好去：帶「我現在的位置」向後端查，走遠了就重新查；只有在迷霧露出來的範圍裡才看得到
+  // 周邊好去：玩家按了「吃的」「拍照」才用現在的位置向後端查（不會自動一直查），再按一次收起來；
+  // 只有在迷霧露出來的範圍裡才看得到
   List<NearbyPlace> _nearby = [];
 
-  /// 上一次是在哪裡查周邊好去的
-  LatLng? _nearbyAt;
+  /// 按著的是哪幾種（_foodKind、_photoKind）；都沒按就不查也不畫
+  final Set<String> _nearbyKinds = {};
+  bool _nearbyLoading = false;
+
+  /// 連按好幾次時只採用最後一次查回來的
+  int _nearbySeq = 0;
 
   // 地圖上打開卡片的地點：周邊好去的地點，或劇本景點（關卡索引），最多一個
   NearbyPlace? _selectedPlace;
@@ -242,6 +252,9 @@ class _TreasureMapState extends State<TreasureMap> {
   bool _inTasks = false;
   List<MetroLine> _metroLines = [];
   Timer? _progressTimer;
+
+  /// 上一次套用到地圖上的進度（GET /api/Map 的原始內容），一樣就不重畫
+  String? _appliedProgress;
 
   @override
   void initState() {
@@ -326,7 +339,11 @@ class _TreasureMapState extends State<TreasureMap> {
     }
   }
 
-  Future<void> _onProgress(TreasureMapData data, {bool asked = false}) async {
+  Future<void> _onProgress(
+    TreasureMapData data, {
+    bool asked = false,
+    String? progressKey,
+  }) async {
     final int incoming = (() {
       final i = data.nodes.indexWhere((n) => n.current);
       return i >= 0 ? i : data.nodes.length;
@@ -344,6 +361,8 @@ class _TreasureMapState extends State<TreasureMap> {
     }
     final before = _stage;
     final wasArrived = _currentNode?.arrived ?? false;
+    // 記下套用了哪一份進度，_pollProgress 拿到一樣的就不再重畫；其他地方呼叫時清掉，下次照樣套用
+    _appliedProgress = progressKey;
     setState(() => _applyMap(data));
     final after = _stage;
 
@@ -403,8 +422,12 @@ class _TreasureMapState extends State<TreasureMap> {
       final result =
           await Api.instance.get('/api/Map/${_story.storyId}')
               as Map<String, dynamic>;
+      // 跟上次套用到地圖上的一模一樣就不重畫（每 20 秒整張地圖連迷霧重畫很耗電）。
+      // 有關卡在等任務做完時不會記下來（_onProgress 提早結束），下次照樣重新檢查
+      final key = jsonEncode(result);
+      if (key == _appliedProgress) return;
       if (mounted && !_advancing)
-        await _onProgress(TreasureMapData.fromJson(result));
+        await _onProgress(TreasureMapData.fromJson(result), progressKey: key);
     } catch (_) {}
   }
 
@@ -574,10 +597,10 @@ class _TreasureMapState extends State<TreasureMap> {
     _pollReminders();
   }
 
-  /// 用現在的出發地查周邊好去和可用的交通方式，規劃這一關的路線
+  /// 用現在的出發地查可用的交通方式，規劃這一關的路線；周邊好去有按著的話也用新的位置重新查
   Future<void> _planFromOrigin() async {
     _fitStage();
-    _loadNearby();
+    if (_nearbyKinds.isNotEmpty) _loadNearby();
     await _checkAvailability();
     if (mounted) await _replanAll();
   }
@@ -643,7 +666,7 @@ class _TreasureMapState extends State<TreasureMap> {
     }
   }
 
-  /// 持續追蹤位置（每移動 10 公尺更新一次）：走過的地方迷霧散開，走遠了周邊好去跟著更新，
+  /// 持續追蹤位置（每移動 10 公尺更新一次）：走過的地方迷霧散開，
   /// 路線跟著縮短，偏離路線太遠就自動重新規劃
   void _watchPosition() {
     if (_positionSub != null) return;
@@ -676,9 +699,6 @@ class _TreasureMapState extends State<TreasureMap> {
       _addTrail(here);
       _updateProgress();
     });
-    if (_nearbyAt == null ||
-        _distance(_nearbyAt!, here) >= _nearbyRefreshMeters)
-      _loadNearby();
     _checkOffRoute(accuracy);
   }
 
@@ -864,12 +884,48 @@ class _TreasureMapState extends State<TreasureMap> {
 
   // ─────────────────────────── 資料 ───────────────────────────
 
-  /// 周邊好去（/api/Map/{story_id}/Nearby）：帶我現在的位置去查，後端由近到遠回傳。
+  /// 「吃的」「拍照」：按下去用現在的位置查附近的美食／景點，再按一次收起來（兩個可以都按）
+  void _toggleNearby(String kind) {
+    if (_nearbyKinds.contains(kind)) {
+      setState(() {
+        _nearbyKinds.remove(kind);
+        _setNearby(
+          _nearby
+              .where(
+                (p) => _nearbyKinds.contains(p.isFood ? _foodKind : _photoKind),
+              )
+              .toList(),
+        );
+        if (_nearbyKinds.isEmpty) {
+          _nearbySeq++; // 還在查的那一次不要了
+          _nearbyLoading = false;
+        }
+      });
+      return;
+    }
+    setState(() => _nearbyKinds.add(kind));
+    _loadNearby();
+  }
+
+  void _setNearby(List<NearbyPlace> places) {
+    _nearby = places;
+    if (_selectedPlace != null &&
+        !places.any((p) => p.key == _selectedPlace!.key))
+      _selectedPlace = null;
+  }
+
+  /// 周邊好去（/api/Map/{story_id}/Nearby）：帶我現在的位置去查按著的種類，後端由近到遠回傳。
   /// 劇本自己的關卡後端不會放進來，所以不會把迷霧中的景點洩漏出來
   Future<void> _loadNearby() async {
-    final here = _origin?.latLng;
-    if (here == null) return;
-    _nearbyAt = here;
+    if (_nearbyKinds.isEmpty) return;
+    final here = _myLocation?.latLng ?? _origin?.latLng;
+    if (here == null) {
+      setState(() => _nearbyKinds.clear());
+      _snack('還不知道你在哪裡，先按地圖右上的「重新定位」', Pal.gold);
+      return;
+    }
+    final seq = ++_nearbySeq;
+    setState(() => _nearbyLoading = true);
     try {
       final result =
           await Api.instance.get('/api/Map/${_story.storyId}/Nearby', {
@@ -877,6 +933,8 @@ class _TreasureMapState extends State<TreasureMap> {
                 'lng': here.longitude,
                 'radius_m': 1000,
                 'limit': 50,
+                // 兩種都按著就不帶，後端兩種都回
+                if (_nearbyKinds.length == 1) 'category': _nearbyKinds.first,
               })
               as List;
       final places = result
@@ -884,15 +942,14 @@ class _TreasureMapState extends State<TreasureMap> {
           .map(NearbyPlace.fromJson)
           .where((p) => p.point != null)
           .toList();
-      if (!mounted) return;
-      setState(() {
-        _nearby = places;
-        if (_selectedPlace != null &&
-            !places.any((p) => p.key == _selectedPlace!.key))
-          _selectedPlace = null;
-      });
+      if (!mounted || seq != _nearbySeq) return;
+      setState(() => _setNearby(places));
+      if (places.isEmpty) _snack('附近 1 公里內沒有找到', Pal.inkSoft);
     } catch (_) {
       // 周邊好去只是參考資訊，查不到不影響路線規劃
+      if (mounted && seq == _nearbySeq) _snack('周邊地點查詢失敗，請稍後再試', Pal.cinnabar);
+    } finally {
+      if (mounted && seq == _nearbySeq) setState(() => _nearbyLoading = false);
     }
   }
 
@@ -1422,13 +1479,21 @@ class _TreasureMapState extends State<TreasureMap> {
           .map(Teammate.fromJson)
           .where((t) => !t.isMe && t.point != null)
           .toList();
-      if (mounted) setState(() => _team = team);
+      // 隊友跟上次一樣（大多是沒有隊友、或站著沒動）就不重畫地圖：每 8 秒整張地圖連迷霧重畫很耗電
+      if (mounted && _teamKey(team) != _teamKey(_team)) {
+        setState(() => _team = team);
+      }
     } catch (_) {
       _teamSkip = 7;
     } finally {
       _teamBusy = false;
     }
   }
+
+  static String _teamKey(List<Teammate> team) => [
+    for (final t in team)
+      '${t.name}|${t.online}|${t.point?.latitude},${t.point?.longitude}',
+  ].join(';');
 
   // ─────────────────────────── 迷霧 ───────────────────────────
 
@@ -1446,12 +1511,13 @@ class _TreasureMapState extends State<TreasureMap> {
     for (final p in _pinnedPlaces) (p.point!, 150.0),
   ];
 
-  /// 迷霧露出來的路線：走過的每一關、目前這一關規劃好的路線，和我實際走過的軌跡
+  /// 迷霧露出來的路線：走過的每一關、目前這一關規劃好的路線，和我實際走過的軌跡。
+  /// 軌跡要給複本：_trail 是一直往後加的同一個 List，給本身的話迷霧比不出「多走了一段」，就不會重畫
   List<List<LatLng>> get _revealPaths => [
     for (final stage in _plans.keys)
       for (final s in _optionOf(stage)?.segments ?? const <RouteSegment>[])
         s.points,
-    if (_trail.length >= 2) _trail,
+    if (_trail.length >= 2) List.of(_trail),
   ];
 
   bool _isRevealed(LatLng p) =>
@@ -1880,7 +1946,8 @@ class _TreasureMapState extends State<TreasureMap> {
         if (card != null)
           Positioned(
             left: 12,
-            right: 12,
+            // 手機上卡片在上方，右邊讓出工具列（寬度 + 邊框 + 間距），兩個並排不重疊；寬螢幕卡片在左下，碰不到
+            right: wide || _finished ? 12 : 12 + _toolbarWidth + 3 + 8,
             top: wide ? null : 56,
             bottom: wide ? 28 : null,
             child: Align(
@@ -1986,93 +2053,230 @@ class _TreasureMapState extends State<TreasureMap> {
     ),
   );
 
-  /// 地圖右上的按鈕：交通方式（勾選的是實心、附近沒有的反灰，點一下切換並自動重新規劃）和重新定位
+  /// 地圖右上：一條直排的工具列（交通方式、找附近「吃的」「拍照」、重新定位）。
+  /// 工具列每一格一樣寬，圖示在上、小字在下，中間細線隔開，看起來是一整個工具，不會零零散散蓋在路線上。
+  /// 交通方式可以複選：點了打開選單，打勾的是選了的、附近沒有的反灰並寫原因，點一下切換（選單不收起來）並自動重新規劃；
+  /// 收起來時格子上顯示目前選了哪些交通方式。「吃的」「拍照」按了才查（見 _toggleNearby），按著的那一格整格填色
   Widget _mapControls() {
-    Widget button({
+    const panelColor = Color(0xF2EFE5CB);
+    const cellWidth = _toolbarWidth;
+    const cellHeight = 50.0;
+
+    /// 工具列裡的一格：[icon] 在上、[label] 在下；[fill] 是按著時整格的顏色，字和圖示換成白色
+    Widget cell({
       required String tooltip,
       required VoidCallback? onTap,
-      required Widget child,
+      required Widget icon,
+      required Widget label,
       Color? fill,
     }) => Tooltip(
       message: tooltip,
       child: Material(
-        color: fill ?? const Color(0xF2EFE5CB),
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: fill == null ? PlaceTicket.frame : Colors.white,
-            width: 1.3,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
+        color: fill ?? Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: SizedBox(width: 36, height: 36, child: Center(child: child)),
+          child: SizedBox(
+            width: cellWidth,
+            height: cellHeight,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [icon, const SizedBox(height: 3), label],
+            ),
+          ),
         ),
       ),
     );
 
-    Widget modeButton(String mode) {
+    Text labelText(String text, {bool on = false}) => Text(
+      text,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        height: 1,
+        color: on ? Colors.white : Pal.ink,
+      ),
+    );
+
+    final divider = Container(
+      width: cellWidth,
+      height: 1,
+      color: PlaceTicket.frame.withValues(alpha: 0.35),
+    );
+
+    bool enabled(String mode) => _availability[mode]?.enabled != false;
+    bool selected(String mode) => enabled(mode) && _modes.contains(mode);
+
+    Widget modeItem(String mode) {
       final availability = _availability[mode];
-      final enabled = availability?.enabled != false;
-      final selected = enabled && _modes.contains(mode);
-      return button(
-        tooltip: enabled ? mode : '$mode：${availability!.reason}',
-        onTap: () => _toggleMode(mode),
-        fill: selected ? modeStyle(mode).color : null,
-        child: Icon(
-          modeStyle(mode).icon,
+      final on = selected(mode);
+      final color = enabled(mode) ? modeStyle(mode).color : Pal.disabled;
+      return MenuItemButton(
+        closeOnActivate: false, // 可以複選，選一個選單不收起來
+        onPressed: () => _toggleMode(mode),
+        leadingIcon: Icon(modeStyle(mode).icon, size: 20, color: color),
+        trailingIcon: Icon(
+          on ? Icons.check_box : Icons.check_box_outline_blank,
           size: 20,
-          color: selected
-              ? Colors.white
-              : (enabled ? Pal.inkSoft : Pal.disabled),
+          color: on ? color : Pal.disabled,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              mode,
+              style: TextStyle(
+                color: enabled(mode) ? Pal.ink : Pal.disabled,
+                fontWeight: on ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+            if (!enabled(mode))
+              Text(
+                availability!.reason,
+                style: const TextStyle(fontSize: 11, color: Pal.disabled),
+              ),
+          ],
         ),
       );
     }
 
-    Widget column(List<Widget> buttons) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final b in buttons)
-          Padding(padding: const EdgeInsets.only(bottom: 4), child: b),
+    // 上面是自己移動的（步行、腳踏車、機車、汽車），分隔線下面是大眾運輸（公車、台灣好行、捷運）
+    const transit = ['公車', '台灣好行', '捷運'];
+    final chosen = allModes.where(selected).toList();
+
+    // 交通方式這一格：選了的交通方式最多畫兩個圖示，再多的寫 +N
+    final modeCell = MenuAnchor(
+      alignmentOffset: const Offset(0, 4),
+      style: MenuStyle(
+        backgroundColor: const WidgetStatePropertyAll(Color(0xF7EFE5CB)),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: PlaceTicket.frame, width: 1.3),
+          ),
+        ),
+      ),
+      menuChildren: [
+        for (final mode in allModes)
+          if (!transit.contains(mode)) modeItem(mode),
+        const Divider(height: 1),
+        for (final mode in allModes)
+          if (transit.contains(mode)) modeItem(mode),
       ],
+      builder: (context, controller, _) => cell(
+        tooltip: '交通方式（可複選）',
+        onTap: () => controller.isOpen ? controller.close() : controller.open(),
+        icon: SizedBox(
+          height: 20,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (chosen.isEmpty)
+                const Icon(Icons.alt_route, size: 20, color: Pal.inkSoft),
+              for (final mode in chosen.take(2))
+                Icon(
+                  modeStyle(mode).icon,
+                  size: 18,
+                  color: modeStyle(mode).color,
+                ),
+              if (chosen.length > 2)
+                Text(
+                  '+${chosen.length - 2}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Pal.inkSoft,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            labelText('交通'),
+            Icon(
+              controller.isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+              size: 14,
+              color: Pal.ink,
+            ),
+          ],
+        ),
+      ),
     );
 
-    // 排成兩排，不排成一長排：螢幕矮的時候最下面的按鈕會被面板蓋住。
-    // 左邊是自己移動的（步行、腳踏車、機車、汽車），右邊是大眾運輸（公車、台灣好行、捷運）和重新定位
-    const transit = ['公車', '台灣好行', '捷運'];
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        column([
-          for (final mode in allModes)
-            if (!transit.contains(mode)) modeButton(mode),
-        ]),
-        const SizedBox(width: 4),
-        column([
-          for (final mode in allModes)
-            if (transit.contains(mode)) modeButton(mode),
-          button(
-            tooltip: '重新定位',
-            onTap: _locating ? null : _relocate,
-            child: _locating || _checking || _planning
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(
-                    _myLocation != null
-                        ? Icons.my_location
-                        : Icons.location_disabled,
-                    size: 20,
-                    color: Pal.ink,
-                  ),
+    // 「吃的」「拍照」：按著的那一格填色（顏色跟地圖上的標記一樣），查詢中轉圈
+    Widget nearbyCell(
+      String kind,
+      String label,
+      String tooltip,
+      IconData icon,
+      Color color,
+    ) {
+      final on = _nearbyKinds.contains(kind);
+      return cell(
+        tooltip: on ? '再按一次收起來' : tooltip,
+        onTap: () => _toggleNearby(kind),
+        fill: on ? color : null,
+        icon: on && _nearbyLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(icon, size: 20, color: on ? Colors.white : color),
+        label: labelText(label, on: on),
+      );
+    }
+
+    // 重新定位也是工具列的一格，跟上面三格一樣寬；定位、查交通、規劃中轉圈
+    final busy = _locating || _checking || _planning;
+    final locateCell = cell(
+      tooltip: '重新定位',
+      onTap: _locating ? null : _relocate,
+      icon: busy
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              _myLocation != null ? Icons.my_location : Icons.location_disabled,
+              size: 20,
+              color: Pal.ink,
+            ),
+      label: labelText('重新定位'),
+    );
+
+    return Material(
+      color: panelColor,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: PlaceTicket.frame, width: 1.3),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          modeCell,
+          divider,
+          nearbyCell(_foodKind, '吃的', '找附近吃的', Icons.restaurant, Pal.gold),
+          divider,
+          nearbyCell(
+            _photoKind,
+            '拍照',
+            '找附近可以拍照的景點',
+            Icons.photo_camera,
+            Pal.moss,
           ),
-        ]),
-      ],
+          divider,
+          locateCell,
+        ],
+      ),
     );
   }
 

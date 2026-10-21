@@ -114,7 +114,7 @@ class StoryApi {
       'transportation': transportation,
       'preferences': preferences,
       'is_night_mode': isNight,
-      'max_travel_minutes': maxTravelMinutes.clamp(10, 60).toInt(),
+      'max_minutes': maxTravelMinutes.clamp(10, 60).toInt(),
     };
 
     debugPrint('requestBody: $requestBody');
