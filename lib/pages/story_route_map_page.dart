@@ -16,6 +16,7 @@ import '../route_map/theme.dart';
 import 'story_play_page.dart';
 import 'story_postcard_page.dart';
 import 'story_task_page.dart';
+import 'selection_page.dart';
 
 /// 地圖頁（真的地圖）：正在玩的劇本的藏寶圖，一關一關解開。
 /// 上列和下面的導覽列是這個 App 自己的；中間的地圖和功能（迷霧、路線、景點卡片、順路、提醒、隊友位置）在 lib/route_map，
@@ -24,7 +25,9 @@ import 'story_task_page.dart';
 /// 玩的是哪一個劇本：後端說正在進行的那一個（GET /api/Story/CurrentPlaying）；
 /// 沒有進行中的就用自己最新的一個劇本，一個都沒有才顯示提示
 class StoryRouteMapPage extends StatefulWidget {
-  const StoryRouteMapPage({super.key});
+  final PlacePoint? detourTo;
+
+  const StoryRouteMapPage({super.key, this.detourTo});
 
   @override
   State<StoryRouteMapPage> createState() => _StoryRouteMapPageState();
@@ -43,6 +46,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   RouteStory? _story;
   bool _loading = true;
   String? _message;
+  bool _noStory = false;
 
   /// 上列的「地點探索度」：破了幾關、總共幾關，地圖載入和破關時會更新
   int _cleared = 0;
@@ -94,6 +98,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
         _message = _story == null
             ? (noPlaying ? '尚未開始探險，請前往選擇劇本' : '還沒有劇本，先到首頁開一個劇本吧。')
             : null;
+        _noStory = _story == null;
         _loading = false;
       });
     } catch (e) {
@@ -101,7 +106,18 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
       setState(() {
         _message = '$e';
         _loading = false;
+        _noStory = false;
       });
+    }
+  }
+
+  Future<void> _goSelect() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SelectionPage()));
+
+    if (mounted) {
+      _load();
     }
   }
 
@@ -171,6 +187,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                           child: TreasureMap(
                             key: ValueKey(story.storyId),
                             story: story,
+                            detourTo: widget.detourTo,
                             embedded: true,
                             // 比賽展示用：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，模擬的位置會當成真的定位送給後端。
                             // 正式上線前把這一行拿掉
@@ -194,19 +211,21 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                                 ),
                               );
                               final photo = result?.photo;
-                              if (photo != null)
+                              if (photo != null) {
                                 _taskPhotos[node.nodeId] = photo;
+                              }
                             },
                             // 破關了（地圖跟後端確認過這一關過了）：不用按什麼，先播破關劇情，播完自動跳出這一關的明信片
                             onStageCleared: (node, next) {
                               _afterClear = _afterClear.then((_) async {
                                 try {
-                                  if (mounted)
+                                  if (mounted) {
                                     await _makePostcard(
                                       story,
                                       node,
                                       _taskPhotos.remove(node.nodeId),
                                     );
+                                  }
                                 } catch (_) {}
                                 try {
                                   if (mounted) await _playStageStory(node);
@@ -486,10 +505,11 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
 
   /// 還在找劇本，或沒有劇本、連不到後端
   Widget _placeholder() {
-    if (_loading)
+    if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -502,7 +522,10 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
               style: AppTextStyles.body.copyWith(color: AppColors.paper),
             ),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('選擇劇本後，按此嘗試')),
+            FilledButton(
+              onPressed: _noStory ? _goSelect : _load,
+              child: Text(_noStory ? '前往選擇劇本' : '重新嘗試'),
+            ),
           ],
         ),
       ),

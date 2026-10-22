@@ -1426,7 +1426,7 @@ class _VideoPlayerCardState extends State<_VideoPlayerCard> {
   late final VideoPlayerController _controller;
   bool _isInitialized = false;
   String? _error;
-
+  double? _dragMs;
   @override
   void initState() {
     super.initState();
@@ -1531,14 +1531,57 @@ class _VideoPlayerCardState extends State<_VideoPlayerCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                VideoProgressIndicator(
-                  _controller,
-                  allowScrubbing: true,
-                  colors: const VideoProgressColors(
-                    playedColor: AppColors.secondaryRed,
-                    bufferedColor: Color(0x66888888),
-                    backgroundColor: Color(0x33888888),
-                  ),
+                ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: _controller,
+                  builder: (context, value, child) {
+                    final double total = value.duration.inMilliseconds
+                        .toDouble();
+                    final double max = total > 0 ? total : 1.0;
+                    final double position =
+                        (_dragMs ?? value.position.inMilliseconds.toDouble())
+                            .clamp(0.0, max)
+                            .toDouble();
+
+                    return SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        activeTrackColor: AppColors.secondaryRed,
+                        inactiveTrackColor: const Color(0x33888888),
+                        thumbColor: AppColors.secondaryRed,
+                        overlayColor: AppColors.secondaryRed.withValues(
+                          alpha: 0.15,
+                        ),
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 7,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 14,
+                        ),
+                      ),
+                      child: SizedBox(
+                        height: 28,
+                        child: Slider(
+                          value: position,
+                          min: 0,
+                          max: max,
+                          onChangeStart: total > 0
+                              ? (_) => setState(() => _dragMs = position)
+                              : null,
+                          onChanged: total > 0
+                              ? (v) => setState(() => _dragMs = v)
+                              : null,
+                          onChangeEnd: total > 0
+                              ? (v) async {
+                                  await _controller.seekTo(
+                                    Duration(milliseconds: v.round()),
+                                  );
+                                  if (mounted) setState(() => _dragMs = null);
+                                }
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 6),
                 Row(

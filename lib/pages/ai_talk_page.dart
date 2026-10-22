@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import '../route_map/models.dart' show PlacePoint;
+import 'story_route_map_page.dart';
 import '../api/nearby_cache.dart';
 import '../api/story_api.dart';
 import '../core/app_colors.dart';
@@ -41,7 +42,7 @@ class _AiTalkPageState extends State<AiTalkPage> {
   static const String _questDefaultText = '我想找個附近好玩的地方';
   static const String _busyText = '正在對話中，請等待生成';
   static const String _cacheKey = 'ai_talk_history_v1';
-  static const Duration _cacheLife = Duration(days: 7);
+  static const Duration _cacheLife = Duration(minutes: 10);
 
   static const List<String> _foodKeywords = [
     '餐',
@@ -980,7 +981,17 @@ class _PlaceRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _openMap(context, '${place.lat},${place.lon}'),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => StoryRouteMapPage(
+              detourTo: PlacePoint(
+                lat: place.lat,
+                lng: place.lon,
+                name: place.title,
+              ),
+            ),
+          ),
+        ),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(10),

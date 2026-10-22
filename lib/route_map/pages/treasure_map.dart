@@ -42,9 +42,11 @@ class TreasureMap extends StatefulWidget {
     this.onDoTasks,
     this.onStageCleared,
     this.onNodeArrived,
+    this.detourTo,
   });
 
   final RouteStory story;
+  final PlacePoint? detourTo;
 
   /// 嵌在別的 App 裡（正式 App）：劇本名稱和進度條不畫，那邊的上列自己有；下方面板最底下多留一點空間
   final bool embedded;
@@ -288,12 +290,23 @@ class _TreasureMapState extends State<TreasureMap> {
   }
 
   // ─────────────────────────── 關卡進度（後端） ───────────────────────────
-
   Future<void> _start() async {
     await _loadMap();
     if (!mounted || _nodes.isEmpty) return;
     _pollTeam();
     await _enterStage();
+    final to = widget.detourTo;
+    if (mounted && to != null) {
+      await _goToPlace(
+        NearbyPlace.fromJson({
+          'place_uid': 'ai-${to.lat}-${to.lng}',
+          'name': to.name ?? '目的地',
+          'lat': to.lat,
+          'lng': to.lng,
+          'category': 'Attraction',
+        }),
+      );
+    }
   }
 
   /// 向後端拿藏寶圖：每一關的狀態。迷霧中的關卡後端只給大概位置和代號
@@ -2266,13 +2279,7 @@ class _TreasureMapState extends State<TreasureMap> {
           divider,
           nearbyCell(_foodKind, '吃的', '找附近吃的', Icons.restaurant, Pal.gold),
           divider,
-          nearbyCell(
-            _photoKind,
-            '拍照',
-            '找附近可以拍照的景點',
-            Icons.photo_camera,
-            Pal.moss,
-          ),
+          nearbyCell(_photoKind, '景點', '找附近景點地標', Icons.photo_camera, Pal.moss),
           divider,
           locateCell,
         ],

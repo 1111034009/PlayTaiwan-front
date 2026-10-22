@@ -122,6 +122,25 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   }
 
   void toggleTransport(String value) {
+    if (value == '台灣好行') {
+      if (selectedTransports.contains(value)) {
+        setState(() => selectedTransports.clear());
+      } else {
+        setState(() {
+          selectedTransports
+            ..clear()
+            ..add(value);
+        });
+        _showMessage('因會針對台灣好行航線設計，因此此交通選項只能單選');
+      }
+      return;
+    }
+
+    if (selectedTransports.contains('台灣好行')) {
+      _showMessage('已選擇台灣好行，請先取消才能選其他交通方式');
+      return;
+    }
+
     setState(() {
       if (selectedTransports.contains(value)) {
         selectedTransports.remove(value);
@@ -540,9 +559,13 @@ class _FormContent extends StatelessWidget {
     required bool selected,
     required VoidCallback onTap,
   }) {
+    final bool dimmed = text != '台灣好行' && selectedTransports.contains('台灣好行');
     return SizedBox(
       width: 88.666,
-      child: _ChoiceButton(text: text, selected: selected, onTap: onTap),
+      child: Opacity(
+        opacity: dimmed ? 0.35 : 1,
+        child: _ChoiceButton(text: text, selected: selected, onTap: onTap),
+      ),
     );
   }
 
@@ -668,9 +691,9 @@ class _FormContent extends StatelessWidget {
               onTap: () => onTransportTap('步行'),
             ),
             transportChoice(
-              text: '其他',
-              selected: selectedTransports.contains('其他'),
-              onTap: () => onTransportTap('其他'),
+              text: '台灣好行',
+              selected: selectedTransports.contains('台灣好行'),
+              onTap: () => onTransportTap('台灣好行'),
             ),
           ],
         ),
