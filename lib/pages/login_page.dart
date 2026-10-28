@@ -21,7 +21,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
-
+  bool obscurePassword = true;
   final TextEditingController accountController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -421,7 +421,7 @@ class _LoginPageState extends State<LoginPage> {
                                 focusNode: passwordFocus,
                                 controller: passwordController,
                                 inputFormatters: [NoSpaceFormatter()],
-                                obscureText: true,
+                                obscureText: obscurePassword,
                                 textAlign: TextAlign.center,
                                 textInputAction: TextInputAction.done,
                                 autofillHints: const [AutofillHints.password],
@@ -430,7 +430,31 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 cursorColor: cursorColor,
                                 onSubmitted: (_) => login(),
-                                decoration: inputDecoration(hintText: '請輸入密碼'),
+                                decoration: inputDecoration(hintText: '請輸入密碼')
+                                    .copyWith(
+                                      suffixIcon: IconButton(
+                                        padding: EdgeInsets.zero,
+                                        splashRadius: 18,
+                                        onPressed: () {
+                                          setState(() {
+                                            obscurePassword = !obscurePassword;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          obscurePassword
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          color: darkText,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      suffixIconConstraints:
+                                          const BoxConstraints(
+                                            minWidth: 40,
+                                            minHeight: 40,
+                                          ),
+                                      prefix: const SizedBox(width: 40),
+                                    ),
                               ),
                             ),
                             Positioned(

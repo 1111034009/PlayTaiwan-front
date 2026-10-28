@@ -16,6 +16,7 @@ import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
+import '../core/bgm_service.dart';
 
 const Color _backgroundColor = Color(0xFFC4ADA0);
 const Color _cardColor = AppColors.merchantPaper;
@@ -927,6 +928,18 @@ class _FullScreenVideoPageState extends State<_FullScreenVideoPage> {
   bool _isInitialized = false;
   bool _isSaving = false;
   String? _error;
+  bool _bgmPaused = false;
+
+  void _syncBgm() {
+    final bool playing = _controller.value.isPlaying;
+    if (playing && !_bgmPaused) {
+      _bgmPaused = true;
+      BgmService.instance.pauseForVideo();
+    } else if (!playing && _bgmPaused) {
+      _bgmPaused = false;
+      BgmService.instance.resumeAfterVideo();
+    }
+  }
 
   @override
   void initState() {
@@ -938,6 +951,7 @@ class _FullScreenVideoPageState extends State<_FullScreenVideoPage> {
   Future<void> _initialize() async {
     try {
       await _controller.initialize();
+      _controller.addListener(_syncBgm);
       await _controller.setLooping(false);
 
       if (!mounted) return;
@@ -1004,6 +1018,11 @@ class _FullScreenVideoPageState extends State<_FullScreenVideoPage> {
 
   @override
   void dispose() {
+    _controller.removeListener(_syncBgm);
+    if (_bgmPaused) {
+      _bgmPaused = false;
+      BgmService.instance.resumeAfterVideo();
+    }
     _controller.dispose();
     super.dispose();
   }

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/bgm_service.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import '../core/app_session.dart';
@@ -997,7 +998,7 @@ class _AgentInfoDialog extends StatelessWidget {
       color: Colors.transparent,
       child: SizedBox(
         width: width,
-        height: 214,
+        height: 270,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -1038,6 +1039,49 @@ class _AgentInfoDialog extends StatelessWidget {
                       ),
                       const Spacer(),
                       _EditIconButton(onTap: onEdit),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.music_note_rounded,
+                        size: 20,
+                        color: Color(0xFF40342D),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '背景音樂',
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: const Color(0xFF40342D),
+                        ),
+                      ),
+                      Expanded(
+                        child: StatefulBuilder(
+                          builder: (context, setLocal) => SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 4,
+                              trackShape: const RoundedRectSliderTrackShape(),
+                              activeTrackColor: AppColors.primaryAccent,
+                              inactiveTrackColor: AppColors.primaryAccent
+                                  .withOpacity(0.25),
+                              thumbColor: AppColors.primaryAccent,
+                              overlayColor: Colors.transparent,
+                            ),
+                            child: Slider(
+                              value: BgmService.instance.volume,
+                              min: 0,
+                              max: 1,
+                              onChanged: (value) {
+                                BgmService.instance.setVolume(value);
+                                setLocal(() {});
+                              },
+                              onChangeEnd: (_) =>
+                                  BgmService.instance.saveVolume(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const Spacer(),

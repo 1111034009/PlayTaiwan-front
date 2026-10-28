@@ -21,6 +21,7 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
+import '../core/bgm_service.dart';
 
 const Color _pageColor = AppColors.pastBackground;
 const Color _videoPoster = AppColors.paper;
@@ -1414,6 +1415,19 @@ class _VideoPlayerCardState extends State<_VideoPlayerCard> {
   bool _isInitialized = false;
   String? _error;
   double? _dragMs;
+  bool _bgmPaused = false;
+
+  void _syncBgm() {
+    final bool playing = _controller.value.isPlaying;
+    if (playing && !_bgmPaused) {
+      _bgmPaused = true;
+      BgmService.instance.pauseForVideo();
+    } else if (!playing && _bgmPaused) {
+      _bgmPaused = false;
+      BgmService.instance.resumeAfterVideo();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1425,6 +1439,8 @@ class _VideoPlayerCardState extends State<_VideoPlayerCard> {
 
     try {
       await _controller.initialize();
+      await _controller.initialize();
+      _controller.addListener(_syncBgm);
       if (!mounted) return;
 
       setState(() {
@@ -1462,7 +1478,13 @@ class _VideoPlayerCardState extends State<_VideoPlayerCard> {
   }
 
   @override
+  @override
   void dispose() {
+    _controller.removeListener(_syncBgm);
+    if (_bgmPaused) {
+      _bgmPaused = false;
+      BgmService.instance.resumeAfterVideo();
+    }
     _controller.dispose();
     super.dispose();
   }

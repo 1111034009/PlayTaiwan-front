@@ -439,6 +439,12 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
               for (final Map<String, dynamic> mood in _moods)
                 ChoiceChip(
                   label: Text(_text(mood['label'])),
+                  labelStyle: TextStyle(
+                    color: _mood == _text(mood['value'])
+                        ? Colors.white
+                        : _darkText,
+                  ),
+                  checkmarkColor: Colors.white,
                   selected: _mood == _text(mood['value']),
                   selectedColor: AppColors.primaryLight,
                   backgroundColor: _cardColor,

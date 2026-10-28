@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-
+import '../core/bgm_service.dart';
 import '../api/merchant_register_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
@@ -2107,6 +2107,49 @@ class _InfoCard extends StatelessWidget {
                       ),
                     ),
                 ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.music_note_rounded,
+                      size: 20,
+                      color: _darkText,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '背景音樂',
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: _darkText,
+                      ),
+                    ),
+                    Expanded(
+                      child: StatefulBuilder(
+                        builder: (context, setLocal) => SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 4,
+                            trackShape: const RoundedRectSliderTrackShape(),
+                            activeTrackColor: AppColors.primaryAccent,
+                            inactiveTrackColor: AppColors.primaryAccent
+                                .withOpacity(0.25),
+                            thumbColor: AppColors.primaryAccent,
+                            overlayColor: Colors.transparent,
+                          ),
+                          child: Slider(
+                            value: BgmService.instance.volume,
+                            min: 0,
+                            max: 1,
+                            onChanged: (value) {
+                              BgmService.instance.setVolume(value);
+                              setLocal(() {});
+                            },
+                            onChangeEnd: (_) =>
+                                BgmService.instance.saveVolume(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 25),
                 Center(
                   child: _LogoutButton(text: '登出', onTap: onLogout),
