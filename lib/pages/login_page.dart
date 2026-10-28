@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/bgm_service.dart';
+import '../core/no_space_formatter.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
@@ -392,6 +393,7 @@ class _LoginPageState extends State<LoginPage> {
                                 key: accountKey,
                                 focusNode: accountFocus,
                                 controller: accountController,
+                                inputFormatters: [NoSpaceFormatter()],
                                 textAlign: TextAlign.center,
                                 textInputAction: TextInputAction.next,
                                 autofillHints: const [AutofillHints.username],
@@ -418,6 +420,7 @@ class _LoginPageState extends State<LoginPage> {
                                 key: passwordKey,
                                 focusNode: passwordFocus,
                                 controller: passwordController,
+                                inputFormatters: [NoSpaceFormatter()],
                                 obscureText: true,
                                 textAlign: TextAlign.center,
                                 textInputAction: TextInputAction.done,
@@ -628,6 +631,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                       }
                     },
                   ),
+
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -683,6 +687,7 @@ class _ForgotPasswordField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      inputFormatters: [NoSpaceFormatter()],
       controller: controller,
       enabled: enabled,
       keyboardType: TextInputType.emailAddress,

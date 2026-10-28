@@ -260,8 +260,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         segmentProgress = [0];
         _segmentsNotifier.value = segmentProgress;
       });
-
-      _showMessage('劇本生成失敗，請稍後再試');
+      final String message = e
+          .toString()
+          .replaceFirst('Exception: ', '')
+          .trim();
+      _showMessage(message.isNotEmpty ? message : '劇本生成失敗，請稍後再試');
     }
   }
 

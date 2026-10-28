@@ -491,7 +491,7 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  '線索：${task.clue}',
+                  '${task.clue}',
                   style: const TextStyle(fontSize: 13, color: Pal.inkSoft),
                 ),
               ),

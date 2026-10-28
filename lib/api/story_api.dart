@@ -202,7 +202,8 @@ class StoryApi {
     void Function(String status)? onStatus,
   }) async {
     Map<String, dynamic> result = _voiceResult(data);
-    final String jobId = result['job_id']?.toString().trim() ?? '';
+    final String jobId =
+        (result['job_id'] ?? result['task_id'])?.toString().trim() ?? '';
     final DateTime deadline = DateTime.now().add(_voiceTimeout);
 
     while (true) {

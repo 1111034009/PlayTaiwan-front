@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import '../core/app_session.dart';
+import '../core/no_space_formatter.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -779,7 +779,8 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
       obscureText: obscureText,
       inputFormatters: [
         LengthLimitingTextInputFormatter(40),
-        FilteringTextInputFormatter.deny(RegExp(r'[\s\u4E00-\u9FFF]')),
+        NoSpaceFormatter(),
+        FilteringTextInputFormatter.deny(RegExp(r'[\u4E00-\u9FFF]')),
       ],
       suffixIcon: IconButton(
         tooltip: obscureText ? '顯示密碼' : '隱藏密碼',
@@ -1211,6 +1212,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
                                       validator: _validateUsername,
                                       inputFormatters: [
                                         LengthLimitingTextInputFormatter(40),
+                                        NoSpaceFormatter(),
                                       ],
                                     ),
                                     _buildTextField(
@@ -1221,9 +1223,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
                                       keyboardType: TextInputType.emailAddress,
                                       inputFormatters: [
                                         LengthLimitingTextInputFormatter(100),
-                                        FilteringTextInputFormatter.deny(
-                                          RegExp(r'\s'),
-                                        ),
+                                        NoSpaceFormatter(),
                                       ],
                                     ),
                                     _buildPasswordField(

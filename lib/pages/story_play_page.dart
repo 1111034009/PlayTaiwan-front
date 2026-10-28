@@ -67,8 +67,7 @@ class _StoryPageState extends State<StoryPage> {
   static const int voiceWorkers = 3;
 
   /// 單句語音的等待上限，逾時該句只顯示文字
-  static const Duration voiceTimeout = Duration(seconds: 45);
-
+  static const Duration voiceTimeout = Duration(minutes: 2, seconds: 10);
   final AudioPlayer _npcAudioPlayer = AudioPlayer();
   StreamSubscription<void>? _completeSub;
 
@@ -269,16 +268,24 @@ class _StoryPageState extends State<StoryPage> {
       while (next < lines.length && !_isDisposed) {
         final int i = next++;
 
-        final String? path = await _prepareVoice(
-          lines[i],
-          onStatus: (status) {
-            if (mounted && !_isDisposed) {
-              setState(() {
-                _loadingText = status;
-              });
-            }
-          },
-        );
+        String? path;
+
+        for (
+          int attempt = 0;
+          attempt < 3 && path == null && !_isDisposed;
+          attempt++
+        ) {
+          path = await _prepareVoice(
+            lines[i],
+            onStatus: (status) {
+              if (mounted && !_isDisposed) {
+                setState(() {
+                  _loadingText = status;
+                });
+              }
+            },
+          );
+        }
 
         if (path != null) {
           preparedLines[i] = lines[i].copyWith(audioPath: path);
@@ -339,11 +346,19 @@ class _StoryPageState extends State<StoryPage> {
       return;
     }
 
-    final String audioPath = _storyLines[storyIndex].audioPath?.trim() ?? '';
+    String audioPath = _storyLines[storyIndex].audioPath?.trim() ?? '';
 
     if (audioPath.isEmpty) {
-      BgmService.instance.unduck();
-      return;
+      final int index = storyIndex;
+      final String? path = await _prepareVoice(_storyLines[index]);
+
+      if (path == null || _isDisposed || !mounted || storyIndex != index) {
+        BgmService.instance.unduck();
+        return;
+      }
+
+      _storyLines[index] = _storyLines[index].copyWith(audioPath: path);
+      audioPath = path;
     }
 
     try {
@@ -1372,8 +1387,10 @@ List<StoryLine> splitStoryLines(
     }
 
     for (final RegExpMatch match in _sentencePattern.allMatches(paragraph)) {
-      final String sentence = match.group(0)!.trim();
-
+      final String sentence = match
+          .group(0)!
+          .replaceAll(RegExp('["“”「」『』]'), '')
+          .trim();
       for (final String part in _splitByComma(sentence)) {
         if (part.isNotEmpty) {
           lines.add(

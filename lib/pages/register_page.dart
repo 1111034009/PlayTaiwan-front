@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/no_space_formatter.dart';
 import '../core/app_text_styles.dart';
 import '../block/policy_dialog.dart';
 import 'merchant_register_page.dart';
@@ -389,6 +390,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   child: TextField(
                                     focusNode: usernameFocus,
                                     controller: usernameController,
+                                    inputFormatters: [NoSpaceFormatter()],
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodySmall.copyWith(
                                       color: AppColors.textPrimary,
@@ -410,6 +412,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   child: TextField(
                                     focusNode: emailFocus,
                                     controller: emailController,
+                                    inputFormatters: [NoSpaceFormatter()],
                                     keyboardType: TextInputType.emailAddress,
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodySmall.copyWith(
@@ -732,6 +735,7 @@ class _PasswordField extends StatelessWidget {
             focusNode: focusNode,
             controller: controller,
             obscureText: obscureText,
+            inputFormatters: [NoSpaceFormatter()],
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textPrimary,
