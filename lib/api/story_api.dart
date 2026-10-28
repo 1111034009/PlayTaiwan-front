@@ -130,7 +130,7 @@ class StoryApi {
         body: requestBody,
       );
     } on StoryBadRequest catch (e) {
-      throw Exception('請調整「到景點最遠時間」或換個地區後再試');
+      throw Exception(e.message);
     }
 
     final Map<String, dynamic> job = await _pollJob(
