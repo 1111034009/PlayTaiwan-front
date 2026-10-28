@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'merchant_video_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../block/merchant_progress_dialog.dart';
 
@@ -15,20 +16,7 @@ Future<void> openMerchantFile(BuildContext context, MerchantFile file) async {
   final id = file.id;
 
   if (id == null) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            '此檔案缺少編號，無法開啟',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: _paperColor),
-          ),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show('此檔案缺少編號，無法開啟');
     return;
   }
 

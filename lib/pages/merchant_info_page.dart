@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api/merchant_register_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
@@ -285,8 +286,23 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
         return true;
       }
 
-      if (mounted) _showSnackBar('更新帳號名稱失敗');
+      if (mounted) {
+        String message = response.statusCode == 409
+            ? '此名稱已被使用'
+            : response.statusCode == 400
+            ? '名稱格式不符規定'
+            : '更新帳號名稱失敗';
 
+        try {
+          final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
+          final String serverMessage = decoded is Map
+              ? (decoded['message']?.toString().trim() ?? '')
+              : '';
+          if (serverMessage.isNotEmpty) message = serverMessage;
+        } catch (_) {}
+
+        _showSnackBar(message);
+      }
       return false;
     } catch (_) {
       if (mounted) _showSnackBar('無法連線到伺服器');
@@ -396,58 +412,7 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-
-    _snackBarTimer?.cancel();
-
-    if (_activeSnackBarEntry?.mounted ?? false) {
-      _activeSnackBarEntry!.remove();
-    }
-    _activeSnackBarEntry = null;
-
-    final overlay = Overlay.of(context, rootOverlay: true);
-
-    late final OverlayEntry entry;
-
-    entry = OverlayEntry(
-      builder: (overlayContext) {
-        final mediaQuery = MediaQuery.of(overlayContext);
-
-        return Positioned(
-          left: 16,
-          right: 16,
-          bottom: mediaQuery.padding.bottom + 16,
-          child: Material(
-            color: Colors.transparent,
-            child: _TopSnackBar(
-              message: message,
-              onClose: () {
-                if (entry.mounted) {
-                  entry.remove();
-                }
-
-                if (identical(_activeSnackBarEntry, entry)) {
-                  _activeSnackBarEntry = null;
-                  _snackBarTimer?.cancel();
-                }
-              },
-            ),
-          ),
-        );
-      },
-    );
-
-    _activeSnackBarEntry = entry;
-    overlay.insert(entry);
-
-    _snackBarTimer = Timer(const Duration(seconds: 3), () {
-      if (entry.mounted) {
-        entry.remove();
-      }
-
-      if (identical(_activeSnackBarEntry, entry)) {
-        _activeSnackBarEntry = null;
-      }
-    });
+    AppNotice.show(message);
   }
 
   Future<void> editAccount() async {
@@ -1378,7 +1343,10 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
       _showMessage('店家名稱不可為空');
       return;
     }
-
+    if (descriptionController.text.trim().isEmpty) {
+      _showMessage('請輸入店家介紹');
+      return;
+    }
     if (isUploadingImage) {
       _showMessage('照片上傳中，請稍候');
       return;

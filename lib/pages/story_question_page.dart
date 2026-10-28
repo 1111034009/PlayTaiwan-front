@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
-
+import '../core/app_notice.dart';
 import '../block/navigationbar.dart';
 import 'story_postcard_page.dart';
 
@@ -54,6 +54,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
       ),
     );
   }
+
   void _goBack() {
     Navigator.pop(context);
   }
@@ -131,20 +132,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
 
   void _submitAnswer() {
     if (selectedAnswer == null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              '請先選擇一個答案',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(color: Colors.white).copyWith(height: 1.1, letterSpacing: 0.2),
-            ),
-            backgroundColor: AppColors.storyBackground,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      AppNotice.show('請先選擇一個答案');
 
       return;
     }
@@ -224,9 +212,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                _QuestionPaper(
-                                  question: question,
-),
+                                _QuestionPaper(question: question),
                                 const SizedBox(height: 22),
                                 ...List.generate(answers.length, (index) {
                                   return Padding(
@@ -242,7 +228,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                                             selectedAnswer = index;
                                           });
                                         },
-),
+                                      ),
                                     ),
                                   );
                                 }),
@@ -251,7 +237,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
                                   child: _SubmitButton(
                                     text: '確認送出',
                                     onTap: _submitAnswer,
-),
+                                  ),
                                 ),
                               ],
                             ),
@@ -273,7 +259,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
 
 class _BackButton extends StatefulWidget {
   final VoidCallback onTap;
-const _BackButton({required this.onTap});
+  const _BackButton({required this.onTap});
 
   @override
   State<_BackButton> createState() => _BackButtonState();
@@ -326,7 +312,8 @@ class _BackButtonState extends State<_BackButton> {
           curve: Curves.easeOutBack,
           child: Text(
             '<< 返回',
-            style: AppTextStyles.subtitle.copyWith(color: _red)
+            style: AppTextStyles.subtitle
+                .copyWith(color: _red)
                 .copyWith(height: 1.0, letterSpacing: 0.08),
           ),
         ),
@@ -403,7 +390,7 @@ class _TipButtonState extends State<_TipButton> {
 
 class _QuestionPaper extends StatelessWidget {
   final String question;
-const _QuestionPaper({required this.question});
+  const _QuestionPaper({required this.question});
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +406,13 @@ const _QuestionPaper({required this.question});
               child: Text(
                 '請在附近尋找線索，並回答以下問題。',
                 textAlign: TextAlign.left,
-                style: AppTextStyles.bodySmallMedium.copyWith(color: _hintTextColor).copyWith(height: 1.6, letterSpacing: 0.5, wordSpacing: 0.7),
+                style: AppTextStyles.bodySmallMedium
+                    .copyWith(color: _hintTextColor)
+                    .copyWith(
+                      height: 1.6,
+                      letterSpacing: 0.5,
+                      wordSpacing: 0.7,
+                    ),
               ),
             ),
             SizedBox(
@@ -427,7 +420,13 @@ const _QuestionPaper({required this.question});
               child: Text(
                 question,
                 textAlign: TextAlign.left,
-                style: AppTextStyles.titleMediumBold.copyWith(color: _textColor).copyWith(height: 1.45, letterSpacing: 0.45, wordSpacing: 0.7),
+                style: AppTextStyles.titleMediumBold
+                    .copyWith(color: _textColor)
+                    .copyWith(
+                      height: 1.45,
+                      letterSpacing: 0.45,
+                      wordSpacing: 0.7,
+                    ),
               ),
             ),
           ],
@@ -445,7 +444,7 @@ class _AnswerOption extends StatefulWidget {
     required this.text,
     required this.selected,
     required this.onTap,
-});
+  });
 
   @override
   State<_AnswerOption> createState() => _AnswerOptionState();
@@ -529,7 +528,8 @@ class _AnswerOptionState extends State<_AnswerOption> {
                 applyHeightToFirstAscent: true,
                 applyHeightToLastDescent: true,
               ),
-              style: AppTextStyles.titleMediumBold.copyWith(color: textColor)
+              style: AppTextStyles.titleMediumBold
+                  .copyWith(color: textColor)
                   .copyWith(
                     height: 1.15,
                     letterSpacing: 0.45,
@@ -546,10 +546,7 @@ class _AnswerOptionState extends State<_AnswerOption> {
 class _SubmitButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
-  const _SubmitButton({
-    required this.text,
-    required this.onTap,
-});
+  const _SubmitButton({required this.text, required this.onTap});
 
   @override
   State<_SubmitButton> createState() => _SubmitButtonState();
@@ -619,7 +616,8 @@ class _SubmitButtonState extends State<_SubmitButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: AppTextStyles.titleMediumBold.copyWith(color: AppColors.paper)
+              style: AppTextStyles.titleMediumBold
+                  .copyWith(color: AppColors.paper)
                   .copyWith(height: 1.05, letterSpacing: 0.45),
             ),
           ),
@@ -684,7 +682,6 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
 
   @override
   Widget build(BuildContext context) {
-
     return Material(
       color: Colors.transparent,
       child: Stack(
@@ -751,10 +748,13 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                             Text(
                                               '線索',
                                               textAlign: TextAlign.center,
-                                              style:
-                                                  AppTextStyles.heroTitle.copyWith(color: const Color(
+                                              style: AppTextStyles.heroTitle
+                                                  .copyWith(
+                                                    color: const Color(
                                                       0xFF6D2A1D,
-                                                    )).copyWith(
+                                                    ),
+                                                  )
+                                                  .copyWith(
                                                     height: 1.2,
                                                     letterSpacing: 2.0,
                                                   ),
@@ -769,10 +769,14 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                             Text(
                                               widget.clueText,
                                               textAlign: TextAlign.center,
-                                              style:
-                                                  AppTextStyles.sectionTitleMedium.copyWith(color: const Color(
+                                              style: AppTextStyles
+                                                  .sectionTitleMedium
+                                                  .copyWith(
+                                                    color: const Color(
                                                       0xFF3D281D,
-                                                    )).copyWith(
+                                                    ),
+                                                  )
+                                                  .copyWith(
                                                     height: 1.7,
                                                     letterSpacing: 0.8,
                                                   ),
@@ -812,7 +816,12 @@ class _ClueScrollDialogState extends State<_ClueScrollDialog>
                                 child: Text(
                                   '輕觸空白處關閉',
                                   textAlign: TextAlign.center,
-                                  style: AppTextStyles.bodySmall.copyWith(color: Colors.white).copyWith(height: 1.2, letterSpacing: 0.8),
+                                  style: AppTextStyles.bodySmall
+                                      .copyWith(color: Colors.white)
+                                      .copyWith(
+                                        height: 1.2,
+                                        letterSpacing: 0.8,
+                                      ),
                                 ),
                               ),
                             ),

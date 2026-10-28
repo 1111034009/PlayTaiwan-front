@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../core/app_notice.dart';
 import 'admin_theme.dart';
 
 String adminError(Object e) => e.toString().replaceFirst('Exception: ', '');
@@ -16,18 +16,7 @@ String adminDate(dynamic v) {
 TextStyle adminDropdownStyle(BuildContext context) => AdminText.bodySmall;
 
 void adminSnack(BuildContext context, String message, {bool error = false}) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: AdminText.bodySmall.copyWith(color: Colors.white),
-        ),
-        backgroundColor: error ? AdminColors.danger : AdminColors.textMain,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  AppNotice.show(message);
 }
 
 Future<bool> adminConfirm(

@@ -6,6 +6,7 @@ import '../block/merchant_progress_dialog.dart';
 import 'merchant_video_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
@@ -67,20 +68,7 @@ class _MerchantCheckPageState extends State<MerchantCheckPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   void _addTag() {

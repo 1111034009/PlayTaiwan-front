@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
-
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
@@ -284,18 +284,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
-          ),
-          backgroundColor: _primaryColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    AppNotice.show(message);
   }
 
   Future<void> _runAction(

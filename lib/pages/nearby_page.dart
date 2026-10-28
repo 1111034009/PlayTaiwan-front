@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../api/nearby_cache.dart';
 
@@ -270,19 +271,7 @@ class _NearbyPageState extends State<NearbyPage> {
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              '無法開啟 Google Maps',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-            ),
-            backgroundColor: _titleColor,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      AppNotice.show('無法開啟 Google Maps');
     }
   }
 

@@ -9,6 +9,7 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 import '../api/nearby_cache.dart';
 import 'selection_page.dart';
 import 'collection_page.dart';
@@ -120,43 +121,7 @@ class _HomePageState extends State<HomePage> {
   void _showTopSnackBar(String message) {
     if (!mounted) return;
 
-    final OverlayState overlay = Overlay.of(context, rootOverlay: true);
-
-    late OverlayEntry overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) {
-        return Positioned(
-          left: 16,
-          right: 16,
-          bottom: 20,
-          child: IgnorePointer(
-            ignoring: false,
-            child: Material(
-              color: Colors.transparent,
-              child: SafeArea(
-                child: _TopSnackBar(
-                  message: message,
-                  onClose: () {
-                    if (overlayEntry.mounted) {
-                      overlayEntry.remove();
-                    }
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
-      }
-    });
+    AppNotice.show(message);
   }
 
   Future<bool> _updateProfile(String epName) async {
@@ -203,7 +168,21 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return false;
 
-      _showTopSnackBar('更新探員名稱失敗');
+      String message = response.statusCode == 409
+          ? '此名稱已被使用'
+          : response.statusCode == 400
+          ? '名稱格式不符規定'
+          : '更新探員名稱失敗';
+
+      try {
+        final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final String serverMessage = decoded is Map
+            ? (decoded['message']?.toString().trim() ?? '')
+            : '';
+        if (serverMessage.isNotEmpty) message = serverMessage;
+      } catch (_) {}
+
+      _showTopSnackBar(message);
 
       return false;
     } catch (e) {
@@ -1430,44 +1409,6 @@ class _PushPin extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0x66FFFFFF),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TopSnackBar extends StatelessWidget {
-  final String message;
-  final VoidCallback onClose;
-
-  const _TopSnackBar({required this.message, required this.onClose});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF40342D),
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x66000000),
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ),

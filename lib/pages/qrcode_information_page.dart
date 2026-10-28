@@ -3,9 +3,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:gal/gal.dart';
-
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_notice.dart';
 
 Map<String, dynamic> _asMap(dynamic value) {
   return value is Map ? Map<String, dynamic>.from(value) : {};
@@ -254,25 +254,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   void _showSnack(IconData icon, String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: textDark,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: Row(
-          children: [
-            Icon(icon, color: accentGold, size: 19),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: AppTextStyles.captionBold.copyWith(color: paperLight),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    AppNotice.show(message);
   }
 
   Future<void> _downloadCoupon() async {

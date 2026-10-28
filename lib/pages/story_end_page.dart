@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../api/story_api.dart';
 import 'vlog_check_page.dart';
@@ -352,9 +353,7 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppNotice.show(message);
   }
 
   // 顯示全螢幕黑幕與獎勵動畫。

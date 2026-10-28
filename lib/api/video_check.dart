@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/auth_guard.dart';
@@ -57,33 +57,6 @@ class VideoCheck {
     final context = AuthGuard.navigatorKey.currentContext;
     if (context == null) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            style: AppTextStyles.bodySmallBold.copyWith(
-              color: AppColors.merchantPaper,
-            ),
-          ),
-          backgroundColor: AppColors.primaryAccent,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 8),
-          action: openId == null
-              ? null
-              : SnackBarAction(
-                  label: '查看',
-                  textColor: AppColors.merchantPaper,
-                  onPressed: () {
-                    AuthGuard.navigatorKey.currentState?.push(
-                      MaterialPageRoute(
-                        builder: (_) => MerchantVideoPage(mmId: openId),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      );
+    AppNotice.show(message, duration: const Duration(seconds: 8));
   }
 }

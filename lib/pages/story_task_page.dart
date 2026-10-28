@@ -4,13 +4,18 @@ import 'package:image_picker/image_picker.dart';
 import '../route_map/api.dart';
 import '../route_map/models.dart';
 import '../route_map/theme.dart';
+import '../core/app_notice.dart';
 
 /// 做任務：地圖頁按「做任務」打開的答題頁，這一關的題目在這裡作答。
 /// 題目、作答方式、通過了沒都問後端（GET /api/Task/Node/{id}），送出答案是 POST /api/Task/Answer；
 /// 全部通過這一關就破關：這一頁會自己關掉回地圖，地圖確認破關後解鎖下一關、跳出這一關的明信片。
 /// 配色跟地圖頁同一套（開這一頁的人把它包在 buildTheme 裡）
 class StoryTaskPage extends StatefulWidget {
-  const StoryTaskPage({super.key, required this.node, required this.myLocation});
+  const StoryTaskPage({
+    super.key,
+    required this.node,
+    required this.myLocation,
+  });
 
   /// 要做任務的這一關。要已經抵達，不然後端不給題目
   final MapNode node;
@@ -30,14 +35,15 @@ typedef StoryTaskResult = ({bool cleared, XFile? photo});
 /// choice 選一個選項、photo 交照片、audio_or_video 交影片、gps 人在現場就好，其他都是打字回答
 class _Task {
   _Task.fromJson(Map<String, dynamic> j)
-      : id = (j['task_id'] as num?)?.toInt() ?? 0,
-        typeName = _str(j['type_name']),
-        mode = _str(j['answer_mode']),
-        describe = _str(j['task_describe']),
-        clue = _str(j['clue_text']),
-        options = ((j['options'] as List?) ?? const []).cast<Map<String, dynamic>>(),
-        passed = j['pass'] == 1,
-        hintAvailable = j['hint_available'] == true;
+    : id = (j['task_id'] as num?)?.toInt() ?? 0,
+      typeName = _str(j['type_name']),
+      mode = _str(j['answer_mode']),
+      describe = _str(j['task_describe']),
+      clue = _str(j['clue_text']),
+      options = ((j['options'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>(),
+      passed = j['pass'] == 1,
+      hintAvailable = j['hint_available'] == true;
 
   final int id;
   final String typeName;
@@ -109,23 +115,28 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
   }
 
   Future<Map<String, dynamic>> _fetch() async =>
-      await Api.instance.get('/api/Task/Node/${widget.node.nodeId}') as Map<String, dynamic>;
+      await Api.instance.get('/api/Task/Node/${widget.node.nodeId}')
+          as Map<String, dynamic>;
 
   void _apply(Map<String, dynamic> play) {
     _play = play;
-    _tasks = ((play['tasks'] as List?) ?? const []).cast<Map<String, dynamic>>().map(_Task.fromJson).toList();
+    _tasks = ((play['tasks'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(_Task.fromJson)
+        .toList();
   }
 
-  TextEditingController _controller(_Task task) => _answer.putIfAbsent(task.id, TextEditingController.new);
+  TextEditingController _controller(_Task task) =>
+      _answer.putIfAbsent(task.id, TextEditingController.new);
 
   /// 這一題還缺什麼才能送出；可以送了就是 null
   String? _missing(_Task task) => switch (task.mode) {
-        'choice' => _choice[task.id] == null ? '請先選一個答案' : null,
-        'photo' => _media[task.id] == null ? '請先拍一張照片' : null,
-        'audio_or_video' => _media[task.id] == null ? '請先錄一段影片' : null,
-        'gps' => null,
-        _ => _controller(task).text.trim().isEmpty ? '請先輸入答案' : null,
-      };
+    'choice' => _choice[task.id] == null ? '請先選一個答案' : null,
+    'photo' => _media[task.id] == null ? '請先拍一張照片' : null,
+    'audio_or_video' => _media[task.id] == null ? '請先錄一段影片' : null,
+    'gps' => null,
+    _ => _controller(task).text.trim().isEmpty ? '請先輸入答案' : null,
+  };
 
   /// 送出一題的答案。後端要我現在的位置（要在景點 200 公尺內）；照片、影片先上傳，送的是上傳後的網址
   Future<void> _submit(_Task task) async {
@@ -145,20 +156,26 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
       final media = _media[task.id];
       final url = media == null
           ? null
-          : await Api.instance.upload(_fileName(media.file, task), media.file.openRead(), await media.file.length());
+          : await Api.instance.upload(
+              _fileName(media.file, task),
+              media.file.openRead(),
+              await media.file.length(),
+            );
 
-      final result = await Api.instance.post('/api/Task/Answer', {
-        'task_id': task.id,
-        'gps_lat': me.lat,
-        'gps_lon': me.lng,
-        ...switch (task.mode) {
-          'choice' => {'selected_option_key': _choice[task.id]},
-          'photo' => {'photo_url': url},
-          'audio_or_video' => {'video_url': url},
-          'gps' => const <String, Object?>{},
-          _ => {'text_answer': _controller(task).text.trim()},
-        },
-      }) as Map<String, dynamic>;
+      final result =
+          await Api.instance.post('/api/Task/Answer', {
+                'task_id': task.id,
+                'gps_lat': me.lat,
+                'gps_lon': me.lng,
+                ...switch (task.mode) {
+                  'choice' => {'selected_option_key': _choice[task.id]},
+                  'photo' => {'photo_url': url},
+                  'audio_or_video' => {'video_url': url},
+                  'gps' => const <String, Object?>{},
+                  _ => {'text_answer': _controller(task).text.trim()},
+                },
+              })
+              as Map<String, dynamic>;
 
       final correct = result['is_correct'] == true || result['pass'] == 1;
       final pending = result['is_pending_review'] == true;
@@ -173,9 +190,12 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
       if (!mounted) return;
       setState(() {
         if (play != null) _apply(play);
-        if (task.mode == 'photo' && media != null && (correct || pending)) _photo = media.file;
+        if (task.mode == 'photo' && media != null && (correct || pending))
+          _photo = media.file;
         _feedback[task.id] = (
-          text: message.isNotEmpty ? message : (pending ? '已送出，等待審核。' : (correct ? '答對了！' : '答錯了，再試一次。')),
+          text: message.isNotEmpty
+              ? message
+              : (pending ? '已送出，等待審核。' : (correct ? '答對了！' : '答錯了，再試一次。')),
           ok: correct || pending,
         );
       });
@@ -207,11 +227,25 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
     final video = task.mode == 'audio_or_video';
     try {
       final file = video
-          ? await _picker.pickVideo(source: source, maxDuration: const Duration(minutes: 1))
-          : await _picker.pickImage(source: source, maxWidth: 1920, imageQuality: 85);
+          ? await _picker.pickVideo(
+              source: source,
+              maxDuration: const Duration(minutes: 1),
+            )
+          : await _picker.pickImage(
+              source: source,
+              maxWidth: 1920,
+              imageQuality: 85,
+            );
       if (file == null || !mounted) return;
-      final preview = video ? null : Image.memory(await file.readAsBytes(), height: 150, fit: BoxFit.cover);
-      if (mounted) setState(() => _media[task.id] = (file: file, preview: preview));
+      final preview = video
+          ? null
+          : Image.memory(
+              await file.readAsBytes(),
+              height: 150,
+              fit: BoxFit.cover,
+            );
+      if (mounted)
+        setState(() => _media[task.id] = (file: file, preview: preview));
     } catch (e) {
       if (mounted) _snack('開不了相機或相簿：$e', Pal.cinnabar);
     }
@@ -220,7 +254,9 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
   /// 看提示（GET /api/Task/{id}/Hint）
   Future<void> _showHint(_Task task) async {
     try {
-      final hint = await Api.instance.get('/api/Task/${task.id}/Hint') as Map<String, dynamic>;
+      final hint =
+          await Api.instance.get('/api/Task/${task.id}/Hint')
+              as Map<String, dynamic>;
       if (!mounted) return;
       final npc = _str(hint['npc_name']);
       showDialog<void>(
@@ -228,7 +264,12 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
         builder: (dialog) => AlertDialog(
           title: Text(npc.isEmpty ? '提示' : '$npc的提示'),
           content: Text(_str(hint['hint_text'])),
-          actions: [TextButton(onPressed: () => Navigator.of(dialog).pop(), child: const Text('知道了'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialog).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
         ),
       );
     } catch (e) {
@@ -237,30 +278,39 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
   }
 
   void _snack(String text, Color color) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(backgroundColor: color, content: Text(text)));
+    AppNotice.show(text);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('做任務・${widget.node.label}')),
-      body: SafeArea(top: false, child: _play == null ? _waiting() : _content()),
+      body: SafeArea(
+        top: false,
+        child: _play == null ? _waiting() : _content(),
+      ),
     );
   }
 
   /// 還在跟後端拿題目，或拿不到（例如還沒抵達這一站）
   Widget _waiting() {
-    if (_loadError == null) return const Center(child: CircularProgressIndicator());
+    if (_loadError == null)
+      return const Center(child: CircularProgressIndicator());
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Pal.cinnabar)),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: _load, child: const Text('重試')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _loadError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Pal.cinnabar),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: _load, child: const Text('重試')),
+          ],
+        ),
       ),
     );
   }
@@ -274,35 +324,52 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
-        child: ListView(padding: const EdgeInsets.fromLTRB(16, 14, 16, 24), children: [
-          if (npc != null) _npcRow(npc),
-          if (opening.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(opening, style: const TextStyle(color: Pal.inkSoft, height: 1.5)),
-            ),
-          const SizedBox(height: 14),
-          Text(
-            _tasks.isEmpty ? '這一站沒有任務，抵達就算破關。' : '已通過 $_passed / ${_tasks.length} 題',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Pal.ink),
-          ),
-          const SizedBox(height: 4),
-          for (final (i, task) in _tasks.indexed) _taskCard(i + 1, task),
-          if (_allPassed) ...[
-            if (success.isNotEmpty)
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          children: [
+            if (npc != null) _npcRow(npc),
+            if (opening.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: Text(success, style: const TextStyle(color: Pal.ink, height: 1.5)),
+                child: Text(
+                  opening,
+                  style: const TextStyle(color: Pal.inkSoft, height: 1.5),
+                ),
               ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop<StoryTaskResult>(_result),
-              icon: const Icon(Icons.map_outlined),
-              label: const Text('回到地圖'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            const SizedBox(height: 14),
+            Text(
+              _tasks.isEmpty
+                  ? '這一站沒有任務，抵達就算破關。'
+                  : '已通過 $_passed / ${_tasks.length} 題',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Pal.ink,
+              ),
             ),
+            const SizedBox(height: 4),
+            for (final (i, task) in _tasks.indexed) _taskCard(i + 1, task),
+            if (_allPassed) ...[
+              if (success.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    success,
+                    style: const TextStyle(color: Pal.ink, height: 1.5),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () =>
+                    Navigator.of(context).pop<StoryTaskResult>(_result),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('回到地圖'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -312,24 +379,49 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
     final name = _str(npc['npc_name']);
     final role = _str(npc['npc_role']);
     final avatar = _str(npc['npc_avatar_url']);
-    const placeholder = ColoredBox(color: Pal.parchmentDeep, child: Center(child: Icon(Icons.person, color: Pal.inkSoft)));
-    return Row(children: [
-      ClipOval(
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: avatar.isEmpty ? placeholder : Image.network(avatar, fit: BoxFit.cover, errorBuilder: (_, _, _) => placeholder),
+    const placeholder = ColoredBox(
+      color: Pal.parchmentDeep,
+      child: Center(child: Icon(Icons.person, color: Pal.inkSoft)),
+    );
+    return Row(
+      children: [
+        ClipOval(
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: avatar.isEmpty
+                ? placeholder
+                : Image.network(
+                    avatar,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => placeholder,
+                  ),
+          ),
         ),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name.isEmpty ? 'NPC' : name, style: const TextStyle(fontWeight: FontWeight.bold, color: Pal.ink)),
-          if (role.isNotEmpty)
-            Text(role, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Pal.inkSoft)),
-        ]),
-      ),
-    ]);
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name.isEmpty ? 'NPC' : name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Pal.ink,
+                ),
+              ),
+              if (role.isNotEmpty)
+                Text(
+                  role,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   /// 一題：題號（通過了打勾）、題型、題目、作答的地方和送出的按鈕。通過的題目只留題目
@@ -340,60 +432,110 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Container(
-              width: 26,
-              height: 26,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: task.passed ? Pal.moss : Pal.cinnabar, shape: BoxShape.circle),
-              child: task.passed
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : Text('$number', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: task.passed ? Pal.moss : Pal.cinnabar,
+                    shape: BoxShape.circle,
+                  ),
+                  child: task.passed
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : Text(
+                          '$number',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${task.typeName}・${task.passed ? '已通過' : '未通過'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: task.passed ? Pal.moss : Pal.inkSoft,
+                    ),
+                  ),
+                ),
+                if (task.hintAvailable)
+                  TextButton.icon(
+                    onPressed: () => _showHint(task),
+                    icon: const Icon(Icons.lightbulb_outline, size: 18),
+                    label: const Text('提示'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '${task.typeName}・${task.passed ? '已通過' : '未通過'}',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: task.passed ? Pal.moss : Pal.inkSoft),
+            const SizedBox(height: 8),
+            Text(
+              task.describe,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Pal.ink,
+                height: 1.45,
               ),
             ),
-            if (task.hintAvailable)
-              TextButton.icon(
-                onPressed: () => _showHint(task),
-                icon: const Icon(Icons.lightbulb_outline, size: 18),
-                label: const Text('提示'),
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            if (task.clue.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '線索：${task.clue}',
+                  style: const TextStyle(fontSize: 13, color: Pal.inkSoft),
+                ),
               ),
-          ]),
-          const SizedBox(height: 8),
-          Text(task.describe, style: const TextStyle(fontSize: 15, color: Pal.ink, height: 1.45)),
-          if (task.clue.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text('線索：${task.clue}', style: const TextStyle(fontSize: 13, color: Pal.inkSoft)),
-            ),
-          if (!task.passed) ...[const SizedBox(height: 10), ..._input(task, busy)],
-          if (feedback != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                feedback.text,
-                style: TextStyle(fontWeight: FontWeight.bold, color: feedback.ok ? Pal.moss : Pal.cinnabar),
+            if (!task.passed) ...[
+              const SizedBox(height: 10),
+              ..._input(task, busy),
+            ],
+            if (feedback != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  feedback.text,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: feedback.ok ? Pal.moss : Pal.cinnabar,
+                  ),
+                ),
               ),
-            ),
-          if (!task.passed) ...[
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: busy ? null : () => _submit(task),
-              icon: sending
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Icon(task.mode == 'gps' ? Icons.place : Icons.send),
-              label: Text(sending ? '送出中…' : (task.mode == 'gps' ? '我在現場，完成這一題' : '送出答案')),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
-            ),
+            if (!task.passed) ...[
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: busy ? null : () => _submit(task),
+                icon: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(task.mode == 'gps' ? Icons.place : Icons.send),
+                label: Text(
+                  sending
+                      ? '送出中…'
+                      : (task.mode == 'gps' ? '我在現場，完成這一題' : '送出答案'),
+                ),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                ),
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -402,7 +544,9 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
   List<Widget> _input(_Task task, bool busy) {
     switch (task.mode) {
       case 'choice':
-        return [for (final option in task.options) _optionTile(task, option, busy)];
+        return [
+          for (final option in task.options) _optionTile(task, option, busy),
+        ];
       case 'photo':
       case 'audio_or_video':
         final video = task.mode == 'audio_or_video';
@@ -411,40 +555,64 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
           if (media?.preview != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: ClipRRect(borderRadius: BorderRadius.circular(8), child: media!.preview),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: media!.preview,
+              ),
             )
           else if (media != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Row(children: [
-                const Icon(Icons.videocam, size: 18, color: Pal.moss),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text('已選好影片：${media.file.name}',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Pal.ink)),
+              child: Row(
+                children: [
+                  const Icon(Icons.videocam, size: 18, color: Pal.moss),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '已選好影片：${media.file.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, color: Pal.ink),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => _pick(task, ImageSource.camera),
+                  icon: Icon(
+                    video
+                        ? Icons.videocam_outlined
+                        : Icons.photo_camera_outlined,
+                  ),
+                  label: Text(video ? '錄影' : '拍照'),
                 ),
-              ]),
-            ),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: busy ? null : () => _pick(task, ImageSource.camera),
-                icon: Icon(video ? Icons.videocam_outlined : Icons.photo_camera_outlined),
-                label: Text(video ? '錄影' : '拍照'),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: busy ? null : () => _pick(task, ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_outlined),
-                label: Text(video ? '選影片' : '選照片'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => _pick(task, ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: Text(video ? '選影片' : '選照片'),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ];
       case 'gps':
-        return const [Text('這一題不用作答：人在景點現場，按下面的按鈕就完成。', style: TextStyle(fontSize: 13, color: Pal.inkSoft))];
+        return const [
+          Text(
+            '這一題不用作答：人在景點現場，按下面的按鈕就完成。',
+            style: TextStyle(fontSize: 13, color: Pal.inkSoft),
+          ),
+        ];
       default:
         return [
           TextField(
@@ -453,7 +621,11 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
             minLines: 1,
             maxLines: 4,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(hintText: '輸入你的答案', border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+              hintText: '輸入你的答案',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
           ),
         ];
     }
@@ -467,34 +639,58 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: selected ? Pal.selected.withValues(alpha: 0.35) : Colors.transparent,
+        color: selected
+            ? Pal.selected.withValues(alpha: 0.35)
+            : Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: selected ? Pal.cinnabar : Pal.parchmentDeep, width: selected ? 2 : 1.2),
+          side: BorderSide(
+            color: selected ? Pal.cinnabar : Pal.parchmentDeep,
+            width: selected ? 2 : 1.2,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: busy ? null : () => setState(() => _choice[task.id] = key),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            child: Row(children: [
-              Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                  size: 20, color: selected ? Pal.cinnabar : Pal.inkSoft),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$key. ${_str(option['option_text'])}', style: const TextStyle(color: Pal.ink)),
-                  if (image.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(image, height: 120, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+            child: Row(
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  size: 20,
+                  color: selected ? Pal.cinnabar : Pal.inkSoft,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$key. ${_str(option['option_text'])}',
+                        style: const TextStyle(color: Pal.ink),
                       ),
-                    ),
-                ]),
-              ),
-            ]),
+                      if (image.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(
+                              image,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

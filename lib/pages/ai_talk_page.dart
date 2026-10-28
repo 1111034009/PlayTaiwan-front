@@ -9,6 +9,7 @@ import 'story_route_map_page.dart';
 import '../api/nearby_cache.dart';
 import '../api/story_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
 const String _kNpcAvatarAsset = 'img/talk_cat.png';
@@ -251,10 +252,7 @@ class _AiTalkPageState extends State<AiTalkPage> {
   bool _guardBusy() {
     if (!_busy) return false;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text(_busyText)));
-
+    AppNotice.show(_busyText);
     return true;
   }
 
@@ -873,9 +871,7 @@ Future<void> _openUrl(BuildContext context, String url) async {
   );
 
   if (!ok && context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('無法開啟')));
+    AppNotice.show('無法開啟');
   }
 }
 

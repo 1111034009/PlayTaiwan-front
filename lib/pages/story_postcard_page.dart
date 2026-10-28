@@ -11,6 +11,7 @@ import 'postcard_gif_dowload.dart';
 import 'story_end_page.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _lightText = AppColors.paper;
@@ -445,13 +446,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
 
                             if (!hasAccess) {
                               if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(
-                                  dialogContext,
-                                ).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('沒有相簿權限，無法儲存 QR Code'),
-                                  ),
-                                );
+                                AppNotice.show('沒有相簿權限，無法儲存 QR Code');
                               }
                               return;
                             }
@@ -464,17 +459,11 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
                             );
 
                             if (dialogContext.mounted) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(
-                                  content: Text('QR Code 已成功儲存到相簿'),
-                                ),
-                              );
+                              AppNotice.show('QR Code 已成功儲存到相簿');
                             }
                           } catch (_) {
                             if (dialogContext.mounted) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(content: Text('QR Code 儲存失敗')),
-                              );
+                              AppNotice.show('QR Code 儲存失敗');
                             }
                           }
                         },
@@ -562,11 +551,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
                                   );
 
                                   if (dialogContext.mounted) {
-                                    ScaffoldMessenger.of(
-                                      dialogContext,
-                                    ).showSnackBar(
-                                      const SnackBar(content: Text('取件碼已複製')),
-                                    );
+                                    AppNotice.show('取件碼已複製');
                                   }
                                 },
                           child: Container(
@@ -668,22 +653,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold
-                .copyWith(color: Colors.white)
-                .copyWith(height: 1.2),
-          ),
-          backgroundColor: _backgroundColor,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   @override

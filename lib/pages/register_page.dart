@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../block/policy_dialog.dart';
 import 'merchant_register_page.dart';
 
 InputDecoration registerInputDecoration({required String hintText}) {
@@ -119,9 +120,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppNotice.show(message);
   }
 
   Future<void> selectBirthday() async {
@@ -192,11 +191,20 @@ class _RegisterPageState extends State<RegisterPage> {
     final String password = passwordController.text;
     final String confirmPassword = confirmPasswordController.text;
 
-    if (username.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      showMessage('請完整填寫註冊資料');
+    if (username.isEmpty) {
+      showMessage('請輸入帳號名稱');
+      return;
+    }
+    if (email.isEmpty) {
+      showMessage('請輸入 Email');
+      return;
+    }
+    if (password.isEmpty) {
+      showMessage('請輸入密碼');
+      return;
+    }
+    if (confirmPassword.isEmpty) {
+      showMessage('請再次輸入密碼');
       return;
     }
 
@@ -298,282 +306,298 @@ class _RegisterPageState extends State<RegisterPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, c) => SingleChildScrollView(
-            controller: scrollController,
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: SizedBox(
-              width: c.maxWidth,
-              height: c.maxHeight,
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, c) => SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                  ),
                   child: SizedBox(
-                    width: designWidth,
-                    height: designHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned.fill(
-                          child: ColoredBox(color: AppColors.background),
-                        ),
-                        Positioned(
-                          left: 13,
-                          right: 13,
-                          top: 30,
-                          height: 605,
-                          child: Image.asset(
-                            'img/notepaper.png',
-                            fit: BoxFit.fill,
-                          ),
-                        ),
-                        Positioned(
-                          left: 23,
-                          top: 5,
-                          child: GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Text(
-                              '<< 返回',
-                              style: AppTextStyles.bodySmallBold.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          top: 60,
-                          child: Text(
-                            '建立探險帳號',
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.titleLarge.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          top: 90,
-                          child: Text(
-                            '建立你的專屬探險身份',
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodySmallBold.copyWith(
-                              color: const Color(0xFF66615C),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 42,
-                          right: 42,
-                          top: 120,
-                          child: _RegisterField(
-                            key: usernameKey,
-                            label: '帳號名稱',
-                            child: TextField(
-                              focusNode: usernameFocus,
-                              controller: usernameController,
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                              cursorColor: AppColors.primary,
-                              decoration: registerInputDecoration(
-                                hintText: '請輸入帳號名稱',
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 42,
-                          right: 42,
-                          top: 200,
-                          child: _RegisterField(
-                            key: emailKey,
-                            label: '電子信箱',
-                            child: TextField(
-                              focusNode: emailFocus,
-                              controller: emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                              cursorColor: AppColors.primary,
-                              decoration: registerInputDecoration(
-                                hintText: '請輸入 Email',
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 42,
-                          right: 42,
-                          top: 280,
-                          child: _RegisterField(
-                            key: passwordKey,
-                            label: '帳號密碼',
-                            child: _PasswordField(
-                              focusNode: passwordFocus,
-                              controller: passwordController,
-                              obscureText: password,
-                              hintText: '請輸入密碼',
-                              onToggle: () {
-                                setState(() {
-                                  password = !password;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 42,
-                          right: 42,
-                          top: 360,
-                          child: _RegisterField(
-                            key: confirmPasswordKey,
-                            label: '確認密碼',
-                            child: _PasswordField(
-                              focusNode: confirmPasswordFocus,
-                              controller: confirmPasswordController,
-                              obscureText: confirmPassword,
-                              hintText: '再次輸入密碼',
-                              onToggle: () {
-                                setState(() {
-                                  confirmPassword = !confirmPassword;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 42,
-                          right: 42,
-                          top: 440,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    width: c.maxWidth,
+                    height: c.maxHeight,
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: designWidth,
+                          height: designHeight,
+                          child: Stack(
+                            clipBehavior: Clip.none,
                             children: [
-                              Expanded(
-                                child: _RegisterField(
-                                  label: '生日',
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: selectBirthday,
-                                    child: Container(
-                                      height: 40,
-                                      alignment: Alignment.center,
-                                      decoration: const BoxDecoration(
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color: AppColors.inputLine,
-                                            width: 1,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        birthday == null
-                                            ? '請選擇生日'
-                                            : formatBirthday(birthday!),
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          color: birthday == null
-                                              ? AppColors.inputHint
-                                              : AppColors.textPrimary,
-                                        ),
-                                      ),
+                              Positioned.fill(
+                                child: ColoredBox(color: AppColors.background),
+                              ),
+                              Positioned(
+                                left: 13,
+                                right: 13,
+                                top: 30,
+                                height: 605,
+                                child: Image.asset(
+                                  'img/notepaper.png',
+                                  fit: BoxFit.fill,
+                                ),
+                              ),
+                              Positioned(
+                                left: 23,
+                                top: 5,
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Text(
+                                    '<< 返回',
+                                    style: AppTextStyles.bodySmallBold.copyWith(
+                                      color: AppColors.primary,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                top: 60,
+                                child: Text(
+                                  '建立探險帳號',
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.titleLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                top: 90,
+                                child: Text(
+                                  '建立你的專屬探險身份',
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.bodySmallBold.copyWith(
+                                    color: const Color(0xFF66615C),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 42,
+                                right: 42,
+                                top: 120,
                                 child: _RegisterField(
-                                  label: '性別',
-                                  child: _GenderSelector(
-                                    value: gender,
-                                    onChanged: (value) {
+                                  key: usernameKey,
+                                  label: '帳號名稱',
+                                  child: TextField(
+                                    focusNode: usernameFocus,
+                                    controller: usernameController,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    cursorColor: AppColors.primary,
+                                    decoration: registerInputDecoration(
+                                      hintText: '請輸入帳號名稱',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 42,
+                                right: 42,
+                                top: 200,
+                                child: _RegisterField(
+                                  key: emailKey,
+                                  label: '電子信箱',
+                                  child: TextField(
+                                    focusNode: emailFocus,
+                                    controller: emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    cursorColor: AppColors.primary,
+                                    decoration: registerInputDecoration(
+                                      hintText: '請輸入 Email',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 42,
+                                right: 42,
+                                top: 280,
+                                child: _RegisterField(
+                                  key: passwordKey,
+                                  label: '帳號密碼',
+                                  child: _PasswordField(
+                                    focusNode: passwordFocus,
+                                    controller: passwordController,
+                                    obscureText: password,
+                                    hintText: '請輸入密碼',
+                                    onToggle: () {
                                       setState(() {
-                                        gender = value;
+                                        password = !password;
                                       });
                                     },
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 42,
+                                right: 42,
+                                top: 360,
+                                child: _RegisterField(
+                                  key: confirmPasswordKey,
+                                  label: '確認密碼',
+                                  child: _PasswordField(
+                                    focusNode: confirmPasswordFocus,
+                                    controller: confirmPasswordController,
+                                    obscureText: confirmPassword,
+                                    hintText: '再次輸入密碼',
+                                    onToggle: () {
+                                      setState(() {
+                                        confirmPassword = !confirmPassword;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 42,
+                                right: 42,
+                                top: 440,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _RegisterField(
+                                        label: '生日',
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: selectBirthday,
+                                          child: Container(
+                                            height: 40,
+                                            alignment: Alignment.center,
+                                            decoration: const BoxDecoration(
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: AppColors.inputLine,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              birthday == null
+                                                  ? '請選擇生日'
+                                                  : formatBirthday(birthday!),
+                                              style: AppTextStyles.bodySmall
+                                                  .copyWith(
+                                                    color: birthday == null
+                                                        ? AppColors.inputHint
+                                                        : AppColors.textPrimary,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: _RegisterField(
+                                        label: '性別',
+                                        child: _GenderSelector(
+                                          value: gender,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              gender = value;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                top: 520,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 240,
+                                    height: 45,
+                                    child: _RegisterButton(
+                                      onPressed: register,
+                                      isLoading: isLoading,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                top: 580,
+                                child: Center(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const StoryRegisterPage(),
+                                        ),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      child: RichText(
+                                        textAlign: TextAlign.center,
+                                        text: TextSpan(
+                                          style: AppTextStyles.bodySmall
+                                              .copyWith(
+                                                color: AppColors.textPrimary,
+                                              ),
+                                          children: [
+                                            const TextSpan(text: '非探員？'),
+                                            TextSpan(
+                                              text: '前往商家註冊',
+                                              style: AppTextStyles.bodySmallBold
+                                                  .copyWith(
+                                                    color: AppColors.primary,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: 520,
-                          child: Center(
-                            child: SizedBox(
-                              width: 240,
-                              height: 45,
-                              child: _RegisterButton(
-                                onPressed: register,
-                                isLoading: isLoading,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          top: 580,
-                          child: Center(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const StoryRegisterPage(),
-                                  ),
-                                );
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                child: RichText(
-                                  textAlign: TextAlign.center,
-                                  text: TextSpan(
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                    children: [
-                                      const TextSpan(text: '非探員？'),
-                                      TextSpan(
-                                        text: '前往商家註冊',
-                                        style: AppTextStyles.bodySmallBold
-                                            .copyWith(
-                                              color: AppColors.primary,
-                                              decoration:
-                                                  TextDecoration.underline,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.paddingOf(context).bottom + 4,
+              child: const Center(child: PolicyConsentText()),
+            ),
+        ],
       ),
     );
   }

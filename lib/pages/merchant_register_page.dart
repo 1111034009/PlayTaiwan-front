@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../block/merchant_register_popup.dart';
+import '../block/policy_dialog.dart';
 import '../api/merchant_register_api.dart';
 
 InputDecoration storyRegisterInputDecoration({
@@ -128,12 +130,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-      );
+    AppNotice.show(message);
   }
 
   String _errorText(Object error) {
@@ -651,8 +648,9 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
     FocusScope.of(context).unfocus();
 
     if (_isLoading || _isUploadingImage || !_validateBeforeSubmit()) return;
-    final String address = _storeAddressController.text.trim();
-
+    final String fullAddress = _storeAddressController.text.trim();
+    final String address =
+        parseTaiwanAddress(fullAddress)?.address ?? fullAddress;
     setState(() {
       _isLoading = true;
     });
@@ -1122,172 +1120,200 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            return SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 23, top: 5),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            Navigator.of(context).pushNamedAndRemoveUntil(
-                              '/login',
-                              (Route<dynamic> route) => false,
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 3,
-                              vertical: 5,
-                            ),
-                            child: Text(
-                              '<< 返回',
-                              style: AppTextStyles.bodySmallBold.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(13, 12, 13, 24),
-                      child: Form(
-                        key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(29, 30, 29, 32),
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage('img/story_papper.png'),
-                              fit: BoxFit.fill,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 6),
-                              Text(
-                                '建立商家帳號',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                '建立你的專屬商家身份',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.bodySmallBold.copyWith(
-                                  color: const Color(0xFF66615C),
-                                ),
-                              ),
-                              _sectionTitle('帳號資訊'),
-                              _buildTextField(
-                                label: '帳號名稱',
-                                controller: _authNameController,
-                                hint: '請輸入帳號名稱',
-                                validator: _validateUsername,
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(40),
-                                ],
-                              ),
-                              _buildTextField(
-                                label: '電子信箱',
-                                controller: _authEmailController,
-                                hint: '請輸入 Email',
-                                validator: _validateEmail,
-                                keyboardType: TextInputType.emailAddress,
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(100),
-                                  FilteringTextInputFormatter.deny(
-                                    RegExp(r'\s'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 23, top: 5),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  Navigator.of(context).pushNamedAndRemoveUntil(
+                                    '/login',
+                                    (Route<dynamic> route) => false,
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                    vertical: 5,
                                   ),
-                                ],
+                                  child: Text(
+                                    '<< 返回',
+                                    style: AppTextStyles.bodySmallBold.copyWith(
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildPasswordField(
-                                label: '通行密碼',
-                                controller: _authPasswordController,
-                                hint: '至少 8 個字元，包含英文字母與數字',
-                                validator: _validatePassword,
-                                obscureText: _obscurePassword,
-                                onToggle: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              _buildPasswordField(
-                                label: '確認密碼',
-                                controller: _confirmPasswordController,
-                                hint: '再次輸入密碼',
-                                validator: _validateConfirmPassword,
-                                obscureText: _obscureConfirmPassword,
-                                onToggle: () {
-                                  setState(() {
-                                    _obscureConfirmPassword =
-                                        !_obscureConfirmPassword;
-                                  });
-                                },
-                              ),
-                              _sectionTitle('店家資訊'),
-                              _buildLocationMode(),
-                              const SizedBox(height: 15),
-                              _buildTextField(
-                                label: '店家名稱',
-                                controller: _storeNameController,
-                                hint: '請輸入店家名稱',
-                                validator: _validateStoreName,
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(50),
-                                ],
-                              ),
-                              _buildTextField(
-                                label: '店家介紹',
-                                controller: _storeDescriptionController,
-                                hint: '請簡單介紹你的店家',
-                                maxLines: 3,
-                                validator: _validateStoreDescription,
-                                keyboardType: TextInputType.multiline,
-                                textAlign: TextAlign.start,
-                                textAlignVertical: TextAlignVertical.top,
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(300),
-                                ],
-                              ),
-                              _buildImagePicker(),
-                              _buildTextField(
-                                label: '店家地址',
-                                controller: _storeAddressController,
-                                hint: '例如：臺中市西區公益路100號',
-                                validator: _validateAddress,
-                                keyboardType: TextInputType.streetAddress,
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(100),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              _buildSubmitButton(),
-                              const SizedBox(height: 30),
-                            ],
+                            ),
                           ),
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(13, 12, 13, 24),
+                            child: Form(
+                              key: _formKey,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  29,
+                                  30,
+                                  29,
+                                  32,
+                                ),
+                                decoration: const BoxDecoration(
+                                  image: DecorationImage(
+                                    image: AssetImage('img/story_papper.png'),
+                                    fit: BoxFit.fill,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '建立商家帳號',
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.titleLarge.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '建立你的專屬商家身份',
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.bodySmallBold
+                                          .copyWith(
+                                            color: const Color(0xFF66615C),
+                                          ),
+                                    ),
+                                    _sectionTitle('帳號資訊'),
+                                    _buildTextField(
+                                      label: '帳號名稱',
+                                      controller: _authNameController,
+                                      hint: '請輸入帳號名稱',
+                                      validator: _validateUsername,
+                                      inputFormatters: [
+                                        LengthLimitingTextInputFormatter(40),
+                                      ],
+                                    ),
+                                    _buildTextField(
+                                      label: '電子信箱',
+                                      controller: _authEmailController,
+                                      hint: '請輸入 Email',
+                                      validator: _validateEmail,
+                                      keyboardType: TextInputType.emailAddress,
+                                      inputFormatters: [
+                                        LengthLimitingTextInputFormatter(100),
+                                        FilteringTextInputFormatter.deny(
+                                          RegExp(r'\s'),
+                                        ),
+                                      ],
+                                    ),
+                                    _buildPasswordField(
+                                      label: '通行密碼',
+                                      controller: _authPasswordController,
+                                      hint: '至少 8 個字元，包含英文字母與數字',
+                                      validator: _validatePassword,
+                                      obscureText: _obscurePassword,
+                                      onToggle: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
+                                    ),
+                                    _buildPasswordField(
+                                      label: '確認密碼',
+                                      controller: _confirmPasswordController,
+                                      hint: '再次輸入密碼',
+                                      validator: _validateConfirmPassword,
+                                      obscureText: _obscureConfirmPassword,
+                                      onToggle: () {
+                                        setState(() {
+                                          _obscureConfirmPassword =
+                                              !_obscureConfirmPassword;
+                                        });
+                                      },
+                                    ),
+                                    _sectionTitle('店家資訊'),
+                                    _buildLocationMode(),
+                                    const SizedBox(height: 15),
+                                    _buildTextField(
+                                      label: '店家名稱',
+                                      controller: _storeNameController,
+                                      hint: '請輸入店家名稱',
+                                      validator: _validateStoreName,
+                                      inputFormatters: [
+                                        LengthLimitingTextInputFormatter(50),
+                                      ],
+                                    ),
+                                    _buildTextField(
+                                      label: '店家介紹',
+                                      controller: _storeDescriptionController,
+                                      hint: '請簡單介紹你的店家',
+                                      maxLines: 3,
+                                      validator: _validateStoreDescription,
+                                      keyboardType: TextInputType.multiline,
+                                      textAlign: TextAlign.start,
+                                      textAlignVertical: TextAlignVertical.top,
+                                      inputFormatters: [
+                                        LengthLimitingTextInputFormatter(300),
+                                      ],
+                                    ),
+                                    _buildImagePicker(),
+                                    _buildTextField(
+                                      label: '店家地址',
+                                      controller: _storeAddressController,
+                                      hint: '例如：臺中市西區公益路100號',
+                                      validator: _validateAddress,
+                                      keyboardType: TextInputType.streetAddress,
+                                      inputFormatters: [
+                                        LengthLimitingTextInputFormatter(100),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    _buildSubmitButton(),
+                                    const SizedBox(height: 30),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          },
-        ),
+            ),
+          ),
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                6,
+                20,
+                MediaQuery.paddingOf(context).bottom + 4,
+              ),
+              child: const PolicyConsentText(),
+            ),
+        ],
       ),
     );
   }

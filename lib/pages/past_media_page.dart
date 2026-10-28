@@ -20,6 +20,7 @@ import '../api/vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 
 const Color _pageColor = AppColors.pastBackground;
 const Color _videoPoster = AppColors.paper;
@@ -465,13 +466,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
 
                             if (!hasAccess) {
                               if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(
-                                  dialogContext,
-                                ).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('沒有相簿權限，無法儲存 QR Code'),
-                                  ),
-                                );
+                                AppNotice.show('沒有相簿權限，無法儲存 QR Code');
                               }
                               return;
                             }
@@ -484,17 +479,11 @@ class _PastMediaPageState extends State<PastMediaPage> {
                             );
 
                             if (dialogContext.mounted) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(
-                                  content: Text('QR Code 已成功儲存到相簿'),
-                                ),
-                              );
+                              AppNotice.show('QR Code 已成功儲存到相簿');
                             }
                           } catch (_) {
                             if (dialogContext.mounted) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(content: Text('QR Code 儲存失敗')),
-                              );
+                              AppNotice.show('QR Code 儲存失敗');
                             }
                           }
                         },
@@ -722,9 +711,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppNotice.show(message);
   }
 
   void backToPast() {

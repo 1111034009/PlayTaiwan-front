@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../core/auth_guard.dart';
-import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import 'story_api.dart';
 
 final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
@@ -10,19 +9,13 @@ final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
 
 class VlogWatcher {
   const VlogWatcher._();
-  static ScaffoldMessengerState? _messenger;
   static Timer? _timer;
   static bool _busy = false;
   static int _ticks = 0;
 
-  static void start({
-    required String storyId,
-    required String taskId,
-    required ScaffoldMessengerState messenger,
-  }) {
+  static void start({required String storyId, required String taskId}) {
     _timer?.cancel();
     _ticks = 0;
-    _messenger = messenger;
 
     _show('Vlog 已送出，會在背景製作，完成後通知你', seconds: 6);
 
@@ -69,22 +62,6 @@ class VlogWatcher {
   }
 
   static void _show(String message, {int seconds = 4}) {
-    final ScaffoldMessengerState? messenger = _messenger;
-
-    if (messenger == null) {
-      debugPrint('Vlog 通知沒有 messenger：$message');
-      return;
-    }
-
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message, textAlign: TextAlign.center),
-          backgroundColor: AppColors.storyBackground,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: seconds),
-        ),
-      );
+    AppNotice.show(message, duration: Duration(seconds: seconds));
   }
 }

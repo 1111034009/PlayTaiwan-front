@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../api/story_api.dart';
 import '../api/vlog_watcher.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
 const Color _backgroundColor = AppColors.storyBackground;
@@ -195,15 +196,9 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
       }
       if (!mounted) return;
 
-      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
 
-      VlogWatcher.start(
-        storyId: widget.storyId,
-        taskId: taskId,
-        messenger: messenger,
-      );
+      VlogWatcher.start(storyId: widget.storyId, taskId: taskId);
     } catch (e) {
       if (!mounted) return;
 
@@ -215,15 +210,7 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message, textAlign: TextAlign.center),
-          backgroundColor: _backgroundColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    AppNotice.show(message);
   }
 
   void _goHome() {

@@ -7,6 +7,7 @@ import '../api.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../../pages/story_play_page.dart';
+import '../../core/app_notice.dart';
 
 // 劇本景點卡片上「回顧劇情」「查看任務」「周邊好去」打開的內容：回顧劇情是整頁，另外兩個從下方拉起。
 // 這裡是展示用的簡易版：正式 App 有自己的劇情頁、任務頁、周邊頁，併過去時這三個改成開那幾頁（帶 node_id）。
@@ -18,7 +19,6 @@ Future<void> showStoryReview(
   int? locationTotal,
 }) async {
   final navigator = Navigator.of(context);
-  final messenger = ScaffoldMessenger.of(context);
 
   try {
     final playFuture = _tryGet('/api/Task/Node/${node.nodeId}');
@@ -71,9 +71,7 @@ Future<void> showStoryReview(
       ),
     );
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('$e'), backgroundColor: Pal.cinnabar),
-    );
+    AppNotice.show('$e');
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_notice.dart';
 import '../api/story_api.dart';
 import '../api/pair_api.dart';
 
@@ -279,9 +280,7 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     if (isConfirming) return;
 
     if (_storyId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('找不到劇本 ID')));
+      AppNotice.show('找不到劇本 ID');
       return;
     }
 
@@ -326,29 +325,14 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         isConfirming = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      AppNotice.show(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: _sectionRed,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   // ============================================================

@@ -12,6 +12,7 @@ import 'package:video_player/video_player.dart';
 import 'merchant_home_page.dart';
 import 'merchant_input_page.dart';
 import '../api/merchant_vlog_api.dart';
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
@@ -336,20 +337,7 @@ class _MerchantVideoPageState extends State<MerchantVideoPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: _lightText),
-          ),
-          backgroundColor: _darkRed,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   Future<void> _copy(String text, String successMessage) async {

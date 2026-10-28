@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-
+import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
@@ -239,20 +239,7 @@ class _MerchantTaskPageState extends State<MerchantTaskPage> {
   void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: _cardColor),
-          ),
-          backgroundColor: isError ? AppColors.dangerDark : _primaryColor,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   Future<void> _openQuestionForm({_MerchantQuestion? question}) async {
@@ -994,16 +981,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
         _options[index].urlController.text = imageUrl;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '圖片上傳成功',
-            style: AppTextStyles.bodySmallBold.copyWith(color: _cardColor),
-          ),
-          backgroundColor: _primaryColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppNotice.show('圖片上傳成功');
     } catch (e) {
       if (!mounted) return;
 

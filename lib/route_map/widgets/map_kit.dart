@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-
+import '../../core/app_notice.dart';
 import '../theme.dart';
 
 const _distance = Distance();
@@ -494,7 +494,5 @@ void fitTo(
 }
 
 void showError(BuildContext context, Object e) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Pal.cinnabar));
+  AppNotice.show('$e');
 }

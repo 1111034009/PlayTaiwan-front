@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import '../core/app_session.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
-
+import '../core/app_notice.dart';
 import '../block/navigationbar.dart';
 import '../block/script_generating_overlay.dart';
 
@@ -249,18 +249,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-        ),
-        backgroundColor: red,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppNotice.show(message);
   }
 
   Map<String, String> _parseLocation(String input) {
@@ -377,6 +366,10 @@ class _SelectionPageState extends State<SelectionPage> {
     try {
       final Map<String, dynamic> result = await StoryApi.generateByText(
         userPrompt: idea,
+        onStage: (stage) {
+          if (!mounted || stage.isEmpty) return;
+          setState(() => generatingText = '$stage…');
+        },
       );
 
       _progressTimer?.cancel();

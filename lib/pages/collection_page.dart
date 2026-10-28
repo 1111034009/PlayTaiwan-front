@@ -10,6 +10,7 @@ import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
@@ -60,9 +61,7 @@ class _CollectionPageState extends State<CollectionPage> {
   void showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppNotice.show(message);
   }
 
   Future<void> _loadBadgeStatus() async {

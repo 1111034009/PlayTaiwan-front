@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../api/story_api.dart';
 import '../block/navigationbar.dart';
@@ -38,10 +39,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int currentIndex = 1;
   Timer? _progressTimer;
 
-  List<double> segmentProgress = [0, 0, 0];
+  List<double> segmentProgress = [0];
+  final ValueNotifier<List<double>> _segmentsNotifier =
+      ValueNotifier<List<double>>([0]);
+
   DateTime _segStart = DateTime.now();
   int _lastFinished = 0;
-
   final TextEditingController peopleController = TextEditingController();
 
   final Set<String> selectedPreferences = {};
@@ -52,10 +55,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   int generatingTotal = 0;
   int generatingFinished = 0;
 
-  String get generatingDetail => generatingFinished <= 0
-      ? ''
-      : '已完成 $generatingFinished/${generatingTotal > 0 ? generatingTotal : 3} 本';
-
+  String get generatingDetail => '約需 3～5 分鐘，請稍候';
   int generatingStep = 0;
   String generatingText = '正在整理旅程線索';
   Map<String, dynamic>? generatedScript;
@@ -65,27 +65,39 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     _progressTimer?.cancel();
     _segStart = DateTime.now();
     _lastFinished = 0;
-    setState(() => segmentProgress = [0, 0, 0]);
+
+    segmentProgress = [0];
+    _segmentsNotifier.value = segmentProgress;
 
     _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!mounted) return;
+
       final next = List<double>.from(segmentProgress);
+
       for (int i = 0; i < next.length; i++) {
         if (i < generatingFinished) {
           next[i] = (next[i] + 0.12).clamp(0.0, 1.0);
         } else if (i == generatingFinished) {
           final double t =
-              DateTime.now().difference(_segStart).inMilliseconds / 60000;
+              DateTime.now().difference(_segStart).inMilliseconds / 240000;
           final double target = (t * 0.95).clamp(0.0, 0.95);
-          if (target > next[i]) next[i] = target;
+
+          if (target > next[i]) {
+            next[i] = target;
+          }
         }
       }
-      setState(() {
-        segmentProgress = next;
-        generatingText = (generatingFinished == 0 && next[0] < 0.5)
-            ? '紫薯編找資料中…'
-            : '紫薯編寫劇本中…';
-      });
+
+      final String text = (generatingFinished == 0 && next[0] < 0.5)
+          ? '紫薯編找資料中…'
+          : '紫薯編寫劇本中…';
+
+      segmentProgress = next;
+      _segmentsNotifier.value = next;
+
+      if (text != generatingText) {
+        setState(() => generatingText = text);
+      }
     });
   }
 
@@ -108,6 +120,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   void dispose() {
     _progressTimer?.cancel();
     peopleController.dispose();
+    _segmentsNotifier.dispose();
     super.dispose();
   }
 
@@ -183,7 +196,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
     setState(() {
       isGenerating = true;
-      generatingText = '正在尋找資料中';
+      generatingText = '紫薯編找資料中…';
       generatingTotal = 0;
       generatingFinished = 0;
     });
@@ -224,7 +237,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
       _progressTimer?.cancel();
       setState(() {
-        segmentProgress = [1, 1, 1];
+        segmentProgress = [1];
+        _segmentsNotifier.value = segmentProgress;
         generatingText = '劇本生成完成';
       });
 
@@ -243,7 +257,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
       setState(() {
         isGenerating = false;
-        segmentProgress = [0, 0, 0];
+        segmentProgress = [0];
+        _segmentsNotifier.value = segmentProgress;
       });
 
       _showMessage('劇本生成失敗，請稍後再試');
@@ -345,20 +360,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: _optionColor,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   void goHome() {
@@ -480,14 +482,18 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           ),
           bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
         ),
+
         if (isGenerating)
           Positioned.fill(
-            child: ScriptGeneratingOverlay(
-              message: generatingText,
-              progress: 0,
-              segments: segmentProgress,
-              detail: generatingDetail.isEmpty ? null : generatingDetail,
-              stage: generatingText.contains('尋找') ? 0 : 1,
+            child: ValueListenableBuilder<List<double>>(
+              valueListenable: _segmentsNotifier,
+              builder: (_, segs, __) => ScriptGeneratingOverlay(
+                message: generatingText,
+                progress: 0,
+                segments: segs,
+                detail: generatingDetail.isEmpty ? null : generatingDetail,
+                stage: generatingText.contains('找資料') ? 0 : 1,
+              ),
             ),
           ),
       ],

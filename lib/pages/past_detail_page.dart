@@ -133,14 +133,22 @@ class _PastDetailPageState extends State<PastDetailPage> {
               parsedDate = DateTime.tryParse(apiCompletedDate);
             }
 
-            final List<String> routes = apiSpots is List
-                ? apiSpots
-                      .whereType<String>()
-                      .where((item) => item.trim().isNotEmpty)
+            final dynamic apiPhotos = result['photos'];
+
+            final List<String> routes = apiPhotos is List
+                ? apiPhotos
+                      .whereType<Map>()
+                      .map((item) {
+                        final realName = item['real_place_name']
+                            ?.toString()
+                            .trim();
+                        return (realName != null && realName.isNotEmpty)
+                            ? realName
+                            : (item['place_name']?.toString() ?? '');
+                      })
+                      .where((name) => name.trim().isNotEmpty)
                       .toList()
                 : [];
-
-            final dynamic apiPhotos = result['photos'];
 
             final List<Map<String, String>> loadedPhotos = apiPhotos is List
                 ? apiPhotos
@@ -148,7 +156,10 @@ class _PastDetailPageState extends State<PastDetailPage> {
                       .map(
                         (item) => {
                           'url': _imageUrl(item['image_url']?.toString()),
-                          'name': item['place_name']?.toString() ?? '',
+                          'name':
+                              (item['real_place_name'] ?? item['place_name'])
+                                  ?.toString() ??
+                              '',
                         },
                       )
                       .where((item) => item['url']!.isNotEmpty)
@@ -374,12 +385,22 @@ class _PastDetailPageState extends State<PastDetailPage> {
             ),
           ),
           Positioned(
-            left: 22,
-            top: topInset + screenSize.height * 0.01 + 10 * contentScale,
-            child: Transform.scale(
-              scale: contentScale,
-              alignment: Alignment.topLeft,
-              child: _BackButton(onTap: backToPast),
+            left: 0,
+            right: 0,
+            top: topInset,
+            child: Container(
+              height: 55,
+              color: _pageColor,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(left: 22),
+              child: Transform.translate(
+                offset: Offset(0, screenSize.height * 0.01 + 3 * contentScale),
+                child: Transform.scale(
+                  scale: contentScale,
+                  alignment: Alignment.topLeft,
+                  child: _BackButton(onTap: backToPast),
+                ),
+              ),
             ),
           ),
         ],

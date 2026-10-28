@@ -88,17 +88,7 @@ class _StoryPageState extends State<StoryPage> {
   bool skipHovering = false;
   bool skipPressing = false;
 
-  final math.Random _random = math.Random();
-
-  late String backgroundUrl;
-
   List<StoryLine> _storyLines = [];
-
-  static const List<String> backgroundImages = [
-    'https://images.pexels.com/photos/156934/pexels-photo-156934.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
-    'https://images.pexels.com/photos/417173/pexels-photo-417173.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
-    'https://images.pexels.com/photos/2212890/pexels-photo-2212890.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800',
-  ];
 
   Map<String, dynamic>? get _scriptData {
     final dynamic data = widget.generatedScript?['data'];
@@ -483,8 +473,6 @@ class _StoryPageState extends State<StoryPage> {
   void initState() {
     super.initState();
 
-    backgroundUrl = backgroundImages[_random.nextInt(backgroundImages.length)];
-
     _completeSub = _npcAudioPlayer.onPlayerComplete.listen((_) {
       if (!mounted || _isDisposed) {
         return;
@@ -566,9 +554,7 @@ class _StoryPageState extends State<StoryPage> {
               fit: StackFit.expand,
               children: [
                 Positioned.fill(
-                  child: _BackgroundImage(
-                    imageUrl: story.backgroundUrl ?? backgroundUrl,
-                  ),
+                  child: _BackgroundImage(imageUrl: story.backgroundUrl),
                 ),
                 const Positioned.fill(
                   child: IgnorePointer(
@@ -1019,49 +1005,49 @@ class _NpcImage extends StatelessWidget {
 }
 
 class _BackgroundImage extends StatelessWidget {
-  final String imageUrl;
+  final String? imageUrl;
 
   const _BackgroundImage({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
+    final Widget fallback = Image.asset(
+      'img/default_background.jpg',
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+    );
+    final String url = imageUrl ?? '';
+
     return ImageFiltered(
       imageFilter: ImageFilter.blur(sigmaX: 2.2, sigmaY: 2.2),
-      child: Image.network(
-        imageUrl,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        alignment: Alignment.center,
-        filterQuality: FilterQuality.high,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          }
-
-          return const ColoredBox(
-            color: _pageColor,
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _storyRed,
-                ),
-              ),
+      child: url.isEmpty
+          ? fallback
+          : Image.network(
+              url,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              filterQuality: FilterQuality.high,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const ColoredBox(
+                  color: _pageColor,
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _storyRed,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) => fallback,
             ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            'img/background_papper.png',
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.cover,
-          );
-        },
-      ),
     );
   }
 }

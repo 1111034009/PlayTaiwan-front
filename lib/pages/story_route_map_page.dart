@@ -7,6 +7,7 @@ import '../block/ai_talk_button.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../route_map/api.dart';
@@ -498,9 +499,7 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   }
 
   void _snack(String text) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    AppNotice.show(text);
   }
 
   /// 還在找劇本，或沒有劇本、連不到後端

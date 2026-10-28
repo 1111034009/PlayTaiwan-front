@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/app_text_styles.dart';
+import '../core/app_notice.dart';
 import '../pages/ai_talk_page.dart';
 import 'ai_talk_button.dart';
 import 'story_qrcode_button.dart';
@@ -47,16 +48,7 @@ class AppShell extends StatelessWidget {
   }
 
   void _showNfcSuccessSnackBar(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('NFC 驗證成功！', textAlign: TextAlign.center),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(16, 0, 16, 90),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show('NFC 驗證成功！');
   }
 
   @override

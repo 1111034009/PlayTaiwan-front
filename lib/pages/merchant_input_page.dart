@@ -6,6 +6,7 @@ import 'merchant_check_page.dart';
 import 'merchant_loading_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
@@ -38,7 +39,7 @@ class MerchantInputPage extends StatefulWidget {
 class _MerchantInputPageState extends State<MerchantInputPage> {
   static const double designWidth = 360;
   static const double designHeight = 640;
-  static const int maxUploadFiles = 6;
+  static const int maxUploadFiles = 10;
 
   final TextEditingController shopNameController = TextEditingController();
   final TextEditingController promotionController = TextEditingController();
@@ -111,20 +112,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
   void showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
-          ),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppNotice.show(message);
   }
 
   Future<void> uploadFile() async {

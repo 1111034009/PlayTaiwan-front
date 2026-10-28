@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../core/app_session.dart';
+import '../core/app_notice.dart';
 
 class StoryBadRequest implements Exception {
   final String message;
@@ -261,7 +262,7 @@ class StoryApi {
   }
 
   static const Duration _jobPollInterval = Duration(seconds: 2);
-  static const Duration _jobTimeout = Duration(minutes: 10);
+  static const Duration _jobTimeout = Duration(minutes: 35);
 
   static Future<Map<String, dynamic>> _pollJob({
     required Map<String, dynamic> first,
@@ -665,6 +666,7 @@ class StoryApi {
   //遊你說了算 -一句話生成劇本
   static Future<Map<String, dynamic>> generateByText({
     required String userPrompt,
+    void Function(String stage)? onStage,
   }) async {
     final String prompt = userPrompt.trim();
 
@@ -683,6 +685,9 @@ class StoryApi {
       first: data,
       path: '/api/Story/GenerateByText',
       failMessage: '劇本生成失敗，稍後嘗試',
+      onProgress: (job) {
+        onStage?.call(job['stage']?.toString().trim() ?? '');
+      },
     );
 
     if (job['data'] is! Map) {

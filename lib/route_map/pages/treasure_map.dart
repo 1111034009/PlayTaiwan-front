@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../api/pair_api.dart';
 import '../../pages/story_end_page.dart';
+import '../../core/app_notice.dart';
 import '../api.dart';
 import '../models.dart';
 import '../route_follow.dart';
@@ -542,9 +543,7 @@ class _TreasureMapState extends State<TreasureMap> {
   }
 
   void _snack(String text, Color color) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(backgroundColor: color, content: Text(text)));
+    AppNotice.show(text);
   }
 
   // ─────────────────────────── 關卡 ───────────────────────────
