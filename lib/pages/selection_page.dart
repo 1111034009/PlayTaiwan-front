@@ -247,8 +247,6 @@ class _SelectionPageState extends State<SelectionPage> {
   void _showLocationMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
     AppNotice.show(message);
   }
 
@@ -437,6 +435,77 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
+  // 360 x 630 的設計畫布內容
+  Widget _buildDesignStack() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(child: Container(color: pageColor)),
+
+        // 遊你說了算
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SizedBox(
+              width: 324,
+              height: 190,
+              child: _AdventurePaper(
+                child: _CustomAdventureContent(
+                  ideaController: ideaController,
+                  onPressed: customAdventure,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        Positioned(top: -20, right: 5, child: _JoinTeamBadge(onTap: joinTeam)),
+
+        // 現在揪出發
+        Positioned(
+          top: 200,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SizedBox(
+              width: 324,
+              height: 230,
+              child: _AdventurePaper(
+                child: _StartAdventureContent(
+                  locationController: locationController,
+                  onLocationChanged: (value) {
+                    fakeLocation = value;
+                  },
+                  onLocationPressed: useCurrentLocation,
+                  onPressed: startAdventure,
+                  loading: isLoadingLocation,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // 來點遊意思
+        Positioned(
+          top: 440,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SizedBox(
+              width: 324,
+              height: 180,
+              child: _AdventurePaper(
+                child: _RandomAdventureContent(onPressed: randomAdventure),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -446,88 +515,46 @@ class _SelectionPageState extends State<SelectionPage> {
           child: Scaffold(
             backgroundColor: pageColor,
             extendBody: true,
-            body: Center(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: designWidth,
-                  height: designHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(child: Container(color: pageColor)),
+            body: LayoutBuilder(
+              builder: (context, c) {
+                // 直式手機以寬度為準縮放;橫向則以高度為準
+                final bool portrait = c.maxHeight >= c.maxWidth;
+                final double scale = portrait
+                    ? c.maxWidth / designWidth
+                    : c.maxHeight / designHeight;
+                final double scaledWidth = designWidth * scale;
+                final double scaledHeight = designHeight * scale;
 
-                      // 遊你說了算
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: SizedBox(
-                            width: 324,
-                            height: 190,
-                            child: _AdventurePaper(
-                              child: _CustomAdventureContent(
-                                ideaController: ideaController,
-                                onPressed: customAdventure,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      Positioned(
-                        top: -20,
-                        right: 5,
-                        child: _JoinTeamBadge(onTap: joinTeam),
-                      ),
-
-                      // 現在揪出發
-                      Positioned(
-                        top: 200,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: SizedBox(
-                            width: 324,
-                            height: 230,
-                            child: _AdventurePaper(
-                              child: _StartAdventureContent(
-                                locationController: locationController,
-                                onLocationChanged: (value) {
-                                  fakeLocation = value;
-                                },
-                                onLocationPressed: useCurrentLocation,
-                                onPressed: startAdventure,
-                                loading: isLoadingLocation,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 來點遊意思
-                      Positioned(
-                        top: 440,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: SizedBox(
-                            width: 324,
-                            height: 180,
-                            child: _AdventurePaper(
-                              child: _RandomAdventureContent(
-                                onPressed: randomAdventure,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                final Widget canvas = SizedBox(
+                  width: scaledWidth,
+                  height: scaledHeight,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: designWidth,
+                      height: designHeight,
+                      child: _buildDesignStack(),
+                    ),
                   ),
-                ),
-              ),
+                );
+
+                // 高度夠:跟原本一樣置中顯示
+                if (scaledHeight <= c.maxHeight + 0.5) {
+                  return Center(child: canvas);
+                }
+
+                // 高度不夠:不縮小畫面,改成可上下滑動
+                final EdgeInsets inset = MediaQuery.paddingOf(context);
+
+                return SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    top: inset.top + 24 * scale,
+                    bottom: inset.bottom + 8,
+                  ),
+                  child: Center(child: canvas),
+                );
+              },
             ),
             bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),
