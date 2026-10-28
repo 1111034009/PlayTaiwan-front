@@ -515,6 +515,7 @@ class _SelectionPageState extends State<SelectionPage> {
           child: Scaffold(
             backgroundColor: pageColor,
             extendBody: true,
+            resizeToAvoidBottomInset: false,
             body: LayoutBuilder(
               builder: (context, c) {
                 // 直式手機以寬度為準縮放;橫向則以高度為準
@@ -915,7 +916,7 @@ class _CustomAdventureContent extends StatelessWidget {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                hintText: '例如：四人想去看櫻花(建議輸入人數，預設為1人)',
+                hintText: '例如:建議輸入人數與需求，預設為1人)',
                 hintStyle: AppTextStyles.bodyCompact.copyWith(
                   color: AppColors.mutedText,
                 ),
