@@ -364,10 +364,6 @@ class _SelectionPageState extends State<SelectionPage> {
     try {
       final Map<String, dynamic> result = await StoryApi.generateByText(
         userPrompt: idea,
-        onStage: (stage) {
-          if (!mounted || stage.isEmpty) return;
-          setState(() => generatingText = '$stage…');
-        },
       );
 
       _progressTimer?.cancel();
