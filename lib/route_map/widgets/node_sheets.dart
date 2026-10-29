@@ -8,6 +8,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../../pages/story_play_page.dart';
 import '../../core/app_notice.dart';
+import '../../core/app_text_styles.dart';
 
 // 劇本景點卡片上「回顧劇情」「查看任務」「周邊好去」打開的內容：回顧劇情是整頁，另外兩個從下方拉起。
 // 這裡是展示用的簡易版：正式 App 有自己的劇情頁、任務頁、周邊頁，併過去時這三個改成開那幾頁（帶 node_id）。
@@ -112,7 +113,10 @@ void showNodeTasks(BuildContext context, MapNode node) {
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
                   '作答在正式 App 的任務頁進行，這裡只列出題目和進度。',
-                  style: TextStyle(fontSize: 11, color: Pal.inkSoft),
+                  style: TextStyle(
+                    fontSize: MapText.caption,
+                    color: Pal.inkSoft,
+                  ),
                 ),
               ),
           ],
@@ -252,7 +256,7 @@ void _sheet(
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: MapText.bodySmall,
                   fontWeight: FontWeight.bold,
                   color: Pal.cinnabar,
                 ),
@@ -341,7 +345,10 @@ Widget _npcRow(Map<String, dynamic> npc) {
                 role,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.inkSoft,
+                ),
               ),
           ],
         ),
@@ -378,7 +385,7 @@ Widget _taskCard(int number, Map<String, dynamic> task) {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: MapText.caption,
                     ),
                   ),
           ),
@@ -390,7 +397,7 @@ Widget _taskCard(int number, Map<String, dynamic> task) {
                 Text(
                   '${_text(task['type_name'])}・${passed ? '已通過' : '未通過'}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: MapText.caption,
                     fontWeight: FontWeight.bold,
                     color: passed ? Pal.moss : Pal.inkSoft,
                   ),
@@ -405,7 +412,10 @@ Widget _taskCard(int number, Map<String, dynamic> task) {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       '線索：$clue',
-                      style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                      style: const TextStyle(
+                        fontSize: MapText.caption,
+                        color: Pal.inkSoft,
+                      ),
                     ),
                   ),
                 for (final option in options)
@@ -413,7 +423,10 @@ Widget _taskCard(int number, Map<String, dynamic> task) {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '${_text(option['option_key'])}. ${_text(option['option_text'])}',
-                      style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                      style: const TextStyle(
+                        fontSize: MapText.caption,
+                        color: Pal.inkSoft,
+                      ),
                     ),
                   ),
               ],

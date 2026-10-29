@@ -1,5 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../core/app_text_styles.dart';
+
+/// 地圖頁的字體大小。
+/// 只影響地圖頁（route_map/ 底下）和「做任務」頁，不會動到其他頁面。
+abstract final class MapText {
+  static const double scale = 1.15;
+
+  static const double micro = AppTextStyles.microSize * scale;
+  static const double caption = AppTextStyles.captionSize * scale;
+  static const double bodySmall = AppTextStyles.bodySmallSize * scale;
+  static const double body = AppTextStyles.bodySize * scale;
+  static const double sectionTitle = AppTextStyles.sectionTitleSize * scale;
+  static const double title = AppTextStyles.titleSize * scale;
+}
 
 /// 藏寶圖配色
 class Pal {
@@ -36,6 +50,18 @@ ThemeData buildTheme({String? fontFamily}) {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: Pal.parchment,
+    // 沒有特別指定字級的 Text 會吃這裡（原本這段寫在 ThemeData 外面，沒有生效）
+    textTheme: TextTheme(
+      bodyLarge: AppTextStyles.body.copyWith(fontSize: MapText.body),
+      bodyMedium: AppTextStyles.bodySmall.copyWith(fontSize: MapText.bodySmall),
+      bodySmall: AppTextStyles.caption.copyWith(fontSize: MapText.caption),
+      titleLarge: AppTextStyles.title.copyWith(fontSize: MapText.title),
+      titleMedium: AppTextStyles.sectionTitle.copyWith(
+        fontSize: MapText.sectionTitle,
+      ),
+      labelLarge: AppTextStyles.button.copyWith(fontSize: MapText.body),
+      labelMedium: AppTextStyles.label.copyWith(fontSize: MapText.caption),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Pal.ink,
       foregroundColor: Pal.parchment,
@@ -51,7 +77,10 @@ ThemeData buildTheme({String? fontFamily}) {
       ),
     ),
     chipTheme: const ChipThemeData(backgroundColor: Color(0xFFFBF3DF)),
-    navigationBarTheme: const NavigationBarThemeData(backgroundColor: Pal.parchmentDeep, indicatorColor: Pal.selected),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: Pal.parchmentDeep,
+      indicatorColor: Pal.selected,
+    ),
   );
 }
 
@@ -80,20 +109,63 @@ const allModes = ['步行', '腳踏車', '機車', '汽車', '公車', '台灣�
 ModeStyle modeStyle(String mode, {Color? lineColor}) {
   switch (mode) {
     case '步行':
-      return const ModeStyle(icon: Icons.directions_walk, color: Color(0xFF2E7D32), pattern: StrokePattern.dotted(spacingFactor: 1.8), width: 5);
+      return const ModeStyle(
+        icon: Icons.directions_walk,
+        color: Color(0xFF2E7D32),
+        pattern: StrokePattern.dotted(spacingFactor: 1.8),
+        width: 5,
+      );
     case '腳踏車':
-      return ModeStyle(icon: Icons.pedal_bike, color: const Color(0xFFEF6C00), pattern: StrokePattern.dashed(segments: const [14, 7]), width: 5);
+      return ModeStyle(
+        icon: Icons.pedal_bike,
+        color: const Color(0xFFEF6C00),
+        pattern: StrokePattern.dashed(segments: const [14, 7]),
+        width: 5,
+      );
     case '機車':
-      return ModeStyle(icon: Icons.two_wheeler, color: const Color(0xFF7B1FA2), pattern: StrokePattern.dashed(segments: const [20, 6, 4, 6]), width: 5);
+      return ModeStyle(
+        icon: Icons.two_wheeler,
+        color: const Color(0xFF7B1FA2),
+        pattern: StrokePattern.dashed(segments: const [20, 6, 4, 6]),
+        width: 5,
+      );
     case '汽車':
-      return const ModeStyle(icon: Icons.directions_car, color: Color(0xFF37474F), pattern: StrokePattern.solid(), width: 6);
+      return const ModeStyle(
+        icon: Icons.directions_car,
+        color: Color(0xFF37474F),
+        pattern: StrokePattern.solid(),
+        width: 6,
+      );
     case '公車':
-      return const ModeStyle(icon: Icons.directions_bus, color: Color(0xFFC62828), pattern: StrokePattern.solid(), width: 7, casing: true);
+      return const ModeStyle(
+        icon: Icons.directions_bus,
+        color: Color(0xFFC62828),
+        pattern: StrokePattern.solid(),
+        width: 7,
+        casing: true,
+      );
     case '台灣好行':
-      return const ModeStyle(icon: Icons.airport_shuttle, color: Color(0xFF1565C0), pattern: StrokePattern.solid(), width: 7, casing: true);
+      return const ModeStyle(
+        icon: Icons.airport_shuttle,
+        color: Color(0xFF1565C0),
+        pattern: StrokePattern.solid(),
+        width: 7,
+        casing: true,
+      );
     case '捷運':
-      return ModeStyle(icon: Icons.subway, color: lineColor ?? const Color(0xFF00897B), pattern: const StrokePattern.solid(), width: 8, casing: true);
+      return ModeStyle(
+        icon: Icons.subway,
+        color: lineColor ?? const Color(0xFF00897B),
+        pattern: const StrokePattern.solid(),
+        width: 8,
+        casing: true,
+      );
     default: // 轉乘
-      return const ModeStyle(icon: Icons.transfer_within_a_station, color: Color(0xFF757575), pattern: StrokePattern.dotted(), width: 4);
+      return const ModeStyle(
+        icon: Icons.transfer_within_a_station,
+        color: Color(0xFF757575),
+        pattern: StrokePattern.dotted(),
+        width: 4,
+      );
   }
 }

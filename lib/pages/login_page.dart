@@ -93,6 +93,19 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _waitKeyboardClosed() async {
+    final view = View.of(context);
+    final DateTime deadline = DateTime.now().add(
+      const Duration(milliseconds: 1200),
+    );
+
+    while (view.viewInsets.bottom > 0 && DateTime.now().isBefore(deadline)) {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) return;
+    }
+  }
+
   Future<void> login() async {
     final String account = accountController.text.trim();
     final String password = passwordController.text;
@@ -110,6 +123,9 @@ class _LoginPageState extends State<LoginPage> {
     if (isLoading) {
       return;
     }
+
+    // 先收鍵盤，等打 API 的時候鍵盤就收完了
+    FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
       isLoading = true;
@@ -174,6 +190,9 @@ class _LoginPageState extends State<LoginPage> {
         AppSession.epName = epName;
         AppSession.store_id = store_id;
         NearbyCache.instance.start();
+
+        // 鍵盤完全收起來再換頁，下一頁才不會在縮小的版面上建立
+        await _waitKeyboardClosed();
 
         if (!mounted) return;
         if (accountType == 1 || accountType == 2 || accountType == 3) {

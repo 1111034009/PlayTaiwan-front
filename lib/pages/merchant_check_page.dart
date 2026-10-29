@@ -160,7 +160,7 @@ class _MerchantCheckPageState extends State<MerchantCheckPage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Text(
-                      '<< 返回編輯',
+                      '<< 返回',
                       style: AppTextStyles.bodySmallBold
                           .copyWith(color: const Color(0xFFFAF7F1))
                           .copyWith(

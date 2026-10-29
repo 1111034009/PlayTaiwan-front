@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/pair_api.dart';
 import '../../pages/story_end_page.dart';
 import '../../core/app_notice.dart';
+import '../../core/app_text_styles.dart';
 import '../api.dart';
 import '../models.dart';
 import '../route_follow.dart';
@@ -103,7 +104,7 @@ class _TreasureMapState extends State<TreasureMap> {
   static const _distance = Distance();
 
   /// 地圖右上工具列每一格的寬度（見 _mapControls）。手機上景點卡片要讓出這麼寬，才不會蓋住工具列
-  static const _toolbarWidth = 56.0;
+  static const _toolbarWidth = 64.0;
 
   final _map = MapController();
 
@@ -185,6 +186,14 @@ class _TreasureMapState extends State<TreasureMap> {
 
   Map<String, TransportAvailability> _availability = {};
   final Set<String> _modes = {..._defaultModes};
+
+  /// 在分頁上點了一個還沒查過的交通方式（腳踏車、機車、汽車…）：加進規劃後，路線回來時自動選那一種
+  String? _pendingMode;
+
+  /// 使用者最後選的交通方式；重新規劃、切換畫面回來都會優先選這一種
+  String? _preferredMode;
+  static const _modesPref = 'map_modes';
+  static const _preferredModePref = 'map_preferred_mode';
 
   /// null = 依螢幕寬度決定（寬螢幕展開、手機收起）
   bool? _legendOpen;
@@ -292,6 +301,7 @@ class _TreasureMapState extends State<TreasureMap> {
 
   // ─────────────────────────── 關卡進度（後端） ───────────────────────────
   Future<void> _start() async {
+    await _loadModePrefs();
     await _loadMap();
     if (!mounted || _nodes.isEmpty) return;
     _pollTeam();
@@ -621,6 +631,8 @@ class _TreasureMapState extends State<TreasureMap> {
   Future<void> _replanAll() async {
     await _planRoute();
     if (mounted && _detour != null) await _planDetour(refresh: true);
+    // 分頁上點的交通方式，兩條路線都套用過了
+    _pendingMode = null;
   }
 
   /// 路線已經先從別的地方規劃了，定位才回來：等手上的規劃做完，再從我的位置重新規劃
@@ -933,7 +945,7 @@ class _TreasureMapState extends State<TreasureMap> {
     final here = _myLocation?.latLng ?? _origin?.latLng;
     if (here == null) {
       setState(() => _nearbyKinds.clear());
-      _snack('還不知道你在哪裡，先按地圖右上的「重新定位」', Pal.gold);
+      _snack('還不知道你在哪裡，先按地圖右上的「定位」', Pal.gold);
       return;
     }
     final seq = ++_nearbySeq;
@@ -991,7 +1003,38 @@ class _TreasureMapState extends State<TreasureMap> {
     }
   }
 
-  /// 點地圖上的交通方式：勾選或取消，稍等一下自動重新規劃。附近沒有的（反灰）點了只說明原因
+  /// 讀回上次勾選的交通方式和最後選的那一種
+  Future<void> _loadModePrefs() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final saved = p.getStringList(_modesPref);
+      if (saved != null) {
+        final valid = saved.where((m) => allModes.contains(m)).toSet();
+        if (valid.isNotEmpty) {
+          _modes
+            ..clear()
+            ..addAll(valid);
+        }
+      }
+      final mode = p.getString(_preferredModePref);
+      if (mode != null && allModes.contains(mode)) _preferredMode = mode;
+    } catch (_) {}
+  }
+
+  Future<void> _saveModePrefs() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setStringList(_modesPref, _modes.toList());
+      final m = _preferredMode;
+      if (m == null) {
+        await p.remove(_preferredModePref);
+      } else {
+        await p.setString(_preferredModePref, m);
+      }
+    } catch (_) {}
+  }
+
+  /// 勾選或取消一種交通方式，稍等一下自動重新規劃。附近沒有的（反灰）只說明原因
   void _toggleMode(String mode) {
     final availability = _availability[mode];
     if (availability?.enabled == false) {
@@ -1002,6 +1045,7 @@ class _TreasureMapState extends State<TreasureMap> {
       _modes.contains(mode) ? _modes.remove(mode) : _modes.add(mode);
       if (_modes.isEmpty) _modes.add('步行');
     });
+    _saveModePrefs();
     _replanTimer?.cancel();
     _replanTimer = Timer(const Duration(milliseconds: 700), _replanWhenIdle);
   }
@@ -1023,7 +1067,7 @@ class _TreasureMapState extends State<TreasureMap> {
   Future<void> _goToPlace(NearbyPlace place) async {
     if (place.point == null) return;
     if (_origin == null) {
-      _snack('還不知道從哪裡出發，先按地圖右上的「重新定位」', Pal.gold);
+      _snack('還不知道從哪裡出發，先按地圖右上的「定位」', Pal.gold);
       return;
     }
     _stopSim();
@@ -1047,6 +1091,7 @@ class _TreasureMapState extends State<TreasureMap> {
     if (place == null || place.point == null || origin == null) return;
     final to = place.point!;
     final previousMode = _optionOf(_detourKey)?.mode;
+    final wantedMode = _pendingMode ?? _preferredMode;
     setState(() => _planning = true);
     try {
       final result = await Api.instance.post('/api/Route/Plan', {
@@ -1070,9 +1115,11 @@ class _TreasureMapState extends State<TreasureMap> {
       final options = plan.legs.isEmpty
           ? const <RouteOption>[]
           : plan.legs.first.options;
-      final keep = auto || refresh
-          ? options.indexWhere((o) => o.mode == previousMode)
-          : -1;
+      final keep = wantedMode != null
+          ? options.indexWhere((o) => o.mode == wantedMode)
+          : (auto || refresh
+                ? options.indexWhere((o) => o.mode == previousMode)
+                : -1);
       setState(() {
         _plans[_detourKey] = plan;
         keep > 0 ? _chosen[_detourKey] = keep : _chosen.remove(_detourKey);
@@ -1215,6 +1262,7 @@ class _TreasureMapState extends State<TreasureMap> {
     final origin = _origin;
     if (_currentNode == null) return;
     final previousMode = _optionOf(stage)?.mode;
+    final wantedMode = _pendingMode ?? _preferredMode;
     setState(() => _planning = true);
     try {
       final result = await Api.instance.post('/api/Route/Plan', {
@@ -1233,9 +1281,9 @@ class _TreasureMapState extends State<TreasureMap> {
       final options = plan.legs.isEmpty
           ? const <RouteOption>[]
           : plan.legs.first.options;
-      final keep = auto
-          ? options.indexWhere((o) => o.mode == previousMode)
-          : -1;
+      final keep = wantedMode != null
+          ? options.indexWhere((o) => o.mode == wantedMode)
+          : (auto ? options.indexWhere((o) => o.mode == previousMode) : -1);
       setState(() {
         _plans[stage] = plan;
         keep > 0 ? _chosen[stage] = keep : _chosen.remove(stage);
@@ -2027,7 +2075,7 @@ class _TreasureMapState extends State<TreasureMap> {
   /// 周邊好去的地點標記：飲食是金色刀叉、其他是綠色相機，選中的放大加深色框
   Marker _nearbyMarker(NearbyPlace p) {
     final selected = _selectedPlace?.key == p.key || _detour?.key == p.key;
-    final size = selected ? 32.0 : 26.0;
+    final size = selected ? 44.0 : 36.0;
     return Marker(
       point: p.point!,
       width: size,
@@ -2065,14 +2113,13 @@ class _TreasureMapState extends State<TreasureMap> {
     ),
   );
 
-  /// 地圖右上：一條直排的工具列（交通方式、找附近「吃的」「拍照」、重新定位）。
+  /// 地圖右上：一條直排的工具列（找附近「吃的」「拍照」、重新定位）。
   /// 工具列每一格一樣寬，圖示在上、小字在下，中間細線隔開，看起來是一整個工具，不會零零散散蓋在路線上。
-  /// 交通方式可以複選：點了打開選單，打勾的是選了的、附近沒有的反灰並寫原因，點一下切換（選單不收起來）並自動重新規劃；
-  /// 收起來時格子上顯示目前選了哪些交通方式。「吃的」「拍照」按了才查（見 _toggleNearby），按著的那一格整格填色
+  /// 交通方式在底部面板的分頁裡切換。「吃的」「拍照」按了才查（見 _toggleNearby），按著的那一格整格填色
   Widget _mapControls() {
     const panelColor = Color(0xF2EFE5CB);
     const cellWidth = _toolbarWidth;
-    const cellHeight = 50.0;
+    const cellHeight = 58.0;
 
     /// 工具列裡的一格：[icon] 在上、[label] 在下；[fill] 是按著時整格的顏色，字和圖示換成白色
     Widget cell({
@@ -2102,7 +2149,7 @@ class _TreasureMapState extends State<TreasureMap> {
     Text labelText(String text, {bool on = false}) => Text(
       text,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: MapText.caption,
         fontWeight: FontWeight.w700,
         height: 1,
         color: on ? Colors.white : Pal.ink,
@@ -2113,108 +2160,6 @@ class _TreasureMapState extends State<TreasureMap> {
       width: cellWidth,
       height: 1,
       color: PlaceTicket.frame.withValues(alpha: 0.35),
-    );
-
-    bool enabled(String mode) => _availability[mode]?.enabled != false;
-    bool selected(String mode) => enabled(mode) && _modes.contains(mode);
-
-    Widget modeItem(String mode) {
-      final availability = _availability[mode];
-      final on = selected(mode);
-      final color = enabled(mode) ? modeStyle(mode).color : Pal.disabled;
-      return MenuItemButton(
-        closeOnActivate: false, // 可以複選，選一個選單不收起來
-        onPressed: () => _toggleMode(mode),
-        leadingIcon: Icon(modeStyle(mode).icon, size: 20, color: color),
-        trailingIcon: Icon(
-          on ? Icons.check_box : Icons.check_box_outline_blank,
-          size: 20,
-          color: on ? color : Pal.disabled,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              mode,
-              style: TextStyle(
-                color: enabled(mode) ? Pal.ink : Pal.disabled,
-                fontWeight: on ? FontWeight.w700 : FontWeight.w400,
-              ),
-            ),
-            if (!enabled(mode))
-              Text(
-                availability!.reason,
-                style: const TextStyle(fontSize: 11, color: Pal.disabled),
-              ),
-          ],
-        ),
-      );
-    }
-
-    // 上面是自己移動的（步行、腳踏車、機車、汽車），分隔線下面是大眾運輸（公車、台灣好行、捷運）
-    const transit = ['公車', '台灣好行', '捷運'];
-    final chosen = allModes.where(selected).toList();
-
-    // 交通方式這一格：選了的交通方式最多畫兩個圖示，再多的寫 +N
-    final modeCell = MenuAnchor(
-      alignmentOffset: const Offset(0, 4),
-      style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(Color(0xF7EFE5CB)),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: PlaceTicket.frame, width: 1.3),
-          ),
-        ),
-      ),
-      menuChildren: [
-        for (final mode in allModes)
-          if (!transit.contains(mode)) modeItem(mode),
-        const Divider(height: 1),
-        for (final mode in allModes)
-          if (transit.contains(mode)) modeItem(mode),
-      ],
-      builder: (context, controller, _) => cell(
-        tooltip: '交通方式（可複選）',
-        onTap: () => controller.isOpen ? controller.close() : controller.open(),
-        icon: SizedBox(
-          height: 20,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (chosen.isEmpty)
-                const Icon(Icons.alt_route, size: 20, color: Pal.inkSoft),
-              for (final mode in chosen.take(2))
-                Icon(
-                  modeStyle(mode).icon,
-                  size: 18,
-                  color: modeStyle(mode).color,
-                ),
-              if (chosen.length > 2)
-                Text(
-                  '+${chosen.length - 2}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Pal.inkSoft,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            labelText('交通'),
-            Icon(
-              controller.isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-              size: 14,
-              color: Pal.ink,
-            ),
-          ],
-        ),
-      ),
     );
 
     // 「吃的」「拍照」：按著的那一格填色（顏色跟地圖上的標記一樣），查詢中轉圈
@@ -2232,35 +2177,35 @@ class _TreasureMapState extends State<TreasureMap> {
         fill: on ? color : null,
         icon: on && _nearbyLoading
             ? const SizedBox(
-                width: 18,
-                height: 18,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: Colors.white,
                 ),
               )
-            : Icon(icon, size: 20, color: on ? Colors.white : color),
+            : Icon(icon, size: 26, color: on ? Colors.white : color),
         label: labelText(label, on: on),
       );
     }
 
-    // 重新定位也是工具列的一格，跟上面三格一樣寬；定位、查交通、規劃中轉圈
+    // 重新定位也是工具列的一格，跟上面兩格一樣寬；定位、查交通、規劃中轉圈
     final busy = _locating || _checking || _planning;
     final locateCell = cell(
-      tooltip: '重新定位',
+      tooltip: '定位',
       onTap: _locating ? null : _relocate,
       icon: busy
           ? const SizedBox(
-              width: 18,
-              height: 18,
+              width: 24,
+              height: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Icon(
               _myLocation != null ? Icons.my_location : Icons.location_disabled,
-              size: 20,
+              size: 26,
               color: Pal.ink,
             ),
-      label: labelText('重新定位'),
+      label: labelText('定位'),
     );
 
     return Material(
@@ -2274,8 +2219,6 @@ class _TreasureMapState extends State<TreasureMap> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          modeCell,
-          divider,
           nearbyCell(_foodKind, '吃的', '找附近吃的', Icons.restaurant, Pal.gold),
           divider,
           nearbyCell(_photoKind, '景點', '找附近景點地標', Icons.photo_camera, Pal.moss),
@@ -2295,7 +2238,10 @@ class _TreasureMapState extends State<TreasureMap> {
         mainAxisSize: MainAxisSize.min,
         children: [
           icon,
-          Text(' $label', style: const TextStyle(fontSize: 11, color: Pal.ink)),
+          Text(
+            ' $label',
+            style: const TextStyle(fontSize: MapText.caption, color: Pal.ink),
+          ),
         ],
       ),
     );
@@ -2343,7 +2289,7 @@ class _TreasureMapState extends State<TreasureMap> {
                   const Text(
                     ' 圖例',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: MapText.caption,
                       fontWeight: FontWeight.bold,
                       color: Pal.ink,
                     ),
@@ -2386,7 +2332,10 @@ class _TreasureMapState extends State<TreasureMap> {
                         const SizedBox(width: 4),
                         Text(
                           mode,
-                          style: const TextStyle(fontSize: 11, color: Pal.ink),
+                          style: const TextStyle(
+                            fontSize: MapText.caption,
+                            color: Pal.ink,
+                          ),
                         ),
                       ],
                     ),
@@ -2432,7 +2381,7 @@ class _TreasureMapState extends State<TreasureMap> {
         Text(
           _story.title,
           style: const TextStyle(
-            fontSize: 17,
+            fontSize: MapText.bodySmall,
             fontWeight: FontWeight.bold,
             color: Pal.ink,
           ),
@@ -2455,7 +2404,10 @@ class _TreasureMapState extends State<TreasureMap> {
               const SizedBox(width: 10),
               Text(
                 '已破 $_stage / $total 關',
-                style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.inkSoft,
+                ),
               ),
             ],
           ),
@@ -2515,7 +2467,7 @@ class _TreasureMapState extends State<TreasureMap> {
     );
   }
 
-  /// 目前這一關：路線、破關。交通方式和重新定位在地圖右上，不放在這裡（手機上太擠）
+  /// 目前這一關：路線、破關。交通方式在路線卡片的分頁裡切換，重新定位在地圖右上
   List<Widget> _stagePanel() {
     final node = _nodes[_stage];
     final plan = _plans[_stage];
@@ -2527,7 +2479,7 @@ class _TreasureMapState extends State<TreasureMap> {
       if (!node.hasPoint)
         const Text(
           '後端查不到這一關的座標，地圖上不會顯示，也規劃不出路線。',
-          style: TextStyle(fontSize: 12, color: Pal.cinnabar),
+          style: TextStyle(fontSize: MapText.caption, color: Pal.cinnabar),
         )
       else if (plan == null)
         // 進入一關會自動規劃；失敗時（例如後端沒開）可以從這裡再試一次
@@ -2564,7 +2516,7 @@ class _TreasureMapState extends State<TreasureMap> {
           ),
           subtitle: const Text(
             '不用到現場、不用作答，直接破關（展示用）',
-            style: TextStyle(fontSize: 11),
+            style: TextStyle(fontSize: MapText.caption),
           ),
           value: _demo,
           onChanged: _advancing ? null : (v) => setState(() => _demo = v),
@@ -2578,7 +2530,10 @@ class _TreasureMapState extends State<TreasureMap> {
                       ? '已抵達「${node.label}」。按「做任務」把這一關的任務做完，下一關才會解鎖。'
                       : '已抵達「${node.label}」。把這一關的任務做完，下一關才會解鎖（每 20 秒自動檢查一次）。')
                 : '走到景點 200 公尺內按「我到了」；抵達後把這一關的任務做完，下一關才會解鎖。',
-            style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+            style: const TextStyle(
+              fontSize: MapText.caption,
+              color: Pal.inkSoft,
+            ),
           ),
         ),
       // 可以做任務時「做任務」是主要的按鈕，檢查進度退到下面（隊友做完的時候用；自己做完回來會自動檢查）
@@ -2678,7 +2633,7 @@ class _TreasureMapState extends State<TreasureMap> {
                 '全部 ${_nodes.length} 關都破關了！',
                 style: const TextStyle(
                   color: Pal.parchment,
-                  fontSize: 17,
+                  fontSize: MapText.bodySmall,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -2733,7 +2688,7 @@ class _TreasureMapState extends State<TreasureMap> {
       if (plan == null)
         Text(
           '正在規劃去「${_detour!.name}」的路線…',
-          style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+          style: const TextStyle(fontSize: MapText.caption, color: Pal.inkSoft),
         )
       else ...[
         ..._routeResult(_detourKey, plan),
@@ -2771,7 +2726,7 @@ class _TreasureMapState extends State<TreasureMap> {
         Text(
           text,
           style: const TextStyle(
-            fontSize: 15,
+            fontSize: MapText.bodySmall,
             fontWeight: FontWeight.bold,
             color: Pal.cinnabar,
             letterSpacing: 1,
@@ -2787,6 +2742,213 @@ class _TreasureMapState extends State<TreasureMap> {
   Color _optionColor(RouteOption o) {
     final metro = o.segments.where((s) => s.mode == '捷運');
     return metro.isNotEmpty ? metro.first.color : modeStyle(o.mode).color;
+  }
+
+  String _arriveText(double minutes) {
+    final t = DateTime.now().add(Duration(minutes: minutes.ceil()));
+    return '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _selectOption(int stage, int k) {
+    final legs = _plans[stage]?.legs ?? const <RouteLeg>[];
+    if (legs.isNotEmpty && k < legs.first.options.length) {
+      _preferredMode = legs.first.options[k].mode;
+      _saveModePrefs();
+    }
+    setState(() {
+      _chosen[stage] = k;
+      _resetFollow();
+      _simMeters = 0;
+      _simDrift = 0;
+    });
+    _fitStage();
+  }
+
+  /// 點交通方式分頁：這一種已經有路線就直接切過去；還沒查過（腳踏車、機車、汽車…）就加進規劃，
+  /// 路線回來後自動選這一種；附近沒有的（反灰）只說明原因
+  void _pickModeTab(int stage, RouteLeg leg, String mode) {
+    final k = leg.options.indexWhere((o) => o.mode == mode);
+
+    if (k >= 0) {
+      _selectOption(stage, k);
+      return;
+    }
+
+    if (_availability[mode]?.enabled == false) {
+      _toggleMode(mode);
+      return;
+    }
+
+    if (!_modes.contains(mode)) {
+      _pendingMode = mode;
+      _preferredMode = mode;
+      _toggleMode(mode);
+      return;
+    }
+    _snack('這一關沒有可用的$mode路線', Pal.gold);
+  }
+
+  /// 交通方式分頁：全部交通方式（步行、腳踏車、機車、汽車、公車、台灣好行、捷運），
+  /// 一排放不下，橫向可以滑動
+  Widget _modeTabs(int stage, RouteLeg leg, RouteOption current) {
+    Widget tab(String mode) {
+      final enabled = _availability[mode]?.enabled != false;
+      final times = [
+        for (final o in leg.options)
+          if (o.mode == mode) o.minutes,
+      ];
+      final best = times.isEmpty ? null : times.reduce((a, b) => a < b ? a : b);
+      final on = current.mode == mode;
+      final color = enabled ? modeStyle(mode).color : Pal.disabled;
+
+      return SizedBox(
+        width: 76,
+        child: InkWell(
+          onTap: () => _pickModeTab(stage, leg, mode),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: on ? color.withValues(alpha: 0.18) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: on ? color : Pal.parchmentDeep,
+                width: on ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(modeStyle(mode).icon, size: 24, color: color),
+                const SizedBox(height: 2),
+                Text(
+                  mode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: MapText.caption,
+                    fontWeight: FontWeight.w700,
+                    color: enabled ? Pal.ink : Pal.disabled,
+                  ),
+                ),
+                Text(
+                  best != null
+                      ? '${best.ceil()} 分'
+                      : (enabled ? '點選查詢' : '附近沒有'),
+                  style: TextStyle(
+                    fontSize: MapText.micro,
+                    color: best != null ? color : Pal.disabled,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < allModes.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                tab(allModes[i]),
+              ],
+            ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.swipe, size: 14, color: Pal.inkSoft),
+              SizedBox(width: 4),
+              Text(
+                '左右滑動查看交通方式',
+                style: TextStyle(fontSize: MapText.micro, color: Pal.inkSoft),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _optionCard(int stage, RouteLeg leg, int k) {
+    final o = leg.options[k];
+    final on = (_chosen[stage] ?? 0) == k;
+    final color = _optionColor(o);
+    final wait = o.segments.fold<double>(0, (s, seg) => s + seg.waitMinutes);
+    final rides = o.segments
+        .where((s) => s.mode != '步行' && s.mode != '轉乘')
+        .length;
+    final transfers = rides > 1 ? rides - 1 : 0;
+
+    return InkWell(
+      onTap: () => _selectOption(stage, k),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: on ? color.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: on ? color : Pal.parchmentDeep,
+            width: on ? 2 : 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    o.summary,
+                    style: TextStyle(fontSize: MapText.caption, color: Pal.ink),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${o.distanceKm.toStringAsFixed(1)} 公里'
+                    '${wait > 0 ? '・候車約 ${wait.ceil()} 分' : ''}'
+                    '${transfers > 0 ? '・轉乘 $transfers 次' : ''}',
+                    style: TextStyle(
+                      fontSize: MapText.micro,
+                      color: Pal.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${o.minutes.ceil()} 分',
+                  style: TextStyle(
+                    fontSize: MapText.sectionTitle,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  '預計 ${_arriveText(o.minutes)} 抵達',
+                  style: TextStyle(fontSize: MapText.micro, color: Pal.inkSoft),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 一關的路線：可以換交通方式；點一下展開每一步怎麼走
@@ -2809,7 +2971,10 @@ class _TreasureMapState extends State<TreasureMap> {
               Expanded(
                 child: Text(
                   w,
-                  style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                  style: const TextStyle(
+                    fontSize: MapText.caption,
+                    color: Pal.inkSoft,
+                  ),
                 ),
               ),
             ],
@@ -2848,7 +3013,7 @@ class _TreasureMapState extends State<TreasureMap> {
                           Text(
                             option.summary,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: MapText.caption,
                               color: Pal.inkSoft,
                             ),
                           ),
@@ -2864,7 +3029,7 @@ class _TreasureMapState extends State<TreasureMap> {
                           style: TextStyle(
                             color: color,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: MapText.caption,
                           ),
                         ),
                       ],
@@ -2877,45 +3042,18 @@ class _TreasureMapState extends State<TreasureMap> {
                 ),
               ),
             ),
-            if (leg.options.length > 1)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (var k = 0; k < leg.options.length; k++)
-                      ChoiceChip(
-                        visualDensity: VisualDensity.compact,
-                        avatar: Icon(
-                          modeStyle(leg.options[k].mode).icon,
-                          size: 16,
-                          color: _optionColor(leg.options[k]),
-                        ),
-                        label: Text(
-                          '${leg.options[k].mode} ${leg.options[k].minutes.ceil()} 分'
-                          '${k == 0 ? '・最快' : ''}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        selected: (_chosen[stage] ?? 0) == k,
-                        selectedColor: _optionColor(
-                          leg.options[k],
-                        ).withValues(alpha: 0.2),
-                        showCheckmark: false,
-                        onSelected: (_) {
-                          setState(() {
-                            _chosen[stage] = k;
-                            // 換了交通方式就是換了一條路線
-                            _resetFollow();
-                            _simMeters = 0;
-                            _simDrift = 0;
-                          });
-                          _fitStage();
-                        },
-                      ),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _modeTabs(stage, leg, option),
+                  for (var k = 0; k < leg.options.length; k++)
+                    if (leg.options[k].mode == option.mode)
+                      _optionCard(stage, leg, k),
+                ],
               ),
+            ),
             if (_showSteps)
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
@@ -2974,7 +3112,10 @@ class _TreasureMapState extends State<TreasureMap> {
               ),
               Text(
                 '已走 ${(progress.fraction * 100).round()}%',
-                style: const TextStyle(fontSize: 12, color: Pal.inkSoft),
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.inkSoft,
+                ),
               ),
             ],
           ),
@@ -2994,7 +3135,10 @@ class _TreasureMapState extends State<TreasureMap> {
               Icon(icon, size: 15, color: tone),
               const SizedBox(width: 4),
               Expanded(
-                child: Text(text, style: TextStyle(fontSize: 12, color: tone)),
+                child: Text(
+                  text,
+                  style: TextStyle(fontSize: MapText.caption, color: tone),
+                ),
               ),
             ],
           ),
@@ -3043,9 +3187,12 @@ class _TreasureMapState extends State<TreasureMap> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               _simulated
-                  ? '現在的位置是模擬的，確認抵達用的也是它。按地圖右上的「重新定位」換回真的定位。'
+                  ? '現在的位置是模擬的，確認抵達用的也是它。按地圖右上的「定位」換回真的定位。'
                   : '展示用：模擬的位置會當成我的定位，路線縮短、偏離重新規劃、確認抵達走的是跟真的定位一樣的流程。',
-              style: const TextStyle(fontSize: 11, color: Pal.inkSoft),
+              style: const TextStyle(
+                fontSize: MapText.caption,
+                color: Pal.inkSoft,
+              ),
             ),
           ),
         ],
@@ -3072,16 +3219,25 @@ class _TreasureMapState extends State<TreasureMap> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(seg.instruction, style: const TextStyle(fontSize: 13)),
+                Text(
+                  seg.instruction,
+                  style: const TextStyle(fontSize: MapText.caption),
+                ),
                 if (seg.waitMinutes > 0)
                   Text(
                     '候車約 ${seg.waitMinutes.ceil()} 分鐘',
-                    style: const TextStyle(fontSize: 11, color: Pal.inkSoft),
+                    style: const TextStyle(
+                      fontSize: MapText.caption,
+                      color: Pal.inkSoft,
+                    ),
                   ),
                 if (seg.isRide && seg.stops.length > 2)
                   Text(
                     '經過：${seg.stops.skip(1).take(seg.stops.length - 2).map((s) => s.name).join('、')}',
-                    style: const TextStyle(fontSize: 11, color: Pal.inkSoft),
+                    style: const TextStyle(
+                      fontSize: MapText.caption,
+                      color: Pal.inkSoft,
+                    ),
                   ),
               ],
             ),
@@ -3089,7 +3245,7 @@ class _TreasureMapState extends State<TreasureMap> {
           Text(
             '${seg.minutes.ceil()} 分',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: MapText.caption,
               color: color,
               fontWeight: FontWeight.bold,
             ),

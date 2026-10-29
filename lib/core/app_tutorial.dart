@@ -61,7 +61,8 @@ class AppTutorial {
     } catch (_) {}
   }
 
-  static TargetPosition? _positionOf(GlobalKey key, Size screen) {
+  /// 目標元件現在在螢幕上的位置（沒有就回 null）
+  static Rect? _rectOf(GlobalKey key) {
     final RenderObject? object = key.currentContext?.findRenderObject();
 
     if (object is! RenderBox || !object.attached || !object.hasSize) {
@@ -91,9 +92,74 @@ class AppTutorial {
     final Rect rect = Rect.fromLTRB(left, top, right, bottom);
 
     if (rect.width <= 0 || rect.height <= 0) return null;
+
+    return rect;
+  }
+
+  static TargetPosition? _positionOf(GlobalKey key, Size screen) {
+    final Rect? rect = _rectOf(key);
+
+    if (rect == null) return null;
     if (!(Offset.zero & screen).overlaps(rect)) return null;
 
     return TargetPosition(rect.size, rect.topLeft);
+  }
+
+  /// 等到「鍵盤收起來」而且「所有目標的位置連續 3 個 frame 都沒動」才回傳。
+  /// 從登入頁（鍵盤還開著、版面被縮小）跳過來時，
+  /// 頁面會先在縮小的版面上畫一次，再彈回正常大小，這時量的位置是錯的。
+  /// 最多等 3 秒，超過就用目前的位置。
+  static Future<bool> _waitUntilSettled(
+    BuildContext context,
+    List<GlobalKey> keys,
+  ) async {
+    final Stopwatch watch = Stopwatch()..start();
+    List<Rect?>? last;
+    int stable = 0;
+
+    while (watch.elapsed < const Duration(seconds: 3)) {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!context.mounted) return false;
+
+      final bool keyboardOpen = View.of(context).viewInsets.bottom > 0;
+      final List<Rect?> now = [for (final GlobalKey key in keys) _rectOf(key)];
+
+      if (!keyboardOpen && last != null && _sameRects(last, now)) {
+        stable++;
+      } else {
+        stable = 0;
+      }
+
+      last = now;
+
+      if (stable >= 3) return true;
+    }
+
+    return context.mounted;
+  }
+
+  static bool _sameRects(List<Rect?> a, List<Rect?> b) {
+    if (a.length != b.length) return false;
+
+    for (int i = 0; i < a.length; i++) {
+      final Rect? x = a[i];
+      final Rect? y = b[i];
+
+      if (x == null || y == null) {
+        if (x != y) return false;
+        continue;
+      }
+
+      if ((x.left - y.left).abs() > 0.5 ||
+          (x.top - y.top).abs() > 0.5 ||
+          (x.width - y.width).abs() > 0.5 ||
+          (x.height - y.height).abs() > 0.5) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   static Widget _bubble(TutorialStep step, int index, int total) {
@@ -119,11 +185,18 @@ class AppTutorial {
     );
   }
 
-  static void show(
+  static Future<void> show(
     BuildContext context, {
     required String id,
     required List<TutorialStep> steps,
-  }) {
+  }) async {
+    // 等鍵盤收起、版面穩定後才量位置，避免定位跑掉
+    final bool ready = await _waitUntilSettled(context, [
+      for (final TutorialStep step in steps) step.target,
+    ]);
+
+    if (!ready || !context.mounted) return;
+
     final Size screen = MediaQuery.sizeOf(context);
     final List<TutorialStep> usable = [];
     final List<TargetPosition> positions = [];

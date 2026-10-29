@@ -4,18 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import 'place_ticket.dart';
+import '../../core/app_text_styles.dart';
 
 /// 天氣圖示：後端 GET /api/Map/Weather 的 condition
 IconData weatherIcon(String? condition) => switch (condition) {
-      'clear' => Icons.wb_sunny,
-      'cloudy' => Icons.wb_cloudy,
-      'overcast' => Icons.cloud,
-      'fog' => Icons.foggy,
-      'rain' => Icons.umbrella,
-      'thunder' => Icons.thunderstorm,
-      'snow' => Icons.ac_unit,
-      _ => Icons.thermostat,
-    };
+  'clear' => Icons.wb_sunny,
+  'cloudy' => Icons.wb_cloudy,
+  'overcast' => Icons.cloud,
+  'fog' => Icons.foggy,
+  'rain' => Icons.umbrella,
+  'thunder' => Icons.thunderstorm,
+  'snow' => Icons.ac_unit,
+  _ => Icons.thermostat,
+};
 
 /// 地圖上的 NPC：平常只是角落的一個頭像，不擋畫面；有話要說才跳出對話泡泡。
 /// 什麼時候該說話（快下雨、太熱、用餐時間…）由後端判斷，這裡只管畫。
@@ -68,69 +69,130 @@ class NpcBuddy extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= 900 || this.avatar != null;
-    final placeholder = const ColoredBox(color: Pal.parchmentDeep, child: Icon(Icons.face, color: Pal.inkSoft, size: 26));
-    final avatar = this.avatar ?? Tooltip(
-      message: name == null || name!.isEmpty ? 'NPC' : name!,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: PlaceTicket.frame, width: 2),
-            boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 5, offset: Offset(0, 2))],
-          ),
-          child: ClipOval(
-            child: Stack(fit: StackFit.expand, children: [
-              (avatarUrl ?? '').isEmpty
-                  ? placeholder
-                  : Image.network(avatarUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => placeholder),
-              if (busy)
-                const ColoredBox(
-                  color: Color(0x88000000),
-                  child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  ),
-                ),
-            ]),
-          ),
-        ),
-      ),
+    final placeholder = const ColoredBox(
+      color: Pal.parchmentDeep,
+      child: Icon(Icons.face, color: Pal.inkSoft, size: 26),
     );
-    final bubble = text == null ? null : ConstrainedBox(constraints: BoxConstraints(maxWidth: math.min(270.0, width - 130)), child: _bubble());
-    return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-      if (wide && bubble != null) ...[bubble, const SizedBox(width: 6)],
-      avatar,
-      if (!wide && bubble != null) ...[const SizedBox(width: 6), bubble],
-    ]);
+    final avatar =
+        this.avatar ??
+        Tooltip(
+          message: name == null || name!.isEmpty ? 'NPC' : name!,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: PlaceTicket.frame, width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x55000000),
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    (avatarUrl ?? '').isEmpty
+                        ? placeholder
+                        : Image.network(
+                            avatarUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => placeholder,
+                          ),
+                    if (busy)
+                      const ColoredBox(
+                        color: Color(0x88000000),
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+    final bubble = text == null
+        ? null
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: math.min(270.0, width - 130)),
+            child: _bubble(),
+          );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (wide && bubble != null) ...[bubble, const SizedBox(width: 6)],
+        avatar,
+        if (!wide && bubble != null) ...[const SizedBox(width: 6), bubble],
+      ],
+    );
   }
 
   Widget _bubble() => Material(
-        color: const Color(0xF7F3E4C1),
-        elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: PlaceTicket.frame, width: 1.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 6, 4),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (icon != null) ...[Icon(icon, size: 18, color: Pal.cinnabar), const SizedBox(width: 6)],
-              Flexible(child: Text(text!, style: const TextStyle(fontSize: 13, color: Pal.ink, height: 1.4))),
-            ]),
-            const SizedBox(height: 2),
-            // 螢幕很窄時按鈕排不下一行就換行
-            Wrap(spacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+    color: const Color(0xF7F3E4C1),
+    elevation: 3,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: const BorderSide(color: PlaceTicket.frame, width: 1.5),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 6, 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: Pal.cinnabar),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  text!,
+                  style: const TextStyle(
+                    fontSize: MapText.caption,
+                    color: Pal.ink,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          // 螢幕很窄時按鈕排不下一行就換行
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               _ask('天氣', 'weather'),
               _ask('吃什麼', 'meal'),
               if (actionLabel != null && onAction != null)
                 TextButton(
                   onPressed: onAction,
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 6)),
-                  child: Text(actionLabel!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  child: Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      fontSize: MapText.caption,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               IconButton(
                 tooltip: '收起來',
@@ -139,10 +201,12 @@ class NpcBuddy extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
-            ]),
-          ]),
-        ),
-      );
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 
   /// 泡泡上換話題的小按鈕，現在在講的那個是深色的
   Widget _ask(String label, String value) {
@@ -157,7 +221,13 @@ class NpcBuddy extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Pal.inkSoft),
         ),
-        child: Text(label, style: TextStyle(fontSize: 11, color: selected ? Pal.parchment : Pal.ink)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: MapText.caption,
+            color: selected ? Pal.parchment : Pal.ink,
+          ),
+        ),
       ),
     );
   }

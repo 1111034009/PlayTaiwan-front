@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_notice.dart';
+import '../../core/app_text_styles.dart';
 import '../models.dart';
 import '../theme.dart';
 
@@ -148,7 +149,7 @@ class PlaceTicket extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 17,
+              fontSize: MapText.bodySmall,
               fontWeight: FontWeight.w800,
               color: Pal.cinnabar,
               height: 1.25,
@@ -181,7 +182,7 @@ class PlaceTicket extends StatelessWidget {
             TextSpan(
               text: hours,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: MapText.caption,
                 fontWeight: FontWeight.bold,
                 color: Pal.ink,
               ),
@@ -189,10 +190,7 @@ class PlaceTicket extends StatelessWidget {
           if (note != null)
             TextSpan(
               text: hours == null ? note : '・$note',
-              style: TextStyle(
-                fontSize: hours == null ? 12 : 11,
-                color: Pal.inkSoft,
-              ),
+              style: TextStyle(fontSize: MapText.caption, color: Pal.inkSoft),
             ),
         ],
       ),
@@ -343,7 +341,10 @@ class PlaceTicket extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: frame, width: 1.2),
     ),
-    child: Text(label, style: const TextStyle(fontSize: 12, color: Pal.ink)),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: MapText.caption, color: Pal.ink),
+    ),
   );
 
   /// 「前往地址」：開外部地圖（Google Maps）
@@ -371,7 +372,7 @@ class PlaceTicket extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: MapText.caption,
                   fontWeight: FontWeight.bold,
                   color: Pal.cinnabar,
                 ),
@@ -397,7 +398,7 @@ class PlaceTicket extends StatelessWidget {
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: MapText.caption,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),

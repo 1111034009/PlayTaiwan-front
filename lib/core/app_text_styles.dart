@@ -43,8 +43,8 @@ abstract final class AppTextStyles {
     Color color = AppColors.textPrimary,
   }) {
     return TextStyle(
-      fontFamily: 'KaiseiHarunoUmi',
-      fontFamilyFallback: const ['Yomogi'],
+      fontFamily: 'GenRyuMin2TW',
+      fontFamilyFallback: const ['Huninn', 'KaiseiHarunoUmi'],
       fontSize: size,
       fontWeight: normalizeWeight(weight),
       color: color,

@@ -176,6 +176,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: pageColor,
+      resizeToAvoidBottomInset: false, // 鍵盤殘留時不要把頁面縮小
       body: LayoutBuilder(
         builder: (context, constraints) {
           final scale = AppResponsive.scale(

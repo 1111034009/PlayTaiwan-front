@@ -389,20 +389,18 @@ class _WalletPageState extends State<WalletPage> {
       padding: const EdgeInsets.fromLTRB(8, 10, 20, 4),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: _darkText,
-              size: 20,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+              child: Text(
+                '<< 返回',
+                style: AppTextStyles.bodySmallBold.copyWith(color: _red),
+              ),
             ),
           ),
-          Expanded(
-            child: Text(
-              '我的錢包',
-              style: AppTextStyles.titleLarge.copyWith(color: _darkText),
-            ),
-          ),
+          const Spacer(),
           const Icon(Icons.local_activity_rounded, color: _red, size: 26),
         ],
       ),

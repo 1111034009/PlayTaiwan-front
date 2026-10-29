@@ -302,7 +302,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
 
     Navigator.of(context).pop();
 
-    _showSnack(Icons.confirmation_number_rounded, '已存入錢包，使用請前往錢包');
+    _showSnack(Icons.confirmation_number_rounded, '已存入優惠卷，使用請前往首頁優惠卷查看');
   }
 
   @override

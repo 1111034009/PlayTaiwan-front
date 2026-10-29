@@ -583,7 +583,7 @@ class _Header extends StatelessWidget {
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.paper),
-            tooltip: '返回上一頁',
+            tooltip: '<< 返回',
           ),
           Container(
             decoration: BoxDecoration(

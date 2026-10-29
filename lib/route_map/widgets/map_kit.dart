@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../core/app_text_styles.dart';
 import '../../core/app_notice.dart';
 import '../theme.dart';
 
@@ -316,20 +317,24 @@ class ModeBadge extends StatelessWidget {
             child: Icon(style.icon, size: 15, color: Colors.white),
           ),
           if (label != null && label!.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(left: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: color, width: 1.5),
-              ),
-              child: Text(
-                label!,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+            Flexible(
+              child: Container(
+                margin: const EdgeInsets.only(left: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: color, width: 1.5),
+                ),
+                child: Text(
+                  label!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: MapText.caption,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
                 ),
               ),
             ),
@@ -398,7 +403,7 @@ class SealMarker extends StatelessWidget {
               style: TextStyle(
                 color: dark ? const Color(0xFFB9AE98) : Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: MapText.bodySmall,
               ),
             ),
           ),
@@ -421,7 +426,8 @@ class SealMarker extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: MapText.caption,
+                  height: 1.2,
                   color: dark ? const Color(0xFFCDBF9F) : Pal.ink,
                   fontWeight: FontWeight.w600,
                 ),
@@ -445,8 +451,8 @@ Marker sealMarker(
 }) => Marker(
   point: point,
   width: 130,
-  height: 56,
-  alignment: const Alignment(0, 0.5),
+  height: 64,
+  alignment: Alignment(0, 1 - 28 / 64),
   // 地圖旋轉時印章和名稱保持正的
   rotate: true,
   child: GestureDetector(

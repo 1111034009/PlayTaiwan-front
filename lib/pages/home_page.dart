@@ -341,6 +341,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: pageColor,
       extendBody: true,
+      resizeToAvoidBottomInset: false, // 鍵盤殘留時不要把首頁縮小
       body: LayoutBuilder(
         builder: (context, constraints) {
           const double designWidth = 360;
@@ -1032,7 +1033,7 @@ class _HomePageState extends State<HomePage> {
   Widget _WalletButton({required VoidCallback onTap}) {
     return _IconLabelButton(
       icon: Icons.account_balance_wallet_outlined,
-      label: '錢包',
+      label: '優惠卷',
       onTap: onTap,
     );
   }

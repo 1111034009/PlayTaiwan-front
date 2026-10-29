@@ -9,6 +9,7 @@ import '../core/app_tutorial.dart';
 import '../core/app_session.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/taiwan_districts.dart';
 import '../core/app_notice.dart';
 import '../block/navigationbar.dart';
 import '../block/script_generating_overlay.dart';
@@ -37,7 +38,6 @@ class _SelectionPageState extends State<SelectionPage> {
 
   int currentIndex = 0;
 
-  String fakeLocation = '';
   bool isLoadingLocation = false;
   bool isGeneratingStory = false;
   double generatingProgress = 0.0;
@@ -47,7 +47,8 @@ class _SelectionPageState extends State<SelectionPage> {
   final GlobalKey _locationKey = GlobalKey();
   final GlobalKey _randomKey = GlobalKey();
   final GlobalKey _teamKey = GlobalKey();
-  final TextEditingController locationController = TextEditingController();
+  String? selectedCity;
+  String? selectedDistrict;
   final TextEditingController ideaController = TextEditingController();
 
   static const Set<String> _validCities = {
@@ -148,7 +149,6 @@ class _SelectionPageState extends State<SelectionPage> {
   @override
   void dispose() {
     _progressTimer?.cancel();
-    locationController.dispose();
     ideaController.dispose();
     super.dispose();
   }
@@ -230,12 +230,9 @@ class _SelectionPageState extends State<SelectionPage> {
             final String districtName =
                 result['district_name']?.toString().trim() ?? '';
 
-            final String location = [
-              cityName,
-              districtName,
-            ].where((value) => value.isNotEmpty).join(' ');
+            final String city = _normalizeCity(cityName);
 
-            if (location.isEmpty) {
+            if (!taiwanDistricts.containsKey(city)) {
               _showLocationMessage('伺服器運行中，請稍後嘗試');
               return;
             }
@@ -243,12 +240,10 @@ class _SelectionPageState extends State<SelectionPage> {
             if (!mounted) return;
 
             setState(() {
-              fakeLocation = location;
-              locationController.text = location;
-
-              locationController.selection = TextSelection.fromPosition(
-                TextPosition(offset: locationController.text.length),
-              );
+              selectedCity = city;
+              selectedDistrict = taiwanDistricts[city]!.contains(districtName)
+                  ? districtName
+                  : null;
             });
 
             return;
@@ -278,52 +273,19 @@ class _SelectionPageState extends State<SelectionPage> {
     AppNotice.show(message);
   }
 
-  Map<String, String> _parseLocation(String input) {
-    final String text = input.trim().replaceAll(RegExp(r'\s+'), ' ');
-
-    if (text.isEmpty) {
-      return {'cityName': '', 'townName': ''};
-    }
-
-    final RegExp pattern = RegExp(r'^(.+?[縣市])(?:\s*(.*))?$');
-
-    final Match? match = pattern.firstMatch(text);
-
-    if (match == null) {
-      return {'cityName': text, 'townName': ''};
-    }
-
-    final String cityName = match.group(1)?.trim() ?? '';
-    final String townName = match.group(2)?.trim() ?? '';
-
-    return {'cityName': cityName, 'townName': townName};
-  }
-
   void startAdventure() {
-    fakeLocation = locationController.text.trim();
+    final String? city = selectedCity;
 
-    if (fakeLocation.isEmpty) {
-      _showLocationMessage('請先輸入地區');
+    if (city == null || !_isValidCity(city)) {
+      _showLocationMessage('請先選擇縣市');
       return;
     }
-
-    final Map<String, String> location = _parseLocation(fakeLocation);
-
-    final String rawCity = location['cityName']?.trim() ?? '';
-    final String townName = location['townName']?.trim() ?? '';
-
-    if (rawCity.isEmpty || !_isValidCity(rawCity)) {
-      _showLocationMessage('請輸入正確的縣市名稱，例如：台中市');
-      return;
-    }
-
-    final String cityName = _normalizeCity(rawCity);
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
-            TravelInfoPage(cityName: cityName, townName: townName),
+            TravelInfoPage(cityName: city, townName: selectedDistrict ?? ''),
       ),
     );
   }
@@ -504,10 +466,14 @@ class _SelectionPageState extends State<SelectionPage> {
               child: _AdventurePaper(
                 key: _locationKey,
                 child: _StartAdventureContent(
-                  locationController: locationController,
-                  onLocationChanged: (value) {
-                    fakeLocation = value;
-                  },
+                  city: selectedCity,
+                  district: selectedDistrict,
+                  onCityChanged: (value) => setState(() {
+                    selectedCity = value;
+                    selectedDistrict = null;
+                  }),
+                  onDistrictChanged: (value) =>
+                      setState(() => selectedDistrict = value),
                   onLocationPressed: useCurrentLocation,
                   onPressed: startAdventure,
                   loading: isLoadingLocation,
@@ -638,15 +604,19 @@ class _AdventurePaper extends StatelessWidget {
 }
 
 class _StartAdventureContent extends StatelessWidget {
-  final TextEditingController locationController;
-  final ValueChanged<String> onLocationChanged;
+  final String? city;
+  final String? district;
+  final ValueChanged<String?> onCityChanged;
+  final ValueChanged<String?> onDistrictChanged;
   final VoidCallback onLocationPressed;
   final VoidCallback onPressed;
   final bool loading;
 
   const _StartAdventureContent({
-    required this.locationController,
-    required this.onLocationChanged,
+    required this.city,
+    required this.district,
+    required this.onCityChanged,
+    required this.onDistrictChanged,
     required this.onLocationPressed,
     required this.onPressed,
     required this.loading,
@@ -681,7 +651,7 @@ class _StartAdventureContent extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '輸入指定的地區，現在揪出發',
+            '選擇指定的地區，現在揪出發',
             textAlign: TextAlign.left,
             style: AppTextStyles.bodySmallBold.copyWith(
               color: AppColors.mutedText,
@@ -689,27 +659,28 @@ class _StartAdventureContent extends StatelessWidget {
           ),
           const SizedBox(height: 15),
           SizedBox(
-            height: 22,
-            child: TextField(
-              controller: locationController,
-              onChanged: onLocationChanged,
-              textInputAction: TextInputAction.done,
-              maxLines: 1,
-              cursorColor: AppColors.primaryAccent,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: '例如：臺中市 西屯區',
-                hintStyle: AppTextStyles.bodyCompact.copyWith(
-                  color: AppColors.mutedText,
+            height: 36,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _PaperDropdown(
+                    hint: '縣市',
+                    value: city,
+                    items: taiwanDistricts.keys.toList(),
+                    onChanged: onCityChanged,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PaperDropdown(
+                    hint: '行政區',
+                    value: district,
+                    emptyLabel: '不指定',
+                    items: city == null ? const [] : taiwanDistricts[city!]!,
+                    onChanged: onDistrictChanged,
+                  ),
+                ),
+              ],
             ),
           ),
           Container(
@@ -728,6 +699,49 @@ class _StartAdventureContent extends StatelessWidget {
             child: _RedStartButton(text: '開始', onPressed: onPressed),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PaperDropdown extends StatelessWidget {
+  final String hint;
+  final String? value;
+  final String? emptyLabel;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _PaperDropdown({
+    required this.hint,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.emptyLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String?>(
+        isExpanded: true,
+        isDense: true,
+        value: value,
+        menuMaxHeight: 320,
+        hint: Text(
+          hint,
+          style: AppTextStyles.bodyCompact.copyWith(color: AppColors.mutedText),
+        ),
+        icon: const Icon(Icons.arrow_drop_down, color: AppColors.textPrimary),
+        style: AppTextStyles.bodyEmphasisBold.copyWith(
+          color: AppColors.textPrimary,
+        ),
+        items: [
+          if (emptyLabel != null)
+            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel!)),
+          for (final item in items)
+            DropdownMenuItem<String?>(value: item, child: Text(item)),
+        ],
+        onChanged: onChanged,
       ),
     );
   }

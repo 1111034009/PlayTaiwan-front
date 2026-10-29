@@ -226,18 +226,15 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
       padding: const EdgeInsets.fromLTRB(8, 10, 20, 6),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: _darkText,
-              size: 20,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '我的喜愛劇本',
-              style: AppTextStyles.titleLarge.copyWith(color: _darkText),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+              child: Text(
+                '<< 返回',
+                style: AppTextStyles.bodySmallBold.copyWith(color: _red),
+              ),
             ),
           ),
         ],
