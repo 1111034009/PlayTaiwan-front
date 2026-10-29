@@ -11,6 +11,7 @@ import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
+import '../core/app_tutorial.dart';
 
 const Color pageColor = AppColors.background;
 const Color paperColor = AppColors.merchantPaper;
@@ -34,7 +35,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   List<MerchantFile> files = [];
   bool isLoading = true;
   String? filesError;
-
+  final GlobalKey _fileCardKey = GlobalKey();
+  final GlobalKey _settingsKey = GlobalKey();
+  final GlobalKey _videoKey = GlobalKey();
+  final GlobalKey _manageKey = GlobalKey();
+  final GlobalKey _recentKey = GlobalKey();
   List<MerchantFile> get recentFiles => files.take(8).toList();
 
   @override
@@ -52,6 +57,44 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     );
 
     _fetchFiles();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
+  }
+
+  Future<void> _maybeStartTutorial() async {
+    if (await AppTutorial.isDone(AppTutorial.merchantHomeId)) return;
+
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    AppTutorial.show(
+      context,
+      id: AppTutorial.merchantHomeId,
+      steps: [
+        TutorialStep(
+          target: _fileCardKey,
+          title: '已生成檔案',
+          text: '這裡顯示你已生成的影音與檔案數量',
+        ),
+        TutorialStep(
+          target: _settingsKey,
+          title: '資訊設定',
+          text: '修改店家資訊與帳號，也能調整背景音樂',
+        ),
+        TutorialStep(target: _videoKey, title: '前往生成影音', text: '用 AI 生成宣傳影片'),
+        TutorialStep(
+          target: _manageKey,
+          title: '題庫與優惠券管理',
+          text: '在這裡管理玩家的任務題庫和優惠券',
+        ),
+        TutorialStep(
+          target: _recentKey,
+          title: '最近檔案',
+          text: '最近生成的檔案都在這裡，點開可以查看',
+          align: ContentAlign.top,
+        ),
+      ],
+    );
   }
 
   Future<void> _fetchFiles({bool silent = false}) async {
@@ -163,9 +206,12 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 58,
                         width: 198,
                         height: 118,
-                        child: _GeneratedFileCard(
-                          count: files.length,
-                          isLoading: isLoading,
+                        child: KeyedSubtree(
+                          key: _fileCardKey,
+                          child: _GeneratedFileCard(
+                            count: files.length,
+                            isLoading: isLoading,
+                          ),
                         ),
                       ),
                       Positioned(
@@ -173,10 +219,13 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 60,
                         width: 110,
                         height: 40,
-                        child: _SmallActionButton(
-                          icon: Icons.settings,
-                          text: '資訊設定',
-                          onTap: openSettings,
+                        child: KeyedSubtree(
+                          key: _settingsKey,
+                          child: _SmallActionButton(
+                            icon: Icons.settings,
+                            text: '資訊設定',
+                            onTap: openSettings,
+                          ),
                         ),
                       ),
                       Positioned(
@@ -184,9 +233,12 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 106,
                         width: 110,
                         height: 66,
-                        child: _GenerateVideoButton(
-                          text: '前往生成影音',
-                          onTap: openVideoGenerator,
+                        child: KeyedSubtree(
+                          key: _videoKey,
+                          child: _GenerateVideoButton(
+                            text: '前往生成影音',
+                            onTap: openVideoGenerator,
+                          ),
                         ),
                       ),
                       Positioned(
@@ -194,9 +246,12 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 187,
                         width: 311,
                         height: 53,
-                        child: _ManagementButtons(
-                          onTaskTap: openTaskManagement,
-                          onCouponTap: openCouponManagement,
+                        child: KeyedSubtree(
+                          key: _manageKey,
+                          child: _ManagementButtons(
+                            onTaskTap: openTaskManagement,
+                            onCouponTap: openCouponManagement,
+                          ),
                         ),
                       ),
                       Positioned(
@@ -204,13 +259,16 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         top: 253,
                         width: 311,
                         height: 253,
-                        child: _RecentFilesCard(
-                          files: recentFiles,
-                          isLoading: isLoading,
-                          error: filesError,
-                          onOpen: openFile,
-                          onMore: openAllFiles,
-                          onRetry: _fetchFiles,
+                        child: KeyedSubtree(
+                          key: _recentKey,
+                          child: _RecentFilesCard(
+                            files: recentFiles,
+                            isLoading: isLoading,
+                            error: filesError,
+                            onOpen: openFile,
+                            onMore: openAllFiles,
+                            onRetry: _fetchFiles,
+                          ),
                         ),
                       ),
                     ],

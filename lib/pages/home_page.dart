@@ -8,6 +8,7 @@ import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
 import '../core/bgm_service.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_tutorial.dart';
 import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
@@ -38,6 +39,66 @@ class _HomePageState extends State<HomePage> {
   int postcardCount = 0;
   int badgeCount = 0;
   int vlogCount = 0;
+  final GlobalKey _overviewKey = GlobalKey();
+  final GlobalKey _badgeKey = GlobalKey();
+  final GlobalKey _pastKey = GlobalKey();
+  final GlobalKey _goKey = GlobalKey();
+  final GlobalKey _agentKey = GlobalKey();
+  Future<void> _maybeStartTutorial() async {
+    if (await AppTutorial.isDone(AppTutorial.homeId)) return;
+
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    _startTutorial();
+  }
+
+  void _startTutorial() {
+    AppTutorial.show(
+      context,
+      id: AppTutorial.homeId,
+      steps: [
+        TutorialStep(
+          target: _overviewKey,
+          title: '目前總覽',
+          text: '這裡看你的探險、明信片、徽章、VLOG 數量',
+        ),
+        TutorialStep(target: _badgeKey, title: '徽章收藏', text: '完成劇本會得到徽章，點這裡查看'),
+        TutorialStep(
+          target: _pastKey,
+          title: '過往紀錄',
+          text: '回顧你走過的探險、影片和明信片',
+          align: ContentAlign.top,
+        ),
+        TutorialStep(
+          target: _goKey,
+          title: '出發探險',
+          text: '想出門就從這裡開始',
+          align: ContentAlign.top,
+        ),
+        TutorialStep(
+          target: _agentKey,
+          title: '探員資訊',
+          text: '改名字、調背景音樂都在這裡，也能重看教學',
+          align: ContentAlign.top,
+        ),
+        TutorialStep(
+          target: TutorialKeys.nfc,
+          title: '掃秒QR扣',
+          text: '到指定地點掃描，獲取商家優惠卷',
+          align: ContentAlign.left,
+        ),
+        TutorialStep(
+          target: TutorialKeys.aiTalk,
+          title: '小精靈',
+          text: '旅途中找附近單一地點玩玩，隨時點牠',
+          align: ContentAlign.left,
+        ),
+      ],
+    );
+  }
+
   Future<void> _fetchProfile() async {
     final token = AppSession.token;
     if (token == null || token.isEmpty) {
@@ -272,6 +333,7 @@ class _HomePageState extends State<HomePage> {
     );
     _fetchProfile();
     _fetchOverview();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
   }
 
   @override
@@ -320,7 +382,10 @@ class _HomePageState extends State<HomePage> {
                         top: 54,
                         width: 210,
                         height: 170,
-                        child: _OverviewCard(),
+                        child: KeyedSubtree(
+                          key: _overviewKey,
+                          child: _OverviewCard(),
+                        ),
                       ),
                       Positioned(
                         left: 240,
@@ -338,6 +403,7 @@ class _HomePageState extends State<HomePage> {
                         width: 128,
                         height: 92,
                         child: _SimpleCard(
+                          key: _badgeKey,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -355,6 +421,7 @@ class _HomePageState extends State<HomePage> {
                         width: 139,
                         height: 198,
                         child: _SimpleCard(
+                          key: _pastKey,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -372,6 +439,7 @@ class _HomePageState extends State<HomePage> {
                         width: 174,
                         height: 226,
                         child: _SimpleCard(
+                          key: _goKey,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -395,7 +463,10 @@ class _HomePageState extends State<HomePage> {
                         top: 510,
                         width: 105,
                         height: 43,
-                        child: _AgentInfo(onTap: _showAgentInfoDialog),
+                        child: KeyedSubtree(
+                          key: _agentKey,
+                          child: _AgentInfo(onTap: _showAgentInfoDialog),
+                        ),
                       ),
                       Positioned(
                         left: 52,
@@ -462,6 +533,16 @@ class _HomePageState extends State<HomePage> {
               Future.delayed(const Duration(milliseconds: 80), () {
                 if (!mounted) return;
                 _showEditAccountDialog();
+              });
+            },
+            onReplayTutorial: () {
+              Navigator.of(context).pop();
+
+              AppTutorial.reset(AppTutorial.selectionId);
+
+              Future.delayed(const Duration(milliseconds: 350), () {
+                if (!mounted) return;
+                _startTutorial();
               });
             },
             onLogout: () {
@@ -961,8 +1042,7 @@ class _SimpleCard extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
 
-  const _SimpleCard({required this.child, this.onTap});
-
+  const _SimpleCard({super.key, required this.child, this.onTap});
   @override
   Widget build(BuildContext context) {
     if (onTap == null) {
@@ -981,11 +1061,12 @@ class _AgentInfoDialog extends StatelessWidget {
   final String accountName;
   final VoidCallback onEdit;
   final VoidCallback onLogout;
-
+  final VoidCallback onReplayTutorial;
   const _AgentInfoDialog({
     required this.accountName,
     required this.onEdit,
     required this.onLogout,
+    required this.onReplayTutorial,
   });
 
   @override
@@ -998,7 +1079,7 @@ class _AgentInfoDialog extends StatelessWidget {
       color: Colors.transparent,
       child: SizedBox(
         width: width,
-        height: 270,
+        height: 320,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -1085,6 +1166,15 @@ class _AgentInfoDialog extends StatelessWidget {
                     ],
                   ),
                   const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: _PopupButton(
+                      text: '重看教學',
+                      onPressed: onReplayTutorial,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     height: 42,

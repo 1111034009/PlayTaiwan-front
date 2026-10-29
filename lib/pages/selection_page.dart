@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-
+import '../core/app_tutorial.dart';
 import '../core/app_session.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -43,7 +43,10 @@ class _SelectionPageState extends State<SelectionPage> {
   double generatingProgress = 0.0;
   String generatingText = '正在整理旅程線索';
   Timer? _progressTimer;
-
+  final GlobalKey _ideaKey = GlobalKey();
+  final GlobalKey _locationKey = GlobalKey();
+  final GlobalKey _randomKey = GlobalKey();
+  final GlobalKey _teamKey = GlobalKey();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController ideaController = TextEditingController();
 
@@ -114,6 +117,31 @@ class _SelectionPageState extends State<SelectionPage> {
         systemNavigationBarColor: pageColor,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
+  }
+
+  Future<void> _maybeStartTutorial() async {
+    if (await AppTutorial.isDone(AppTutorial.selectionId)) return;
+
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    AppTutorial.show(
+      context,
+      id: AppTutorial.selectionId,
+      steps: [
+        TutorialStep(target: _ideaKey, title: '遊你說了算', text: '直接說出你想要的旅行'),
+        TutorialStep(target: _locationKey, title: '現在揪出發', text: '輸入地區，現在就出發'),
+        TutorialStep(
+          target: _randomKey,
+          title: '來點遊意思',
+          text: '轉轉盤，讓命運決定',
+          align: ContentAlign.top,
+        ),
+        TutorialStep(target: _teamKey, title: '配對隊友劇本', text: '跟朋友一起玩'),
+      ],
     );
   }
 
@@ -448,6 +476,7 @@ class _SelectionPageState extends State<SelectionPage> {
               width: 324,
               height: 190,
               child: _AdventurePaper(
+                key: _ideaKey,
                 child: _CustomAdventureContent(
                   ideaController: ideaController,
                   onPressed: customAdventure,
@@ -457,7 +486,11 @@ class _SelectionPageState extends State<SelectionPage> {
           ),
         ),
 
-        Positioned(top: -20, right: 5, child: _JoinTeamBadge(onTap: joinTeam)),
+        Positioned(
+          top: -20,
+          right: 5,
+          child: _JoinTeamBadge(key: _teamKey, onTap: joinTeam),
+        ),
 
         // 現在揪出發
         Positioned(
@@ -469,6 +502,7 @@ class _SelectionPageState extends State<SelectionPage> {
               width: 324,
               height: 230,
               child: _AdventurePaper(
+                key: _locationKey,
                 child: _StartAdventureContent(
                   locationController: locationController,
                   onLocationChanged: (value) {
@@ -493,6 +527,7 @@ class _SelectionPageState extends State<SelectionPage> {
               width: 324,
               height: 180,
               child: _AdventurePaper(
+                key: _randomKey,
                 child: _RandomAdventureContent(onPressed: randomAdventure),
               ),
             ),
@@ -573,8 +608,7 @@ class _SelectionPageState extends State<SelectionPage> {
 class _AdventurePaper extends StatelessWidget {
   final Widget child;
 
-  const _AdventurePaper({required this.child});
-
+  const _AdventurePaper({super.key, required this.child});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1033,8 +1067,7 @@ class _RedStartButtonState extends State<_RedStartButton> {
 class _JoinTeamBadge extends StatefulWidget {
   final VoidCallback onTap;
 
-  const _JoinTeamBadge({required this.onTap});
-
+  const _JoinTeamBadge({super.key, required this.onTap});
   @override
   State<_JoinTeamBadge> createState() => _JoinTeamBadgeState();
 }

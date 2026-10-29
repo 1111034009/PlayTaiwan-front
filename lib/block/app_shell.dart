@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/app_text_styles.dart';
+import '../core/app_tutorial.dart';
 import '../core/app_notice.dart';
 import '../pages/ai_talk_page.dart';
 import 'ai_talk_button.dart';
@@ -76,6 +77,7 @@ class AppShell extends StatelessWidget {
               children: [
                 // NFC
                 StoryNfcButton(
+                  key: TutorialKeys.nfc,
                   onSuccess: () {
                     _showNfcSuccessSnackBar(context);
                   },
@@ -84,7 +86,10 @@ class AppShell extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 // AI 對話
-                AiTalkButton(onTap: () => _openAiTalk(context)),
+                AiTalkButton(
+                  key: TutorialKeys.aiTalk,
+                  onTap: () => _openAiTalk(context),
+                ),
               ],
             ),
           ),
