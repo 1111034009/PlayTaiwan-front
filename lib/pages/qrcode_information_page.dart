@@ -102,8 +102,7 @@ class NfcInformationPage extends StatefulWidget {
 }
 
 class _NfcInformationPageState extends State<NfcInformationPage> {
-  bool _savedCoupon = false;
-
+  late bool _savedCoupon = !_needLogin;
   final GlobalKey _couponKey = GlobalKey();
 
   late final Map<String, dynamic> _coupon = _asMap(widget.result['coupon']);
@@ -129,7 +128,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   static const double _dialogMaxWidth = 420;
 
   bool get _hasCoupon => _coupon.isNotEmpty;
-
+  bool get _needLogin => widget.result['need_login'] == true;
   String get _placeName {
     final name = _firstNonEmpty([_override['name'], _place['gov_name']]);
     return name.isEmpty ? '店家資訊' : name;
@@ -170,6 +169,8 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   String get _couponCode {
+    if (_needLogin) return '登入後領取';
+
     final code = _str(_coupon['coupon_code']);
     return code.isEmpty ? '—' : code;
   }
@@ -251,6 +252,12 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     Navigator.of(context).pop();
   }
 
+  void _goToLogin() {
+    Navigator.of(context).pop();
+
+    Navigator.of(context).pushNamed('/login');
+  }
+
   void _showSnack(IconData icon, String message) {
     if (!mounted) return;
 
@@ -258,6 +265,10 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   Future<void> _downloadCoupon() async {
+    if (_needLogin) {
+      AppNotice.show('請前往重新登入才能領取優惠券');
+      return;
+    }
     try {
       final boundaryContext = _couponKey.currentContext;
 
@@ -659,7 +670,11 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _savedCoupon ? '優惠券已存入優惠包，觸碰查看。' : '觸碰查看優惠卷',
+                  _needLogin
+                      ? '登入後即可領取專屬優惠券，觸碰前往領取。'
+                      : _savedCoupon
+                      ? '優惠券已存入優惠包，觸碰查看。'
+                      : '觸碰查看優惠卷',
                   style: AppTextStyles.captionBold.copyWith(
                     color: textDark,
                     height: 1.5,
@@ -719,21 +734,25 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
                       child: _buildCouponButton(
                         icon: Icons.download_rounded,
                         label: '下載優惠券',
-                        backgroundColor: paperDark,
-                        foregroundColor: textDark,
-                        onTap: _downloadCoupon,
+                        backgroundColor: _needLogin
+                            ? paperDark.withValues(alpha: 0.5)
+                            : paperDark,
+                        foregroundColor: _needLogin
+                            ? textLight.withValues(alpha: 0.5)
+                            : textDark,
+                        onTap: _needLogin ? null : _downloadCoupon,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildCouponButton(
-                        icon: _savedCoupon
-                            ? Icons.check_circle_rounded
-                            : Icons.wallet_rounded,
-                        label: _savedCoupon ? '已存入優惠包' : '存入優惠包',
+                        icon: _needLogin
+                            ? Icons.login_rounded
+                            : Icons.check_circle_rounded,
+                        label: _needLogin ? '登入後領取' : '已存入優惠包',
                         backgroundColor: stampRed,
                         foregroundColor: paperLight,
-                        onTap: _savedCoupon ? _closeCoupon : _saveCoupon,
+                        onTap: _needLogin ? _goToLogin : _closeCoupon,
                       ),
                     ),
                   ],
@@ -835,6 +854,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   }
 
   Widget _buildBarcode() {
+    if (_needLogin) return const SizedBox.shrink();
     if (_couponId.isEmpty) {
       return Container(
         width: 160,
@@ -879,7 +899,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
     required String label,
     required Color backgroundColor,
     required Color foregroundColor,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return Material(
       color: Colors.transparent,

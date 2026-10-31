@@ -25,8 +25,8 @@ class AdminColors {
 class AdminText {
   AdminText._();
 
-  static const String family = 'KaiseiHarunoUmi';
-  static const List<String> fallback = ['Yomogi'];
+  static const String family = 'GenRyuMin2TW'; // 跟主 App（AppTextStyles）同一套字型
+  static const List<String> fallback = ['Huninn', 'KaiseiHarunoUmi'];
 
   static const caption = TextStyle(
     fontFamily: family,

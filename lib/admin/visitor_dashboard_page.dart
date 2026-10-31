@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../api/visitor_analysis_api.dart';
+import 'admin_theme.dart';
 
 class AudienceDashboardPage extends StatefulWidget {
   const AudienceDashboardPage({super.key});
@@ -69,9 +70,10 @@ class _AudienceDashboardPageState extends State<AudienceDashboardPage> {
   Widget build(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(
-        textTheme: Theme.of(
-          context,
-        ).textTheme.apply(fontFamily: 'KaiseiHarunoUmi'),
+        textTheme: Theme.of(context).textTheme.apply(
+          fontFamily: AdminText.family,
+          fontFamilyFallback: AdminText.fallback,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {

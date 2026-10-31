@@ -12,6 +12,7 @@ class AppSession {
   static String? epId;
   static String? epName;
   static int? store_id;
+  static String? pendingQrUid;
   // 店家資料
   static final ValueNotifier<Map<String, dynamic>?> merchantProfileNotifier =
       ValueNotifier<Map<String, dynamic>?>(null);
@@ -33,5 +34,6 @@ class AppSession {
     epName = null;
     store_id = null;
     merchantProfile = null;
+    pendingQrUid = null;
   }
 }

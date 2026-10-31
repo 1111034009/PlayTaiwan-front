@@ -184,6 +184,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
             availableHeight: constraints.maxHeight,
             designWidth: designWidth,
             designHeight: designHeight,
+            max: AppResponsive.canvasMaxScale, // 平板上不要放太大
           );
 
           return Center(

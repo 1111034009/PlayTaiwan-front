@@ -11,6 +11,7 @@ import '../core/app_session.dart';
 import '../core/app_notice.dart';
 import '../api/nearby_cache.dart';
 import '../block/policy_dialog.dart';
+import 'qrcode_information_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,6 +45,44 @@ class _LoginPageState extends State<LoginPage> {
     final String baseUrl = (dotenv.env['API_BASE_URL'] ?? '').trim();
 
     return baseUrl.replaceFirst(RegExp(r'/$'), '');
+  }
+
+  Future<Map<String, dynamic>> _fetchPendingQrResult(String qrUid) async {
+    final token = AppSession.token?.trim();
+
+    final headers = <String, String>{'accept': '*/*'};
+
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    final response = await http
+        .get(
+          Uri.parse(
+            '$_apiBaseUrl/api/qrcode/scan/${Uri.encodeComponent(qrUid)}',
+          ),
+          headers: headers,
+        )
+        .timeout(const Duration(seconds: 15));
+
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (body is! Map ||
+        response.statusCode != 200 ||
+        body['isSuccess'] != true ||
+        body['Result'] is! Map) {
+      final message = body is Map ? body['message']?.toString() : null;
+
+      throw Exception(message ?? 'QRcode 驗證失敗');
+    }
+
+    final result = Map<String, dynamic>.from(body['Result'] as Map);
+
+    if (result['need_login'] == true) {
+      throw Exception('登入後仍無法領取優惠券，請重新登入');
+    }
+
+    return result;
   }
 
   void scrollToField(GlobalKey key) {
@@ -186,25 +225,74 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         AppSession.token = token;
-        AppSession.epId = epId;
-        AppSession.epName = epName;
-        AppSession.store_id = store_id;
-        NearbyCache.instance.start();
-
-        // 鍵盤完全收起來再換頁，下一頁才不會在縮小的版面上建立
         await _waitKeyboardClosed();
 
         if (!mounted) return;
-        if (accountType == 1 || accountType == 2 || accountType == 3) {
-          BgmService.instance.play(BgmTrack.main);
-        }
+
+        // 取得待處理的 QR Code
+        final String? pendingQrUid = AppSession.pendingQrUid;
+
+        // 登入成功後設定 Session
+        AppSession.token = token;
+        AppSession.epId = epId;
+        AppSession.epName = epName;
+        AppSession.store_id = store_id;
+
+        NearbyCache.instance.start();
+
+        // ===================================
+        // 遊客帳號
+        // ===================================
         if (accountType == 1) {
-          Navigator.pushReplacementNamed(context, '/home');
-        } else if (accountType == 2) {
+          if (pendingQrUid != null && pendingQrUid.isNotEmpty) {
+            try {
+              // 使用登入後的 Token 重新掃描 QR Code
+              final result = await _fetchPendingQrResult(pendingQrUid);
+
+              if (!mounted) return;
+
+              // 成功後清除暫存 QR UID
+              AppSession.pendingQrUid = null;
+
+              // 開啟優惠券資訊頁
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => NfcInformationPage(result: result),
+                ),
+                ModalRoute.withName('/home'),
+              );
+            } catch (error) {
+              if (!mounted) return;
+
+              AppNotice.show(error.toString().replaceFirst('Exception: ', ''));
+            }
+          } else {
+            // 沒有待處理 QR Code，正常進入首頁
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        }
+        // ===================================
+        // 商家帳號
+        // ===================================
+        else if (accountType == 2) {
+          // 商家不需要領取優惠券
+          AppSession.pendingQrUid = null;
+
           Navigator.pushReplacementNamed(context, '/merchant-home');
-        } else if (accountType == 3) {
+        }
+        // ===================================
+        // 管理員帳號
+        // ===================================
+        else if (accountType == 3) {
+          // 管理員不需要領取優惠券
+          AppSession.pendingQrUid = null;
+
           Navigator.pushReplacementNamed(context, '/admin');
-        } else {
+        }
+        // ===================================
+        // 無效帳號
+        // ===================================
+        else {
           AppNotice.show('無效的帳號類型');
         }
       } else {

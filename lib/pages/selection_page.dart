@@ -304,6 +304,8 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
+  String? _jobId;
+
   void _startGeneratingProgress() {
     _progressTimer?.cancel();
 
@@ -354,6 +356,7 @@ class _SelectionPageState extends State<SelectionPage> {
     try {
       final Map<String, dynamic> result = await StoryApi.generateByText(
         userPrompt: idea,
+        onJobId: (id) => _jobId = id,
       );
 
       _progressTimer?.cancel();
@@ -409,6 +412,8 @@ class _SelectionPageState extends State<SelectionPage> {
         isGeneratingStory = false;
         generatingProgress = 0.0;
       });
+
+      if (e is StoryCancelled) return;
 
       _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
     }
@@ -564,6 +569,11 @@ class _SelectionPageState extends State<SelectionPage> {
               progress: generatingProgress,
               detail: '${(generatingProgress * 100).round()}%',
               stage: generatingText.contains('尋找') ? 0 : 1,
+              onCancel: () {
+                final id = _jobId;
+                if (id != null)
+                  StoryApi.cancelGenerateByText(id).catchError((_) {});
+              },
             ),
           ),
       ],

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'merchant_file_item.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 
 const Color _pageColor = AppColors.background;
@@ -80,7 +81,7 @@ class _MerchantFilesPageState extends State<MerchantFilesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _pageColor,
-      body: SafeArea(
+      body: ContentFrame(child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
           child: Column(
@@ -152,7 +153,7 @@ class _MerchantFilesPageState extends State<MerchantFilesPage> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 

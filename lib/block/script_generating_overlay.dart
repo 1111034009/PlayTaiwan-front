@@ -11,6 +11,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
   final String? detail;
   final int? stage;
   final List<double>? segments;
+  final VoidCallback? onCancel;
 
   const ScriptGeneratingOverlay({
     super.key,
@@ -19,6 +20,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
     this.detail,
     this.stage,
     this.segments,
+    this.onCancel,
   });
 
   @override
@@ -171,6 +173,11 @@ class _ScriptGeneratingOverlayState extends State<ScriptGeneratingOverlay>
                     _LoadingDot(animation: _controller, delay: 0.4),
                   ],
                 ),
+                if (widget.onCancel != null)
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('取消生成'),
+                  ),
               ],
             ),
           ),

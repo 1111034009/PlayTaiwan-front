@@ -18,6 +18,11 @@ class StoryBadRequest implements Exception {
   String toString() => message;
 }
 
+class StoryCancelled implements Exception {
+  @override
+  String toString() => '已取消生成';
+}
+
 class StoryApi {
   static const String _npcAvatarKey = 'story_npc_avatar_url';
 
@@ -94,6 +99,7 @@ class StoryApi {
     int isNight = 1,
     int maxTravelMinutes = 30,
     void Function(int total, int finished)? onProgress,
+    void Function(String jobId)? onJobId,
   }) async {
     final String cleanCityName = cityName.trim();
 
@@ -137,6 +143,7 @@ class StoryApi {
       first: data,
       path: '/api/Story/GenerateGameStory',
       failMessage: '劇本生成失敗，請稍後再試',
+      onJobId: onJobId,
       onProgress: (job) {
         onProgress?.call(
           int.tryParse(job['total_count']?.toString() ?? '') ?? 0,
@@ -200,15 +207,19 @@ class StoryApi {
     Map<String, dynamic> data,
     String failMessage, {
     void Function(String status)? onStatus,
+    void Function(String taskId)? onTaskId,
   }) async {
     Map<String, dynamic> result = _voiceResult(data);
     final String jobId =
         (result['job_id'] ?? result['task_id'])?.toString().trim() ?? '';
     final DateTime deadline = DateTime.now().add(_voiceTimeout);
+    if (jobId.isNotEmpty) onTaskId?.call(jobId);
 
     while (true) {
       final String status = result['status']?.toString().trim() ?? '';
       final String audioUrl = result['audio_url']?.toString().trim() ?? '';
+
+      if (status == 'cancelled') throw StoryCancelled();
 
       if (status == 'failed') {
         final String error = result['error']?.toString().trim() ?? '';
@@ -262,6 +273,38 @@ class StoryApi {
     return stage.isNotEmpty ? '$stage…' : '語音生成中…';
   }
 
+  static Future<void> _cancelJob(String path) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl$path'),
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': 'Bearer ${_requireToken()}',
+        'Content-Type': 'application/json',
+      },
+      body: '',
+    );
+
+    if (response.statusCode == 404) throw Exception('找不到這個工作');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('取消失敗：HTTP ${response.statusCode}');
+    }
+    // 取消後輪詢會收到 cancelled（停止）；若已 done 就照常拿結果；processing(存檔中) 繼續輪詢
+  }
+
+  static Future<void> cancelGenerateByText(String jobId) => _cancelJob(
+    '/api/Story/GenerateByText/${Uri.encodeComponent(jobId)}/Cancel',
+  );
+
+  static Future<void> cancelGenerateGameStory(String jobId) => _cancelJob(
+    '/api/Story/GenerateGameStory/${Uri.encodeComponent(jobId)}/Cancel',
+  );
+
+  static Future<void> cancelNpcSpeak(String taskId) async {
+    try {
+      await _cancelJob('/api/Npc/Speak/${Uri.encodeComponent(taskId)}/Cancel');
+    } catch (_) {}
+  }
+
   static const Duration _jobPollInterval = Duration(seconds: 2);
   static const Duration _jobTimeout = Duration(minutes: 35);
 
@@ -270,6 +313,7 @@ class StoryApi {
     required String path,
     required String failMessage,
     void Function(Map<String, dynamic> job)? onProgress,
+    void Function(String jobId)? onJobId,
   }) async {
     Map<String, dynamic> job = _voiceResult(first);
 
@@ -279,6 +323,8 @@ class StoryApi {
       throw Exception('$failMessage：沒有回傳 job_id');
     }
 
+    onJobId?.call(jobId);
+
     final DateTime deadline = DateTime.now().add(_jobTimeout);
 
     bool polled = false;
@@ -287,6 +333,8 @@ class StoryApi {
       onProgress?.call(job);
 
       final String status = job['status']?.toString().trim() ?? '';
+
+      if (status == 'cancelled') throw StoryCancelled();
 
       if (status == 'done') {
         return job;
@@ -336,6 +384,7 @@ class StoryApi {
     String? voice,
     String? npcName,
     void Function(String status)? onStatus,
+    void Function(String taskId)? onTaskId,
   }) async {
     final String cleanText = text.trim();
     final String cleanVoice = voice?.trim() ?? '';
@@ -376,6 +425,7 @@ class StoryApi {
       data,
       'NPC 語音產生失敗',
       onStatus: onStatus,
+      onTaskId: onTaskId,
     );
 
     await prefs.setString(cacheKey, path);
@@ -668,6 +718,7 @@ class StoryApi {
   static Future<Map<String, dynamic>> generateByText({
     required String userPrompt,
     void Function(String stage)? onStage,
+    void Function(String jobId)? onJobId,
   }) async {
     final String prompt = userPrompt.trim();
 
@@ -686,6 +737,7 @@ class StoryApi {
       first: data,
       path: '/api/Story/GenerateByText',
       failMessage: '劇本生成失敗，稍後嘗試',
+      onJobId: onJobId,
       onProgress: (job) {
         onStage?.call(job['stage']?.toString().trim() ?? '');
       },
@@ -867,6 +919,14 @@ class StoryApi {
     );
 
     return _resultMap(data, '建立 Vlog 失敗');
+  }
+
+  static Future<void> cancelVisitorVlog(String storyId) async {
+    await _storyRequest(
+      method: 'POST',
+      path: '/api/VisitorVlog/Cancel/${_cleanStoryId(storyId)}',
+      failMessage: '取消 Vlog 失敗',
+    );
   }
 
   static Future<Map<String, dynamic>> visitorVlogStatus({

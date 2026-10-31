@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../core/no_space_formatter.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../block/merchant_register_popup.dart';
 import '../block/policy_dialog.dart';
@@ -1121,7 +1122,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: ContentFrame(child: Column(
         children: [
           Expanded(
             child: SafeArea(
@@ -1314,7 +1315,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
               child: const PolicyConsentText(),
             ),
         ],
-      ),
+      )),
     );
   }
 }

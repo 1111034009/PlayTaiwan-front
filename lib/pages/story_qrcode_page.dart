@@ -85,15 +85,15 @@ class _StoryNfcPageState extends State<StoryNfcPage>
   Future<Map<String, dynamic>> _fetchQrResult(String qrUid) async {
     final token = AppSession.token?.trim();
 
-    if (token == null || token.isEmpty) {
-      throw const _QrScanException('登入狀態已失效，請重新登入後再掃描');
+    final headers = <String, String>{'accept': '*/*'};
+
+    // 有登入才帶 Authorization
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
 
     final response = await http
-        .get(
-          Uri.parse('$_apiBase/$qrUid'),
-          headers: {'accept': '*/*', 'Authorization': 'Bearer $token'},
-        )
+        .get(Uri.parse('$_apiBase/$qrUid'), headers: headers)
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -121,6 +121,10 @@ class _StoryNfcPageState extends State<StoryNfcPage>
       final qrUid = _extractQrUid(rawValue);
       final result = await _fetchQrResult(qrUid);
 
+      // 尚未登入，先記住 QR UID，登入後重新掃描
+      if (result['need_login'] == true) {
+        AppSession.pendingQrUid = qrUid;
+      }
       if (!mounted) return;
 
       setState(() {

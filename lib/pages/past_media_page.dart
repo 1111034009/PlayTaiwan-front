@@ -17,6 +17,7 @@ import 'past_page.dart';
 import 'postcard_gif_dowload.dart';
 import '../api/postcard_api.dart';
 import '../api/vlog_api.dart';
+import '../api/story_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
@@ -779,6 +780,16 @@ class _PastMediaPageState extends State<PastMediaPage> {
     _showMessage(_vlogError ?? '影片尚未完成製作，請稍後再試');
   }
 
+  Future<void> _cancelVlog() async {
+    try {
+      await StoryApi.cancelVisitorVlog(widget.storyId);
+      _showMessage('已取消 Vlog 製作');
+    } catch (e) {
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
+    }
+    await _loadRecap();
+  }
+
   void closeVideo() {
     if (!mounted) return;
 
@@ -916,6 +927,22 @@ class _PastMediaPageState extends State<PastMediaPage> {
                                 error: _vlogError,
                               ),
                             ),
+                            if ((int.tryParse(
+                                      _vlogStatus?['status']?.toString() ?? '',
+                                    ) ??
+                                    0) ==
+                                2)
+                              Positioned(
+                                left: 15,
+                                right: 15,
+                                top: 446,
+                                child: Center(
+                                  child: TextButton(
+                                    onPressed: _cancelVlog,
+                                    child: const Text('取消製作'),
+                                  ),
+                                ),
+                              ),
                             const Positioned(
                               left: 25,
                               top: 500,

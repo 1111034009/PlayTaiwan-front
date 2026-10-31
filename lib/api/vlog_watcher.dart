@@ -48,6 +48,8 @@ class VlogWatcher {
       if (status == 3) {
         _timer?.cancel();
         _show('Vlog 製作完成！請至「過往」查看', seconds: 8);
+      } else if (status == 5) {
+        _timer?.cancel();
       } else if (status == 4) {
         _timer?.cancel();
 

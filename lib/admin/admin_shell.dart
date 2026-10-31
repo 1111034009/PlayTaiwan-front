@@ -249,13 +249,14 @@ class _Sidebar extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AdminColors.primarySoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: AdminColors.primary,
-                      size: 28,
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'img/app_icon.png',
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -338,7 +339,7 @@ class _Sidebar extends StatelessWidget {
                           tooltip: '登出',
                           onPressed: onLogout,
                           icon: const Icon(
-                            Icons.power_settings_new_rounded,
+                            Icons.logout_rounded,
                             size: 20,
                             color: AdminColors.secondary,
                           ),
@@ -439,13 +440,14 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 if (!compact)
-                  OutlinedButton.icon(
+                  IconButton(
+                    tooltip: '登出',
                     onPressed: onLogout,
                     icon: const Icon(
-                      Icons.power_settings_new_rounded,
-                      size: 17,
+                      Icons.logout_rounded,
+                      size: 24,
+                      color: AdminColors.textMuted,
                     ),
-                    label: const Text('登出'),
                   ),
               ],
             ),

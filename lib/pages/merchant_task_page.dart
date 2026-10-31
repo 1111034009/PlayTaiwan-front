@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 
@@ -401,7 +402,7 @@ class _MerchantTaskPageState extends State<MerchantTaskPage> {
           ),
         ],
       ),
-      body: SafeArea(
+      body: ContentFrame(child: SafeArea(
         child: Stack(
           children: [
             Column(
@@ -456,7 +457,7 @@ class _MerchantTaskPageState extends State<MerchantTaskPage> {
               ),
           ],
         ),
-      ),
+      )),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _isBusy ? null : () => _openQuestionForm(),
         backgroundColor: _accentColor,

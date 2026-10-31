@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 
@@ -592,7 +593,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
             icon: const Icon(Icons.add),
             label: Text('新增優惠券', style: _whiteButtonText),
           ),
-          body: SafeArea(
+          body: ContentFrame(child: SafeArea(
             child: Column(
               children: [
                 Padding(
@@ -622,7 +623,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
                 Expanded(child: _buildCouponList()),
               ],
             ),
-          ),
+          )),
         ),
         if (_busyLabel != null)
           Positioned.fill(child: _BusyOverlay(label: _busyLabel!)),

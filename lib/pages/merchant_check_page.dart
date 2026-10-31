@@ -6,6 +6,7 @@ import '../block/merchant_progress_dialog.dart';
 import 'merchant_video_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
@@ -145,7 +146,7 @@ class _MerchantCheckPageState extends State<MerchantCheckPage> {
 
     return Scaffold(
       backgroundColor: _pageColor,
-      body: SafeArea(
+      body: ContentFrame(child: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(22, 10, 22, 32),
@@ -382,7 +383,7 @@ class _MerchantCheckPageState extends State<MerchantCheckPage> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }

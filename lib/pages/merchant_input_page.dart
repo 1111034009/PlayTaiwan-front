@@ -6,6 +6,7 @@ import 'merchant_check_page.dart';
 import 'merchant_loading_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
@@ -277,7 +278,14 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
       backgroundColor: _pageColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final scale = constraints.maxWidth / designWidth;
+          // 同時看寬和高（原本只看寬，平板上畫面會比螢幕高、下半部被切掉）
+          final scale = AppResponsive.scale(
+            availableWidth: constraints.maxWidth,
+            availableHeight: constraints.maxHeight,
+            designWidth: designWidth,
+            designHeight: designHeight,
+            max: AppResponsive.canvasMaxScale,
+          );
 
           return Center(
             child: SizedBox(

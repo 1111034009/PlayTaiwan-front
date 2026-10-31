@@ -14,6 +14,7 @@ import 'merchant_input_page.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 import '../core/bgm_service.dart';
@@ -410,7 +411,7 @@ class _MerchantVideoPageState extends State<MerchantVideoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundColor,
-      body: SafeArea(
+      body: ContentFrame(child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -458,7 +459,7 @@ class _MerchantVideoPageState extends State<MerchantVideoPage> {
             );
           },
         ),
-      ),
+      )),
     );
   }
 

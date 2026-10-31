@@ -51,6 +51,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   final Set<String> selectedTransports = {};
 
   bool isGenerating = false;
+  String? _jobId;
   double maxTravelMinutes = 30;
   int generatingTotal = 0;
   int generatingFinished = 0;
@@ -214,6 +215,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
             maxTravelMinutes: maxTravelMinutes.round(),
+            onJobId: (id) => _jobId = id,
             onProgress: (total, finished) {
               if (!mounted) return;
               if (finished != _lastFinished) {
@@ -260,6 +262,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         segmentProgress = [0];
         _segmentsNotifier.value = segmentProgress;
       });
+      if (e is StoryCancelled) return;
       final String message = e
           .toString()
           .replaceFirst('Exception: ', '')
@@ -496,6 +499,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                 segments: segs,
                 detail: generatingDetail.isEmpty ? null : generatingDetail,
                 stage: generatingText.contains('找資料') ? 0 : 1,
+                onCancel: () {
+                  final id = _jobId;
+                  if (id != null)
+                    StoryApi.cancelGenerateGameStory(id).catchError((_) {});
+                },
               ),
             ),
           ),

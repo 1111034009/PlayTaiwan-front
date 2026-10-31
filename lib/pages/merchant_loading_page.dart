@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 
 const Color _backgroundColor = AppColors.textPrimary;
@@ -89,10 +90,16 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
       child: Scaffold(
         backgroundColor: _backgroundColor,
         body: Center(
-          child: FittedBox(
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            child: SizedBox(
+          // 平板上最多放大到 1.5 倍，不要整個爆大
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: designWidth * AppResponsive.canvasMaxScale,
+              maxHeight: designHeight * AppResponsive.canvasMaxScale,
+            ),
+            child: FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+              child: SizedBox(
               width: designWidth,
               height: designHeight,
               child: Stack(
@@ -182,6 +189,7 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),

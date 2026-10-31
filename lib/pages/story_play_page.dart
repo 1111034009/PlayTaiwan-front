@@ -218,16 +218,33 @@ class _StoryPageState extends State<StoryPage> {
     StoryLine line, {
     void Function(String status)? onStatus,
   }) async {
+    String? tid;
     try {
       return await StoryApi.prepareNpcVoice(
         text: line.text,
         voice: line.voice,
         npcName: line.npcName,
         onStatus: (String status) => onStatus?.call(status),
+        onTaskId: (String id) {
+          tid = id;
+          _voiceTaskIds.add(id);
+        },
       ).timeout(voiceTimeout);
     } catch (_) {
       return null;
+    } finally {
+      if (tid != null) _voiceTaskIds.remove(tid);
     }
+  }
+
+  final Set<String> _voiceTaskIds = {};
+
+  void _cancelVoices() {
+    for (final String id in _voiceTaskIds.toList()) {
+      StoryApi.cancelNpcSpeak(id);
+    }
+    _voiceTaskIds.clear();
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _prepareAllVoices() async {
@@ -537,6 +554,7 @@ class _StoryPageState extends State<StoryPage> {
         text: _loadingText,
         progress: _voiceProgress,
         npcAvatar: _npcAvatar,
+        onCancel: _cancelVoices,
       );
     }
 
@@ -674,11 +692,13 @@ class _StoryLoadingPage extends StatefulWidget {
   final String text;
   final double progress;
   final String? npcAvatar;
+  final VoidCallback? onCancel;
 
   const _StoryLoadingPage({
     required this.text,
     required this.progress,
     this.npcAvatar,
+    this.onCancel,
   });
   @override
   State<_StoryLoadingPage> createState() => _StoryLoadingPageState();
@@ -738,6 +758,14 @@ class _StoryLoadingPageState extends State<_StoryLoadingPage>
 
     return Scaffold(
       backgroundColor: _pageColor,
+      bottomNavigationBar: widget.onCancel == null
+          ? null
+          : SafeArea(
+              child: TextButton(
+                onPressed: widget.onCancel,
+                child: const Text('取消'),
+              ),
+            ),
       body: Stack(
         children: [
           Positioned.fill(
