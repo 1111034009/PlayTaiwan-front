@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../block/navigationbar.dart';
 import 'past_page.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import 'past_media_page.dart';
@@ -341,8 +342,8 @@ class _PastDetailPageState extends State<PastDetailPage> {
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.only(top: topInset),
-                  child: SizedBox(
-                    width: constraints.maxWidth,
+                  child: ContentFrame(
+                    maxWidth: 640,
                     child: FittedBox(
                       fit: BoxFit.fitWidth,
                       alignment: Alignment.topCenter,

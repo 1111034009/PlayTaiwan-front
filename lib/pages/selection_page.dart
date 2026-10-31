@@ -305,6 +305,16 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   String? _jobId;
+  bool _cancelled = false;
+
+  void _cancelGenerating() {
+    _cancelled = true;
+    final id = _jobId;
+    if (id != null) StoryApi.cancelGenerateByText(id).catchError((_) {});
+    _progressTimer?.cancel();
+    if (mounted) setState(() => isGeneratingStory = false);
+    AppNotice.show('已取消生成');
+  }
 
   void _startGeneratingProgress() {
     _progressTimer?.cancel();
@@ -351,14 +361,20 @@ class _SelectionPageState extends State<SelectionPage> {
       return;
     }
 
+    _cancelled = false;
+    _jobId = null;
     _startGeneratingProgress();
 
     try {
       final Map<String, dynamic> result = await StoryApi.generateByText(
         userPrompt: idea,
-        onJobId: (id) => _jobId = id,
+        onJobId: (id) {
+          _jobId = id;
+          if (_cancelled) StoryApi.cancelGenerateByText(id).catchError((_) {});
+        },
       );
 
+      if (_cancelled) return;
       _progressTimer?.cancel();
 
       if (!mounted) return;
@@ -413,7 +429,7 @@ class _SelectionPageState extends State<SelectionPage> {
         generatingProgress = 0.0;
       });
 
-      if (e is StoryCancelled) return;
+      if (e is StoryCancelled || _cancelled) return;
 
       _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
     }
@@ -569,11 +585,7 @@ class _SelectionPageState extends State<SelectionPage> {
               progress: generatingProgress,
               detail: '${(generatingProgress * 100).round()}%',
               stage: generatingText.contains('尋找') ? 0 : 1,
-              onCancel: () {
-                final id = _jobId;
-                if (id != null)
-                  StoryApi.cancelGenerateByText(id).catchError((_) {});
-              },
+              onCancel: _cancelGenerating,
             ),
           ),
       ],

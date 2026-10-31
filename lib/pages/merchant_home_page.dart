@@ -177,24 +177,10 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     return Scaffold(
       backgroundColor: pageColor,
       resizeToAvoidBottomInset: false, // 鍵盤殘留時不要把頁面縮小
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final scale = AppResponsive.scale(
-            availableWidth: constraints.maxWidth,
-            availableHeight: constraints.maxHeight,
-            designWidth: designWidth,
-            designHeight: designHeight,
-            max: AppResponsive.canvasMaxScale, // 平板上不要放太大
-          );
-
-          return Center(
-            child: SizedBox(
-              width: designWidth * scale,
-              height: designHeight * scale,
-              child: Transform.scale(
-                scale: scale,
-                alignment: Alignment.topLeft,
-                child: SizedBox(
+      body: CanvasScaler(
+        designWidth: designWidth,
+        designHeight: designHeight,
+        child: SizedBox(
                   width: designWidth,
                   height: designHeight,
                   child: Stack(
@@ -276,10 +262,6 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

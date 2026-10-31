@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/no_space_formatter.dart';
 import '../core/app_text_styles.dart';
 import '../block/policy_dialog.dart';
@@ -319,11 +320,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   child: SizedBox(
                     width: c.maxWidth,
-                    height: c.maxHeight,
+                    height: CanvasFit.canvasHeight(
+                      c.maxWidth,
+                      c.maxHeight,
+                      designWidth,
+                      designHeight,
+                    ),
                     child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
+                      child: CanvasFit(
                         child: SizedBox(
                           width: designWidth,
                           height: designHeight,

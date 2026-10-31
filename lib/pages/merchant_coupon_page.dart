@@ -1644,7 +1644,7 @@ class _CouponQrDialogState extends State<_CouponQrDialog> {
         ? Colors.red.shade700
         : Colors.green.shade800;
 
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: _cardColor,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),

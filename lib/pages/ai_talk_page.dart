@@ -11,6 +11,7 @@ import '../api/story_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_responsive.dart';
 
 const String _kNpcAvatarAsset = 'img/talk_cat.png';
 
@@ -479,34 +480,40 @@ class _AiTalkPageState extends State<AiTalkPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 平板：文字放大；紅色標頭、輸入列鋪滿整個寬度，聊天內容置中
+    final double k = tabletBoost(context);
+    final double side = _sideOf(context);
     return Scaffold(
       backgroundColor: AppColors.paper,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _Header(name: _npcName, subtitle: _npcSubtitle),
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topCenter,
-                    radius: 1.4,
-                    colors: [AppColors.warmPaper, AppColors.paper],
+      body: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(k)),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _Header(name: _npcName, subtitle: _npcSubtitle),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.topCenter,
+                      radius: 1.4,
+                      colors: [AppColors.warmPaper, AppColors.paper],
+                    ),
                   ),
-                ),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
-                  itemCount: _entries.length,
-                  itemBuilder: (context, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _entries[i].child,
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.fromLTRB(14 + side, 18, 14 + side, 24),
+                    itemCount: _entries.length,
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _entries[i].child,
+                    ),
                   ),
                 ),
               ),
-            ),
-            _InputBar(controller: _inputController, onSend: _sendFreeText),
-          ],
+              _InputBar(controller: _inputController, onSend: _sendFreeText),
+            ],
+          ),
         ),
       ),
     );
@@ -552,6 +559,13 @@ class _NpcAvatar extends StatelessWidget {
 // UI 元件：頂部藏寶圖卷軸標頭
 // ===========================================================================
 
+/// 平板上聊天內容最寬（紅色標頭、輸入列的底色仍然鋪滿整個畫面）
+const double _kChatMaxWidth = 800;
+
+/// 內容左右要多留的空白，讓內容在寬螢幕上置中、對齊
+double _sideOf(BuildContext context) =>
+    math.max(0.0, (MediaQuery.sizeOf(context).width - _kChatMaxWidth) / 2);
+
 class _Header extends StatelessWidget {
   final String name;
   final String subtitle;
@@ -560,7 +574,12 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(4, 10, 18, 18),
+      padding: EdgeInsets.fromLTRB(
+        4 + _sideOf(context),
+        10,
+        18 + _sideOf(context),
+        18,
+      ),
       decoration: BoxDecoration(
         color: AppColors.primaryDark,
         borderRadius: const BorderRadius.only(
@@ -596,7 +615,7 @@ class _Header extends StatelessWidget {
                 ),
               ],
             ),
-            child: const _NpcAvatar(size: 48),
+            child: _NpcAvatar(size: 48 * tabletBoost(context)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -620,7 +639,11 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.explore, color: AppColors.postcard, size: 28),
+          Icon(
+            Icons.explore,
+            color: AppColors.postcard,
+            size: 28 * tabletBoost(context),
+          ),
         ],
       ),
     );
@@ -639,7 +662,12 @@ class _InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: EdgeInsets.fromLTRB(
+        12 + _sideOf(context),
+        10,
+        12 + _sideOf(context),
+        12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.warmPaper,
         border: const Border(
@@ -684,14 +712,18 @@ class _InputBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
               onTap: onSend,
               child: Container(
-                width: 46,
-                height: 46,
+                width: 46 * tabletBoost(context),
+                height: 46 * tabletBoost(context),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.primary,
                   border: Border.all(color: AppColors.darkBorder, width: 1.6),
                 ),
-                child: const Icon(Icons.send, color: AppColors.paper, size: 20),
+                child: Icon(
+                  Icons.send,
+                  color: AppColors.paper,
+                  size: 20 * tabletBoost(context),
+                ),
               ),
             ),
           ),
@@ -722,7 +754,9 @@ class _NpcBubble extends StatelessWidget {
         Flexible(
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78,
+              maxWidth:
+                  math.min(MediaQuery.sizeOf(context).width, _kChatMaxWidth) *
+                  0.78,
             ),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -762,7 +796,9 @@ class _UserBubble extends StatelessWidget {
         Flexible(
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78,
+              maxWidth:
+                  math.min(MediaQuery.sizeOf(context).width, _kChatMaxWidth) *
+                  0.78,
             ),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

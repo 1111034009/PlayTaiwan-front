@@ -1426,7 +1426,7 @@ class _ShareNoticeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: _cardColor,
       insetPadding: const EdgeInsets.symmetric(horizontal: 36),
       shape: RoundedRectangleBorder(

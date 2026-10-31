@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../models/history_record.dart';
@@ -138,6 +140,8 @@ class _PastPageState extends State<PastPage> {
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
+    final double uiScale =
+        math.min(screenSize.width, 640.0) / designWidth;
 
     return Scaffold(
       backgroundColor: _pageColor,
@@ -148,15 +152,14 @@ class _PastPageState extends State<PastPage> {
             alignment: Alignment.topCenter,
             child: Padding(
               padding: EdgeInsets.only(top: screenSize.height * 0.05),
-              child: Transform.scale(
-                scale: contentScale,
-                alignment: Alignment.topCenter,
+              child: ContentFrame(
+                maxWidth: 640,
                 child: FittedBox(
-                  fit: BoxFit.contain,
+                  fit: BoxFit.fitWidth,
                   alignment: Alignment.topCenter,
                   child: SizedBox(
                     width: designWidth,
-                    height: screenSize.height / contentScale,
+                    height: screenSize.height * 0.95 / uiScale,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [

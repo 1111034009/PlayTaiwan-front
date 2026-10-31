@@ -19,6 +19,7 @@ import '../api/postcard_api.dart';
 import '../api/vlog_api.dart';
 import '../api/story_api.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
@@ -264,7 +265,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return const Dialog(
+        return const ScaledDialog(
           backgroundColor: Colors.transparent,
           insetPadding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           child: _PrintLoadingContent(),
@@ -315,7 +316,7 @@ class _PastMediaPageState extends State<PastMediaPage> {
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        return Dialog(
+        return ScaledDialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -862,9 +863,8 @@ class _PastMediaPageState extends State<PastMediaPage> {
                     top: screenSize.height * 0.01,
                     bottom: 190,
                   ),
-                  child: Transform.scale(
-                    scale: contentScale,
-                    alignment: Alignment.topCenter,
+                  child: ContentFrame(
+                    maxWidth: 640,
                     child: FittedBox(
                       fit: BoxFit.contain,
                       alignment: Alignment.topCenter,

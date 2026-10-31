@@ -7,6 +7,7 @@ import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import 'script_detail_page.dart';
+import '../core/app_responsive.dart';
 
 class LoveStoryPage extends StatefulWidget {
   const LoveStoryPage({super.key});
@@ -205,7 +206,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _pageColor,
-      body: SafeArea(
+      body: SafeFrame(
         child: Stack(
           children: [
             Column(

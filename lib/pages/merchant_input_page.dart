@@ -274,206 +274,166 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: _pageColor,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // 同時看寬和高（原本只看寬，平板上畫面會比螢幕高、下半部被切掉）
-          final scale = AppResponsive.scale(
-            availableWidth: constraints.maxWidth,
-            availableHeight: constraints.maxHeight,
-            designWidth: designWidth,
-            designHeight: designHeight,
-            max: AppResponsive.canvasMaxScale,
-          );
-
-          return Center(
-            child: SizedBox(
-              width: designWidth * scale,
-              height: designHeight * scale,
-              child: Transform.scale(
-                scale: scale,
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: designWidth,
-                  height: designHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
+      body: SafeArea(
+        child: ContentFrame(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _BackButton(onTap: () => Navigator.pop(context)),
+                const SizedBox(height: 8),
+                Center(
+                  child: _PageTitle(
+                    text: '輸入資訊',
+                    iconPath: 'img/user_icon_line.png',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    '輸入資訊，生成專屬推廣短影音',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyEmphasisBold
+                        .copyWith(color: Colors.white)
+                        .copyWith(
+                          height: 1.05,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x66000000),
+                              offset: Offset(1.2, 1.5),
+                              blurRadius: 1.5,
+                            ),
+                          ],
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _InputPaper(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Positioned.fill(
-                        child: ColoredBox(color: _pageColor),
+                      Text(
+                        '店家名稱',
+                        style: AppTextStyles.bodySmallBold.copyWith(
+                          color: _darkText,
+                        ),
                       ),
-                      Positioned(
-                        left: 23,
-                        top: 10,
-                        child: _BackButton(onTap: () => Navigator.pop(context)),
-                      ),
-                      Positioned(
-                        top: 48,
-                        left: 0,
-                        width: designWidth,
-                        child: Center(
-                          child: _PageTitle(
-                            text: '輸入資訊',
-                            iconPath: 'img/user_icon_line.png',
+                      const SizedBox(height: 2),
+                      SizedBox(
+                        height: 38,
+                        child: TextField(
+                          controller: shopNameController,
+                          maxLines: 1,
+                          style: AppTextStyles.title.copyWith(
+                            color: _darkText,
+                          ),
+                          cursorColor: _red,
+                          decoration: InputDecoration(
+                            hintText: '請勿輸入無註冊的店家名稱',
+                            hintStyle: AppTextStyles.captionSmall
+                                .copyWith(color: _hintColor),
+                            contentPadding: const EdgeInsets.only(
+                              left: 2,
+                              right: 2,
+                              bottom: 5,
+                            ),
+                            enabledBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: _lineColor,
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: _lineColor,
+                                width: 1.3,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: 85,
-                        child: Center(
-                          child: Text(
-                            '輸入資訊，生成專屬推廣短影音',
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyEmphasisBold
-                                .copyWith(color: Colors.white)
-                                .copyWith(
-                                  height: 1.05,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0x66000000),
-                                      offset: Offset(1.2, 1.5),
-                                      blurRadius: 1.5,
-                                    ),
-                                  ],
-                                ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '敘事語氣',
+                        style: AppTextStyles.bodySmallBold.copyWith(
+                          color: _darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      _buildToneRow(),
+                      const SizedBox(height: 10),
+                      Text(
+                        '推廣資訊',
+                        style: AppTextStyles.bodySmallBold.copyWith(
+                          color: _darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Container(
+                        width: double.infinity,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: _lineColor,
+                            width: 1,
+                          ),
+                        ),
+                        child: TextField(
+                          controller: promotionController,
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          style: AppTextStyles.bodySmallMedium.copyWith(
+                            color: _darkText,
+                          ),
+                          cursorColor: _red,
+                          decoration: InputDecoration(
+                            hintText: '請輸入店家優惠、特色、活動資訊',
+                            hintStyle: AppTextStyles.captionSmall
+                                .copyWith(color: _hintColor),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(10),
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 22,
-                        top: 110,
-                        width: 318,
-                        height: 545,
-                        child: _InputPaper(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '店家名稱',
-                                style: AppTextStyles.bodySmallBold.copyWith(
-                                  color: _darkText,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              SizedBox(
-                                height: 38,
-                                child: TextField(
-                                  controller: shopNameController,
-                                  maxLines: 1,
-                                  style: AppTextStyles.title.copyWith(
-                                    color: _darkText,
-                                  ),
-                                  cursorColor: _red,
-                                  decoration: InputDecoration(
-                                    hintText: '請勿輸入無註冊的店家名稱',
-                                    hintStyle: AppTextStyles.captionSmall
-                                        .copyWith(color: _hintColor),
-                                    contentPadding: const EdgeInsets.only(
-                                      left: 2,
-                                      right: 2,
-                                      bottom: 5,
-                                    ),
-                                    enabledBorder: const UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: _lineColor,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    focusedBorder: const UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: _lineColor,
-                                        width: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '敘事語氣',
-                                style: AppTextStyles.bodySmallBold.copyWith(
-                                  color: _darkText,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              _buildToneRow(),
-                              const SizedBox(height: 10),
-                              Text(
-                                '推廣資訊',
-                                style: AppTextStyles.bodySmallBold.copyWith(
-                                  color: _darkText,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Container(
-                                width: double.infinity,
-                                height: 94,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(
-                                    color: _lineColor,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: TextField(
-                                  controller: promotionController,
-                                  maxLines: null,
-                                  expands: true,
-                                  textAlignVertical: TextAlignVertical.top,
-                                  style: AppTextStyles.bodySmallMedium.copyWith(
-                                    color: _darkText,
-                                  ),
-                                  cursorColor: _red,
-                                  decoration: InputDecoration(
-                                    hintText: '請輸入店家優惠、特色、活動資訊',
-                                    hintStyle: AppTextStyles.captionSmall
-                                        .copyWith(color: _hintColor),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.all(10),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Text(
-                                    '上傳',
-                                    style: AppTextStyles.bodySmallBold.copyWith(
-                                      color: _darkText,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  _UploadButton(onTap: uploadFile),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              _UploadArea(
-                                files: uploadedFiles,
-                                onRemove: removeFile,
-                              ),
-                              const SizedBox(height: 15),
-                              Center(
-                                child: _GenerateButton(
-                                  text: _mmId == null ? '生成推薦' : '重新生成',
-                                  busy: _generating,
-                                  onTap: generate,
-                                ),
-                              ),
-                            ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Text(
+                            '上傳',
+                            style: AppTextStyles.bodySmallBold.copyWith(
+                              color: _darkText,
+                            ),
                           ),
+                          const Spacer(),
+                          _UploadButton(onTap: uploadFile),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      _UploadArea(
+                        files: uploadedFiles,
+                        onRemove: removeFile,
+                      ),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: _GenerateButton(
+                          text: _mmId == null ? '生成推薦' : '重新生成',
+                          busy: _generating,
+                          onTap: generate,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

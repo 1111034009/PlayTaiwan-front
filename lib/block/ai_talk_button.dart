@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../pages/ai_talk_page.dart';
 
 class AiTalkButton extends StatelessWidget {
@@ -16,14 +17,15 @@ class AiTalkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double k = tabletBoost(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap ?? () => _openAiTalk(context),
         customBorder: const CircleBorder(),
         child: Container(
-          width: 60,
-          height: 60,
+          width: 60 * k,
+          height: 60 * k,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
 
@@ -45,8 +47,8 @@ class AiTalkButton extends StatelessWidget {
           child: ClipOval(
             child: Image.asset(
               'img/talk_cat.png',
-              width: 55,
-              height: 55,
+              width: 55 * k,
+              height: 55 * k,
               fit: BoxFit.cover,
             ),
           ),

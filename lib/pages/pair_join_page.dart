@@ -6,6 +6,7 @@ import '../core/app_notice.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import 'pair_lobby_page.dart';
+import '../core/app_responsive.dart';
 
 class PairJoinPage extends StatefulWidget {
   const PairJoinPage({super.key});
@@ -220,7 +221,7 @@ class _PairJoinPageState extends State<PairJoinPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _pageColor,
-      body: SafeArea(
+      body: SafeFrame(
         child: Column(
           children: [
             Padding(

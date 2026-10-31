@@ -12,6 +12,7 @@ import 'story_end_page.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
+import '../core/app_responsive.dart';
 
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _lightText = AppColors.paper;
@@ -242,7 +243,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return const Dialog(
+        return const ScaledDialog(
           backgroundColor: Colors.transparent,
           insetPadding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           child: _PrintLoadingContent(),
@@ -293,7 +294,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        return Dialog(
+        return ScaledDialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 20,

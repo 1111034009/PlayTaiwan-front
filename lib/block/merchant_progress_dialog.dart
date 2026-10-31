@@ -6,6 +6,7 @@ import '../api/merchant_vlog_api.dart';
 import '../api/video_check.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_responsive.dart';
 
 const Color _paperColor = AppColors.merchantPaper;
 const Color _darkText = AppColors.textPrimary;
@@ -128,7 +129,7 @@ class _VideoProgressDialogState extends State<_VideoProgressDialog>
   Widget build(BuildContext context) {
     final failed = _failedMessage;
 
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: _paperColor,
       insetPadding: const EdgeInsets.symmetric(horizontal: 36),
       shape: RoundedRectangleBorder(

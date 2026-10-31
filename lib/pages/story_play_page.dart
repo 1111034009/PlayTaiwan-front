@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../api/story_api.dart';
+import '../core/app_notice.dart';
 import '../block/navigationbar.dart';
 import '../block/topbar.dart';
 import '../core/app_colors.dart';
@@ -244,6 +245,7 @@ class _StoryPageState extends State<StoryPage> {
       StoryApi.cancelNpcSpeak(id);
     }
     _voiceTaskIds.clear();
+    AppNotice.show('已取消生成');
     if (mounted) Navigator.of(context).maybePop();
   }
 

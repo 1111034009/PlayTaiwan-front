@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'place_ticket.dart';
 import '../../core/app_text_styles.dart';
+import '../../core/app_responsive.dart';
 
 /// 天氣圖示：後端 GET /api/Map/Weather 的 condition
 IconData weatherIcon(String? condition) => switch (condition) {
@@ -68,6 +69,7 @@ class NpcBuddy extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
+    final k = tabletBoost(context);
     final wide = width >= 900 || this.avatar != null;
     final placeholder = const ColoredBox(
       color: Pal.parchmentDeep,
@@ -80,8 +82,8 @@ class NpcBuddy extends StatelessWidget {
           child: GestureDetector(
             onTap: onTap,
             child: Container(
-              width: 46,
-              height: 46,
+              width: 46 * k,
+              height: 46 * k,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: PlaceTicket.frame, width: 2),
@@ -124,8 +126,15 @@ class NpcBuddy extends StatelessWidget {
     final bubble = text == null
         ? null
         : ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: math.min(270.0, width - 130)),
-            child: _bubble(),
+            constraints: BoxConstraints(
+              maxWidth: math.min(270.0 * k, width - 130 * k),
+            ),
+            child: MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(k)),
+              child: _bubble(),
+            ),
           );
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -5,6 +5,7 @@ import '../route_map/api.dart';
 import '../route_map/models.dart';
 import '../route_map/theme.dart';
 import '../core/app_notice.dart';
+import '../core/app_responsive.dart';
 
 /// 做任務：地圖頁按「做任務」打開的答題頁，這一關的題目在這裡作答。
 /// 題目、作答方式、通過了沒都問後端（GET /api/Task/Node/{id}），送出答案是 POST /api/Task/Answer；
@@ -285,7 +286,7 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('做任務・${widget.node.label}')),
-      body: SafeArea(
+      body: SafeFrame(
         top: false,
         child: _play == null ? _waiting() : _content(),
       ),

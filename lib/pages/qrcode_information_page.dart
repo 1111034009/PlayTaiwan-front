@@ -6,6 +6,7 @@ import 'package:gal/gal.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_notice.dart';
+import '../core/app_responsive.dart';
 
 Map<String, dynamic> _asMap(dynamic value) {
   return value is Map ? Map<String, dynamic>.from(value) : {};
@@ -235,7 +236,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
-        return Dialog(
+        return ScaledDialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
           insetPadding: const EdgeInsets.all(18),
@@ -320,7 +321,7 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: paperBg,
-      body: SafeArea(
+      body: SafeFrame(
         child: Stack(
           children: [
             const Positioned.fill(child: _PaperTextureBackground()),

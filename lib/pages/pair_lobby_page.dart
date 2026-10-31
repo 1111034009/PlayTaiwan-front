@@ -9,6 +9,7 @@ import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import 'story_play_page.dart';
+import '../core/app_responsive.dart';
 
 class PairLobbyPage extends StatefulWidget {
   final Map<String, dynamic> pair;
@@ -330,7 +331,7 @@ class _PairLobbyPageState extends State<PairLobbyPage> {
       },
       child: Scaffold(
         backgroundColor: _pageColor,
-        body: SafeArea(
+        body: SafeFrame(
           child: Column(
             children: [
               _buildTopBar(),

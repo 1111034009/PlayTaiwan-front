@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/bgm_service.dart';
 import '../core/no_space_formatter.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
@@ -408,11 +409,14 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: SizedBox(
                   width: c.maxWidth,
-                  height: c.maxHeight,
+                  height: CanvasFit.canvasHeight(
+                    c.maxWidth,
+                    c.maxHeight,
+                    designWidth,
+                    designHeight,
+                  ),
                   child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
+                    child: CanvasFit(
                       child: SizedBox(
                         width: designWidth,
                         height: designHeight,

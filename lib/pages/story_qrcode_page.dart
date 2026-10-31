@@ -10,6 +10,7 @@ import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 
 import 'qrcode_information_page.dart';
+import '../core/app_responsive.dart';
 
 class _QrScanException implements Exception {
   const _QrScanException(this.message);
@@ -185,7 +186,7 @@ class _StoryNfcPageState extends State<StoryNfcPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.storyBackground,
-      body: SafeArea(
+      body: SafeFrame(
         child: Stack(
           children: [
             const Positioned.fill(child: _NfcBackground()),

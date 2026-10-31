@@ -1120,7 +1120,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.question != null;
 
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: _cardColor,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(

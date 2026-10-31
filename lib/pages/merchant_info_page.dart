@@ -12,6 +12,7 @@ import '../core/app_colors.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_responsive.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.card;
@@ -607,12 +608,15 @@ class _MerchantInfoPageState extends State<MerchantInfoPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 560),
+        constraints: BoxConstraints(
+          maxWidth: 360,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: SizedBox(
           width: 360,
           child: _InfoCard(
@@ -697,7 +701,7 @@ class _AccountEditDialogState extends State<_AccountEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
@@ -1738,7 +1742,7 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../pages/story_qrcode_page.dart';
 
 class StoryNfcButton extends StatelessWidget {
@@ -20,14 +21,15 @@ class StoryNfcButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double k = tabletBoost(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _openNfcPage(context),
         customBorder: const CircleBorder(),
         child: Container(
-          width: 60,
-          height: 60,
+          width: 60 * k,
+          height: 60 * k,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.primary,
@@ -44,8 +46,8 @@ class StoryNfcButton extends StatelessWidget {
           child: ClipOval(
             child: Image.asset(
               'img/qr_code.png',
-              width: 40,
-              height: 40,
+              width: 50 * k,
+              height: 50 * k,
               fit: BoxFit.cover,
             ),
           ),

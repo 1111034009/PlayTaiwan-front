@@ -8,6 +8,7 @@ import '../api/vlog_watcher.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_responsive.dart';
 
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _lightText = AppColors.paper;
@@ -223,7 +224,7 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
       canPop: false,
       child: Scaffold(
         backgroundColor: _backgroundColor,
-        body: SafeArea(child: _buildBody()),
+        body: SafeFrame(child: _buildBody()),
       ),
     );
   }

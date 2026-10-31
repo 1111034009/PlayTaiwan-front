@@ -8,6 +8,7 @@ import '../block/navigationbar.dart';
 import '../block/script_generating_overlay.dart';
 import 'choose_script_page.dart';
 import 'dart:async';
+import '../core/app_responsive.dart';
 
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
@@ -52,6 +53,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
   bool isGenerating = false;
   String? _jobId;
+  bool _cancelled = false;
+
+  void _cancelGenerating() {
+    _cancelled = true;
+    final id = _jobId;
+    if (id != null) StoryApi.cancelGenerateGameStory(id).catchError((_) {});
+    _progressTimer?.cancel();
+    if (mounted) setState(() => isGenerating = false);
+    AppNotice.show('已取消生成');
+  }
+
   double maxTravelMinutes = 30;
   int generatingTotal = 0;
   int generatingFinished = 0;
@@ -194,6 +206,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     }
 
     partySize = peopleCount;
+    _cancelled = false;
+    _jobId = null;
 
     setState(() {
       isGenerating = true;
@@ -215,9 +229,14 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             preferences: selectedPreferences.toList(),
             transportation: selectedTransports.toList(),
             maxTravelMinutes: maxTravelMinutes.round(),
-            onJobId: (id) => _jobId = id,
+            onJobId: (id) {
+              _jobId = id;
+              if (_cancelled) {
+                StoryApi.cancelGenerateGameStory(id).catchError((_) {});
+              }
+            },
             onProgress: (total, finished) {
-              if (!mounted) return;
+              if (!mounted || _cancelled) return;
               if (finished != _lastFinished) {
                 _lastFinished = finished;
                 _segStart = DateTime.now();
@@ -229,7 +248,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             },
           );
 
-      if (!mounted) {
+      if (!mounted || _cancelled) {
         return;
       }
 
@@ -262,7 +281,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         segmentProgress = [0];
         _segmentsNotifier.value = segmentProgress;
       });
-      if (e is StoryCancelled) return;
+      if (e is StoryCancelled || _cancelled) return;
       final String message = e
           .toString()
           .replaceFirst('Exception: ', '')
@@ -277,7 +296,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.82),
       builder: (context) {
-        return Dialog(
+        return ScaledDialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
           insetPadding: const EdgeInsets.symmetric(horizontal: 30),
@@ -499,11 +518,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                 segments: segs,
                 detail: generatingDetail.isEmpty ? null : generatingDetail,
                 stage: generatingText.contains('找資料') ? 0 : 1,
-                onCancel: () {
-                  final id = _jobId;
-                  if (id != null)
-                    StoryApi.cancelGenerateGameStory(id).catchError((_) {});
-                },
+                onCancel: _cancelGenerating,
               ),
             ),
           ),

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../api/merchant_register_api.dart';
+import '../core/app_responsive.dart';
 
 class ParsedTaiwanAddress {
   final String city;
@@ -245,7 +246,7 @@ class StorySearchPopup extends StatelessWidget {
     final double width = MediaQuery.of(context).size.width;
     final double height = MediaQuery.of(context).size.height;
 
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
       child: GestureDetector(
@@ -1132,7 +1133,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaledDialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: ConstrainedBox(

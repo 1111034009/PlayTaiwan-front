@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -8,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../block/navigationbar.dart';
 import '../core/app_colors.dart';
+import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
@@ -215,7 +217,8 @@ class _CollectionPageState extends State<CollectionPage> {
           ? const Center(child: CircularProgressIndicator())
           : series.isEmpty
           ? _buildEmptyState()
-          : ScrollConfiguration(
+          : ContentFrame(
+              child: ScrollConfiguration(
               behavior: const _NoScrollbarBehavior(),
               child: ListView.builder(
                 physics: const BouncingScrollPhysics(),
@@ -238,6 +241,7 @@ class _CollectionPageState extends State<CollectionPage> {
                   );
                 },
               ),
+            ),
             ),
 
       bottomNavigationBar: const AppNavigationBar(currentIndex: currentIndex),
@@ -419,8 +423,8 @@ class _BadgeGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: badges.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 120,
         crossAxisSpacing: 9,
         mainAxisSpacing: 9,
         childAspectRatio: 1,
@@ -560,10 +564,11 @@ class _BadgePopup extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
 
               children: [
-                SizedBox(
-                  width: 180,
-                  height: 180,
-
+                _BadgeZoom(
+                  size: (MediaQuery.sizeOf(context).shortestSide * 0.5).clamp(
+                    160.0,
+                    360.0,
+                  ),
                   child: badge.isOwned
                       ? _UnlockedBadge(
                           imageUrl: badge.imageUrl,
@@ -614,6 +619,89 @@ class _BadgePopup extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 徽章放大縮小：雙指縮放、雙擊放大；放手（或約 1 秒後）會自動縮回原大小
+class _BadgeZoom extends StatefulWidget {
+  final double size;
+  final Widget child;
+
+  const _BadgeZoom({required this.size, required this.child});
+
+  @override
+  State<_BadgeZoom> createState() => _BadgeZoomState();
+}
+
+class _BadgeZoomState extends State<_BadgeZoom>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _c = TransformationController();
+  late final AnimationController _back = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _back.dispose();
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// 平滑縮回原大小
+  void _reset() {
+    _timer?.cancel();
+    final Matrix4 from = _c.value.clone();
+    _back
+      ..stop()
+      ..reset();
+    final Animation<double> t = CurvedAnimation(
+      parent: _back,
+      curve: Curves.easeOut,
+    );
+    t.addListener(() {
+      _c.value = Matrix4Tween(
+        begin: from,
+        end: Matrix4.identity(),
+      ).transform(t.value);
+    });
+    _back.forward();
+  }
+
+  void _zoomIn() {
+    _back.stop();
+    final double mid = widget.size / 2;
+    _c.value = Matrix4.identity()
+      ..translate(mid, mid)
+      ..scale(2.5)
+      ..translate(-mid, -mid);
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 1000), _reset);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onDoubleTap: _zoomIn,
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: InteractiveViewer(
+          transformationController: _c,
+          minScale: 1,
+          maxScale: 4,
+          clipBehavior: Clip.none,
+          onInteractionStart: (_) {
+            _timer?.cancel();
+            _back.stop();
+          },
+          onInteractionEnd: (_) => _reset(),
+          child: widget.child,
         ),
       ),
     );

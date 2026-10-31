@@ -10,6 +10,7 @@ import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_responsive.dart';
 
 enum _Filter { all, unused, used, expired }
 
@@ -370,7 +371,7 @@ class _WalletPageState extends State<WalletPage> {
     return Scaffold(
       backgroundColor: _pageColor,
       extendBody: true,
-      body: SafeArea(
+      body: SafeFrame(
         bottom: false,
         child: Column(
           children: [
