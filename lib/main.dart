@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -21,6 +22,12 @@ import 'core/story_generation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // flutter_map 對 OSM 公開圖磚伺服器的提醒（只是警告）：不要印出來
+  final DebugPrintCallback originalDebugPrint = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {
+    if (message != null && message.contains('[flutter_map]')) return;
+    originalDebugPrint(message, wrapWidth: wrapWidth);
+  };
   await dotenv.load(fileName: ".env");
   AuthGuard.init();
   await AudioPlayer.global.setAudioContext(

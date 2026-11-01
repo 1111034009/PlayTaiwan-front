@@ -467,7 +467,11 @@ class _PlayIdeaPageState extends State<PlayIdeaPage>
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        TravelInfoPage(cityName: cityName, townName: ''),
+                        TravelInfoPage(
+                          cityName: cityName,
+                          townName: '',
+                          isRandom: true, // 來點遊意思：劇本一定排進合作商家
+                        ),
                   ),
                 );
               },

@@ -65,6 +65,33 @@ class VlogApi {
     return Map<String, dynamic>.from(result);
   }
 
+  /// 分享用文字（後端 GET /api/VisitorVlog/Status 的 share_text）。
+  /// 後端沒給時，用標題 + 宣傳文案 + 關鍵字自己組；都沒有或查詢失敗就回傳空字串
+  Future<String> fetchShareText({required String storyId}) async {
+    try {
+      final Map<String, dynamic> status = await getStatus(storyId: storyId);
+
+      final String shareText = status['share_text']?.toString().trim() ?? '';
+
+      if (shareText.isNotEmpty) return shareText;
+
+      final String title = status['title']?.toString().trim() ?? '';
+      final String promo = status['promo_copy']?.toString().trim() ?? '';
+      final dynamic rawKeywords = status['seo_keywords'];
+      final String tags = rawKeywords is List
+          ? rawKeywords
+                .map((e) => e.toString().trim())
+                .where((e) => e.isNotEmpty)
+                .map((e) => '#$e')
+                .join(' ')
+          : '';
+
+      return [title, promo, tags].where((e) => e.isNotEmpty).join('\n');
+    } catch (_) {
+      return '';
+    }
+  }
+
   /// 將影片下載至 App 暫存目錄。
 
   Future<File> downloadToCache({

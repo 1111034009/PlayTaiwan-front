@@ -19,10 +19,15 @@ class AppNotice {
   static final ValueNotifier<int> _tick = ValueNotifier(0);
   static OverlayEntry? _entry;
 
+  /// 通知至少停留這麼久（呼叫的人給更短的也會被拉長到這個時間）
+  static const Duration minDuration = Duration(seconds: 20);
+
   static void show(
     String message, {
-    Duration duration = const Duration(milliseconds: 2500),
+    Duration duration = minDuration,
   }) {
+    if (duration < minDuration) duration = minDuration;
+
     final OverlayState? overlay = AuthGuard.navigatorKey.currentState?.overlay;
     if (overlay == null) return;
 

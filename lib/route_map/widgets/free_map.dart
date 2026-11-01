@@ -3,7 +3,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_notice.dart';
+import '../../core/app_text_styles.dart';
 import '../api.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -191,7 +193,7 @@ class _FreeMapState extends State<FreeMap> {
         Polyline(
           points: [me, dest.latLng],
           strokeWidth: 3,
-          color: const Color(0xFFB5493A),
+          color: AppColors.primaryAccent,
         ),
       ];
     }
@@ -232,7 +234,7 @@ class _FreeMapState extends State<FreeMap> {
                         const Icon(
                           Icons.place,
                           size: 36,
-                          color: Color(0xFFB5493A),
+                          color: AppColors.primaryAccent,
                         ),
                         if ((dest.name ?? '').isNotEmpty)
                           Text(
@@ -274,6 +276,8 @@ class _FreeMapState extends State<FreeMap> {
           bottom: 210,
           child: FloatingActionButton.small(
             heroTag: null,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             onPressed: _locating ? null : _locate,
             child: _locating
                 ? const SizedBox(
@@ -290,9 +294,10 @@ class _FreeMapState extends State<FreeMap> {
             right: 12,
             bottom: 96,
             child: Material(
-              color: const Color(0xFFF3E4C1),
+              color: AppColors.paper,
               elevation: 6,
               borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(
@@ -307,9 +312,8 @@ class _FreeMapState extends State<FreeMap> {
                                 : '${option.mode}・約 ${option.minutes.round()} 分鐘・${option.distanceKm.toStringAsFixed(1)} 公里'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF40342D),
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     if (option != null && option.summary.isNotEmpty)
@@ -319,34 +323,31 @@ class _FreeMapState extends State<FreeMap> {
                           option.summary,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B5B4D),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.softBrown,
                           ),
                         ),
                       ),
                     const SizedBox(height: 6),
                     SizedBox(
-                      height: 40,
+                      height: 44,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
                           for (final String mode in allModes)
                             Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                avatar: Icon(modeStyle(mode).icon, size: 16),
-                                label: Text(mode),
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _ModeChip(
+                                mode: mode,
                                 selected: _mode == mode,
-                                onSelected:
-                                    _planning ||
-                                        _me == null ||
-                                        _availability[mode]?.enabled == false
-                                    ? null
-                                    : (_) {
-                                        setState(() => _mode = mode);
-                                        _plan();
-                                      },
+                                enabled:
+                                    !_planning &&
+                                    _me != null &&
+                                    _availability[mode]?.enabled != false,
+                                onTap: () {
+                                  setState(() => _mode = mode);
+                                  _plan();
+                                },
                               ),
                             ),
                         ],
@@ -358,6 +359,55 @@ class _FreeMapState extends State<FreeMap> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// 交通方式按鈕：選中是紅色實心、沒選是羊皮紙底加咖啡色框線，附近沒有的反灰
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({
+    required this.mode,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String mode;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color fg = selected
+        ? Colors.white
+        : (enabled ? AppColors.textPrimary : AppColors.mutedText);
+
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : (enabled ? AppColors.card : AppColors.warmPaper),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? AppColors.primaryDark : AppColors.postcardLine,
+            width: 1.4,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(modeStyle(mode).icon, size: 18, color: fg),
+            const SizedBox(width: 5),
+            Text(mode, style: AppTextStyles.captionBold.copyWith(color: fg)),
+          ],
+        ),
+      ),
     );
   }
 }

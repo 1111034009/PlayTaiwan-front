@@ -24,8 +24,11 @@ class ShellNotice {
     String message, {
     String? actionLabel,
     VoidCallback? onAction,
-    Duration duration = const Duration(seconds: 3),
+    Duration duration = const Duration(seconds: 20),
   }) {
+    if (duration < const Duration(seconds: 20)) {
+      duration = const Duration(seconds: 20);
+    }
     _timer?.cancel();
     current.value = ShellNoticeData(message, actionLabel, onAction);
     _timer = Timer(duration, hide);

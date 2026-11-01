@@ -25,6 +25,10 @@ class StoryGeneration extends ChangeNotifier {
   String text = '';
   String? jobId;
 
+  /// 這次生成的縣市、行政區（有的話）：逛逛商家頁會自動帶入
+  String? city;
+  String? town;
+
   int _run = 0;
   double _target = 0;
   bool _fake = false;
@@ -38,6 +42,8 @@ class StoryGeneration extends ChangeNotifier {
     required String text,
     required Future<void> Function(String jobId) cancelApi,
     bool fake = false,
+    String? city,
+    String? town,
   }) {
     _ticker?.cancel();
     _run++;
@@ -49,6 +55,8 @@ class StoryGeneration extends ChangeNotifier {
     _startAt = DateTime.now();
     _cancelApi = cancelApi;
     jobId = null;
+    this.city = city;
+    this.town = town;
     progress = 0.01;
     _target = 0.01;
     this.text = text;

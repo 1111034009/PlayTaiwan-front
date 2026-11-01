@@ -17,6 +17,7 @@ import 'selection_page.dart';
 import 'collection_page.dart';
 import 'past_page.dart';
 import 'wallet_page.dart';
+import 'merchant_browse_page.dart';
 import 'love_story_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -44,6 +45,7 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey _pastKey = GlobalKey();
   final GlobalKey _goKey = GlobalKey();
   final GlobalKey _agentKey = GlobalKey();
+  final GlobalKey _browseKey = GlobalKey();
   Future<void> _maybeStartTutorial() async {
     if (await AppTutorial.isDone(AppTutorial.homeId)) return;
 
@@ -75,6 +77,12 @@ class _HomePageState extends State<HomePage> {
           target: _goKey,
           title: '出發探險',
           text: '想出門就從這裡開始',
+          align: ContentAlign.top,
+        ),
+        TutorialStep(
+          target: _browseKey,
+          title: '逛商家',
+          text: '查看合作店家及店家優惠卷',
           align: ContentAlign.top,
         ),
         TutorialStep(
@@ -306,6 +314,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _openBrowse() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const MerchantBrowsePage()),
+    );
+  }
+
   void _openLoveStory() {
     Navigator.push(
       context,
@@ -459,10 +474,12 @@ class _HomePageState extends State<HomePage> {
                         height: 28,
                         child: _Tape(rotation: -0.015),
                       ),
+                      // 底部一排：右邊 x > 285 會被右下角的 QR / 小精靈浮動按鈕擋住，
+                      // 所以三顆都排在 15～285 之間（84 寬 × 3 + 間距 9 × 2）
                       Positioned(
-                        left: 48,
-                        top: 510,
-                        width: 105,
+                        left: 15,
+                        top: 512,
+                        width: 84,
                         height: 43,
                         child: KeyedSubtree(
                           key: _agentKey,
@@ -470,16 +487,26 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Positioned(
-                        left: 52,
+                        left: 19,
                         top: 494,
                         width: 76,
                         height: 28,
                         child: _Tape(rotation: -0.025),
                       ),
                       Positioned(
-                        left: 190,
-                        top: 522,
-                        width: 105,
+                        left: 108,
+                        top: 512,
+                        width: 84,
+                        height: 43,
+                        child: KeyedSubtree(
+                          key: _browseKey,
+                          child: _BrowseButton(onTap: _openBrowse),
+                        ),
+                      ),
+                      Positioned(
+                        left: 201,
+                        top: 512,
+                        width: 84,
                         height: 43,
                         child: _WalletButton(onTap: _openWallet),
                       ),
@@ -487,7 +514,8 @@ class _HomePageState extends State<HomePage> {
                       const Positioned(left: 283, top: 30, child: _PushPin()),
                       const Positioned(left: 320, top: 165, child: _PushPin()),
                       const Positioned(left: 264, top: 284, child: _PushPin()),
-                      const Positioned(left: 232, top: 512, child: _PushPin()),
+                      const Positioned(left: 150, top: 502, child: _PushPin()),
+                      const Positioned(left: 243, top: 502, child: _PushPin()),
                     ],
                   ),
                 ),
@@ -1009,17 +1037,24 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 20, color: darkText),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.captionBold.copyWith(color: darkText),
+          // 按鈕變窄（84 寬）：字太長時整排自動縮小，不會溢出
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: darkText),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.captionBold.copyWith(color: darkText),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1028,6 +1063,14 @@ class _HomePageState extends State<HomePage> {
 
   Widget _AgentInfo({required VoidCallback onTap}) {
     return _IconLabelButton(icon: Icons.settings, label: '探員資訊', onTap: onTap);
+  }
+
+  Widget _BrowseButton({required VoidCallback onTap}) {
+    return _IconLabelButton(
+      icon: Icons.storefront_outlined,
+      label: '逛商家',
+      onTap: onTap,
+    );
   }
 
   Widget _WalletButton({required VoidCallback onTap}) {

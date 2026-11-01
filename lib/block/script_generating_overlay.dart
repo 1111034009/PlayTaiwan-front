@@ -181,46 +181,62 @@ class _ScriptGeneratingOverlayState extends State<ScriptGeneratingOverlay>
                     _LoadingDot(animation: _controller, delay: 0.4),
                   ],
                 ),
-                if (widget.onHome != null) ...[
+                if (widget.onHome != null || widget.onCancel != null) ...[
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: FilledButton.icon(
-                      onPressed: widget.onHome,
-                      icon: const Icon(Icons.home_rounded, size: 20),
-                      label: const Text('回首頁，背景繼續生成'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        textStyle: AppTextStyles.bodyBold,
-                      ),
-                    ),
-                  ),
-                ],
-                if (widget.onCancel != null) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 40,
-                    child: TextButton.icon(
-                      onPressed: widget.onCancel,
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('取消生成'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primaryDark,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(
-                            color: AppColors.primaryDark.withValues(alpha: 0.45),
+                  // 左：取消（圓角框線）　右：背景生成（紅色實心）
+                  Row(
+                    children: [
+                      if (widget.onCancel != null)
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: widget.onCancel,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                side: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 1.6,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                textStyle: AppTextStyles.bodySmallBold,
+                              ),
+                              child: const Text('取消'),
+                            ),
                           ),
                         ),
-                        textStyle: AppTextStyles.bodySmallBold,
-                      ),
-                    ),
+                      if (widget.onHome != null && widget.onCancel != null)
+                        const SizedBox(width: 10),
+                      if (widget.onHome != null)
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: FilledButton(
+                              onPressed: widget.onHome,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                textStyle: AppTextStyles.bodySmallBold,
+                              ),
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('背景生成'),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ],

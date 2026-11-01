@@ -98,6 +98,8 @@ class StoryApi {
     required List<String> transportation,
     int isNight = 1,
     int maxTravelMinutes = 30,
+    // 來點遊意思（轉盤抽縣市）傳 true：後端會把劇本排進合作商家
+    bool isRandom = false,
     void Function(int total, int finished)? onProgress,
     void Function(String jobId)? onJobId,
     void Function(Map<String, dynamic> job)? onJob,
@@ -123,6 +125,9 @@ class StoryApi {
       'preferences': preferences,
       'is_night_mode': isNight,
       'max_minutes': maxTravelMinutes.clamp(10, 60).toInt(),
+      // lat、lng 照送；這個縣市沒有合作商家時，後端照座標規劃
+      if (isRandom) 'city_name': cleanCityName,
+      if (isRandom) 'is_random': true,
     };
 
     debugPrint('requestBody: $requestBody');

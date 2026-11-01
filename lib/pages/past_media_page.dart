@@ -706,8 +706,24 @@ class _PastMediaPageState extends State<PastMediaPage> {
     }
 
     try {
+      // 分享時一起帶後端的 share_text（標題 + 文案 + 標籤）
+      final String shareText = await _vlogApi.fetchShareText(
+        storyId: widget.storyId,
+      );
+
+      final String text = shareText.isNotEmpty ? shareText : '我的旅程回憶 Vlog';
+
+      // 有些 App（LINE、IG 等）分享影片時會丟掉文字，所以同時複製到剪貼簿，貼上就有
+      await Clipboard.setData(ClipboardData(text: text));
+      _showMessage('分享文字已複製，若對方 App 沒帶出文字，貼上即可');
+
+      if (!mounted) return;
+
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], text: '我的旅程回憶 Vlog'),
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'video/mp4')],
+          text: text,
+        ),
       );
     } catch (e) {
       debugPrint('分享 Vlog 失敗：$e');

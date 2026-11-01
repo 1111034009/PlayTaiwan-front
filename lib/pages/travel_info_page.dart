@@ -25,10 +25,14 @@ class TravelInfoPage extends StatefulWidget {
   final String cityName;
   final String townName;
 
+  /// 來點遊意思（轉盤）進來傳 true，生成劇本時會帶 is_random
+  final bool isRandom;
+
   const TravelInfoPage({
     super.key,
     required this.cityName,
     required this.townName,
+    this.isRandom = false,
   });
 
   @override
@@ -181,6 +185,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     final int run = gen.start(
       text: '紫薯編找資料中…',
       cancelApi: StoryApi.cancelGenerateGameStory,
+      city: city,
+      town: town,
     );
 
     try {
@@ -192,6 +198,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
             preferences: selectedPreferences.toList(),
             transportation: transports,
             maxTravelMinutes: maxTravelMinutes.round(),
+            isRandom: widget.isRandom,
             onJobId: gen.setJobId,
             onJob: (job) {
               if (!gen.isCurrent(run)) return;
