@@ -90,11 +90,8 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
         animationCurve: Curves.easeOutCubic,
 
         letIndexChange: (index) {
-          if (_isNavigating) {
-            return false;
-          }
-
-          return index != _selectedIndex;
+          // 點到目前這一頁也要能動作（例如在首頁底下的子頁按「首頁」要回得去）
+          return !_isNavigating;
         },
 
         items: [

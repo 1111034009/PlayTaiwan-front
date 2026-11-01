@@ -315,6 +315,7 @@ class _MerchantBrowsePageState extends State<MerchantBrowsePage> {
                   child: TextField(
                     controller: _keywordController,
                     textInputAction: TextInputAction.search,
+                    textAlignVertical: TextAlignVertical.center, // 垂直置中
                     onSubmitted: (_) => _search(),
                     cursorColor: _red,
                     style: AppTextStyles.bodyCompact.copyWith(color: _darkText),

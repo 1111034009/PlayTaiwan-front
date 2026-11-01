@@ -15,7 +15,7 @@ import '../core/bgm_service.dart';
 // 「遊你說了算」的輸入欄：可打字，也可錄音。
 //
 //   手動輸入 ──點麥克風──▶ 錄音中（顯示秒數）
-//        ▲                      │ 點停止（至少錄 5 秒）/ 滿 60 秒自動停
+//        ▲                      │ 點停止（至少錄 5 秒）/ 滿 30 秒自動停
 //        │                      ▼
 //        └────── 點 ✕ ◀──── 確認中：▶ 播放原本的錄音（可重複）／🎤 重錄／✕ 變回手動輸入
 //
@@ -46,7 +46,7 @@ class VoiceIdeaField extends StatefulWidget {
 
 class VoiceIdeaFieldState extends State<VoiceIdeaField>
     with SingleTickerProviderStateMixin {
-  static const int _maxSeconds = 60;
+  static const int _maxSeconds = 30;
 
   /// 錄音最少要這麼久，太短不收
   static const int minSeconds = 5;
@@ -213,7 +213,7 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
   Future<void> _stopRecording() async {
     if (_mode != _VoiceMode.recording) return;
 
-    // 錄音最少 5 秒：還不到就繼續錄（自動停在 60 秒不受影響）
+    // 錄音最少 5 秒：還不到就繼續錄（自動停在 30 秒不受影響）
     if (_seconds < minSeconds) {
       AppNotice.show('錄音至少要 $minSeconds 秒，請再說一下');
       return;

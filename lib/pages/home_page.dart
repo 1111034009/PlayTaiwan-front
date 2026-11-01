@@ -476,7 +476,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned(
                         left: 15,
-                        top: 474,
+                        top: 460,
                         width: 105,
                         height: 43,
                         child: KeyedSubtree(
@@ -486,14 +486,14 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned(
                         left: 19,
-                        top: 456,
+                        top: 455,
                         width: 76,
-                        height: 28,
+                        height: 20,
                         child: _Tape(rotation: -0.025),
                       ),
                       Positioned(
                         left: 36,
-                        top: 522,
+                        top: 525,
                         width: 105,
                         height: 43,
                         child: KeyedSubtree(
@@ -502,8 +502,8 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Positioned(
-                        left: 153,
-                        top: 510,
+                        left: 160,
+                        top: 515,
                         width: 105,
                         height: 43,
                         child: _WalletButton(onTap: _openWallet),
@@ -513,7 +513,7 @@ class _HomePageState extends State<HomePage> {
                       const Positioned(left: 320, top: 165, child: _PushPin()),
                       const Positioned(left: 264, top: 284, child: _PushPin()),
                       const Positioned(left: 78, top: 512, child: _PushPin()),
-                      const Positioned(left: 195, top: 500, child: _PushPin()),
+                      const Positioned(left: 195, top: 505, child: _PushPin()),
                     ],
                   ),
                 ),

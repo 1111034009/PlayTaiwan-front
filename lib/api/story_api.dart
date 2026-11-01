@@ -760,6 +760,76 @@ class StoryApi {
     return job;
   }
 
+  /// 遊你說了算的語音版：上傳錄音（欄位 audio，30 秒內），後端轉成文字後走跟文字版一樣的流程。
+  /// 查進度、取消都跟文字版同一組 API（GET / POST GenerateByText/{job_id}）。
+  /// [onTranscript]：後端聽到的那句話，可以顯示「你說的是：……」
+  static Future<Map<String, dynamic>> generateByVoice({
+    required File audio,
+    void Function(String transcript)? onTranscript,
+    void Function(String stage)? onStage,
+    void Function(String jobId)? onJobId,
+    void Function(Map<String, dynamic> job)? onJob,
+  }) async {
+    final http.MultipartRequest request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/api/Story/GenerateByText/Voice'),
+    );
+
+    request.headers['accept'] = 'text/plain';
+    request.headers['Authorization'] = 'Bearer ${_requireToken()}';
+    request.files.add(await http.MultipartFile.fromPath('audio', audio.path));
+
+    final http.StreamedResponse streamed = await request.send().timeout(
+      const Duration(minutes: 2),
+    );
+    final http.Response response = await http.Response.fromStream(streamed);
+
+    Map<String, dynamic> data = {};
+
+    try {
+      final dynamic body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is Map) data = Map<String, dynamic>.from(body);
+    } catch (_) {}
+
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        data['isSuccess'] != true) {
+      final String message = data['message']?.toString().trim() ?? '';
+
+      throw Exception(
+        message.isNotEmpty
+            ? message
+            : response.statusCode == 503
+            ? '語音辨識暫時不能用，請改用打字輸入'
+            : response.statusCode == 400
+            ? '沒聽清楚，請再說一次'
+            : '語音上傳失敗，請稍後再試',
+      );
+    }
+
+    final String transcript =
+        _voiceResult(data)['transcript']?.toString().trim() ?? '';
+
+    if (transcript.isNotEmpty) onTranscript?.call(transcript);
+
+    final Map<String, dynamic> job = await _pollJob(
+      first: data,
+      path: '/api/Story/GenerateByText',
+      failMessage: '劇本生成失敗，稍後嘗試',
+      onJobId: onJobId,
+      onProgress: (job) {
+        onJob?.call(job);
+        onStage?.call(job['stage']?.toString().trim() ?? '');
+      },
+    );
+
+    if (job['data'] is! Map) {
+      throw Exception('劇本生成失敗，稍後嘗試');
+    }
+
+    return job;
+  }
+
   static Future<({String city, String town})> currentCityTown() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('請開啟手機的位置服務');

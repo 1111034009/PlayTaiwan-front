@@ -341,92 +341,66 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // RWD：紙張撐滿整個畫面（手機、平板、橫向都一樣），不再用固定 360x640 的畫布縮放，
+    // 上下也就不會留下一塊咖啡色底
     return Scaffold(
       backgroundColor: _pageColor,
-      extendBody: true,
+      body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final double carouselHeight = (c.maxHeight * 0.24).clamp(
+                  120.0,
+                  170.0,
+                );
 
-      body: Transform.translate(
-        offset: const Offset(0, -32),
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            child: SizedBox(
-              width: designWidth,
-              height: designHeight,
-              child: Transform.scale(
-                scale: contentScale,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: designWidth,
-                  height: designHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    MediaQuery.paddingOf(context).top + 26,
+                    24,
+                    26,
+                  ),
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('img/long_papper.png'),
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                  child: Column(
                     children: [
-                      // ====================================================
-                      // 背景
-                      // ====================================================
-
-                      Positioned.fill(child: Container(color: _pageColor)),
-
-                      Positioned(
-                        left: 12,
-                        top: 37,
-                        width: 336,
-                        height: 590,
-                        child: Image.asset(
-                          'img/long_papper.png',
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-
-                      // ====================================================
-                      // 劇本標題
-                      // ====================================================
-                      Positioned(
-                        left: 34,
-                        right: 100,
-                        top: 63,
-                        child: Text(
-                          _title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.titleLarge.copyWith(
-                            color: _darkText,
+                      Row(
+                        children: [
+                          _CloseButton(onTap: backToChooseScript),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleLarge.copyWith(
+                                color: _darkText,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          _FavoriteButton(
+                            isFavorite: _isFavorite,
+                            loading: _isTogglingFavorite,
+                            onTap: toggleFavorite,
+                          ),
+                        ],
                       ),
 
-                      Positioned(
-                        right: 62,
-                        top: 57,
-                        child: _FavoriteButton(
-                          isFavorite: _isFavorite,
-                          loading: _isTogglingFavorite,
-                          onTap: toggleFavorite,
-                        ),
-                      ),
+                      const SizedBox(height: 12),
 
-                      // ====================================================
-                      // 關閉按鈕
-                      // ====================================================
-                      Positioned(
-                        right: 28,
-                        top: 57,
-                        child: _CloseButton(onTap: backToChooseScript),
-                      ),
-
-                      // ====================================================
-                      // 圖片輪播
-                      // ====================================================
-                      Positioned(
-                        left: 30,
-                        top: 107,
-                        width: 300,
-                        height: 154,
+                      SizedBox(
+                        height: carouselHeight,
                         child: FlutterCarousel(
                           options: FlutterCarouselOptions(
-                            height: 154,
+                            height: carouselHeight,
                             viewportFraction: 0.68,
                             initialPage: 0,
                             enableInfiniteScroll: true,
@@ -441,30 +415,19 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                         ),
                       ),
 
-                      // ====================================================
-                      // 輪播提示
-                      // ====================================================
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: 265,
-                        child: Text(
-                          '←  左右滑動探索  → \n(迷霧圖片尚未解鎖)',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.microLabel.copyWith(
-                            color: _darkBrown,
-                          ),
+                      const SizedBox(height: 6),
+
+                      Text(
+                        '←  左右滑動探索  → \n(迷霧圖片尚未解鎖)',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.microLabel.copyWith(
+                          color: _darkBrown,
                         ),
                       ),
 
-                      // ====================================================
-                      // 內容區
-                      // ====================================================
-                      Positioned(
-                        left: 34,
-                        right: 34,
-                        top: 305,
-                        bottom: 112,
+                      const SizedBox(height: 10),
+
+                      Expanded(
                         child: _isLoadingDetail
                             ? const Center(
                                 child: CircularProgressIndicator(
@@ -552,18 +515,12 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
                                     ],
                                   ),
                                 ),
-                              ),
+                              )
                       ),
 
-                      // ====================================================
-                      // 確認此卷
-                      // ====================================================
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 55,
-                        child: Center(
-                          child: _ConfirmButton(
+                      const SizedBox(height: 8),
+
+                      _ConfirmButton(
                             text: '遊玩此卷',
                             hovering: buttonHovering,
                             pressing: buttonPressing,
@@ -594,15 +551,12 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
                             onTap: confirmScript,
                           ),
-                        ),
-                      ),
                     ],
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
-        ),
       ),
 
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),

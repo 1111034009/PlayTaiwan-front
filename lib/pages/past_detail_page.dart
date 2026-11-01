@@ -391,7 +391,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
             top: topInset,
             child: Container(
               height: 55,
-              color: _pageColor,
+              color: Colors.transparent,
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 22),
               child: Transform.translate(

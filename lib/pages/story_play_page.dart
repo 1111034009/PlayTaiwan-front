@@ -1065,7 +1065,7 @@ class _BackgroundImage extends StatelessWidget {
     final String url = imageUrl ?? '';
 
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 2.2, sigmaY: 2.2),
+      imageFilter: ImageFilter.blur(sigmaX: 0.8, sigmaY: 0.8),
       child: url.isEmpty
           ? fallback
           : Image.network(

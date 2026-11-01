@@ -19,7 +19,6 @@ import '../block/script_generating_overlay.dart';
 import '../block/voice_idea_field.dart';
 
 import '../api/story_api.dart';
-import '../api/voice_api.dart';
 
 import 'script_detail_page.dart';
 import 'home_page.dart';
@@ -39,7 +38,7 @@ class _SelectionPageState extends State<SelectionPage> {
   static const Color red = AppColors.primaryAccent;
 
   static const double designWidth = 360;
-  static const double designHeight = 630;
+  static const double designHeight = 658;
 
   int currentIndex = 0;
 
@@ -339,51 +338,54 @@ class _SelectionPageState extends State<SelectionPage> {
     final bool voiceReady = await _voiceKey.currentState?.stopAll() ?? true;
     if (!voiceReady) return;
 
-    // 有錄音：先把錄音檔交給後端轉成文字，填進輸入欄再去生成（API 之後補，見 voice_api.dart）
+    // 有錄音：直接上傳錄音（語音版）；沒有錄音：用輸入欄的文字（文字版）。兩邊查進度、取消都是同一組
     final File? voice = _voiceKey.currentState?.recording;
 
-    if (voice != null) {
-      try {
-        final String text = await VoiceApi.transcribe(voice);
+    final String idea = ideaController.text.trim();
 
-        if (!mounted) return;
+    if (voice == null) {
+      final String? error = _validateIdea(idea);
 
-        _voiceKey.currentState?.showTranscript(text);
-      } catch (e) {
-        _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
+      if (error != null) {
+        _showLocationMessage(error);
         return;
       }
     }
 
-    final String idea = ideaController.text.trim();
-
-    final String? error = _validateIdea(idea);
-
-    if (error != null) {
-      _showLocationMessage(error);
-      return;
-    }
-
     // 沒有真的進度：假的進度條 5 分鐘跑到 97%，做好了才快速跑到 100% 再跳轉
     final int run = gen.start(
-      text: '紫薯編尋找中…',
+      text: voice != null ? '紫薯編正在聽你說的話…' : '紫薯編尋找中…',
       cancelApi: StoryApi.cancelGenerateByText,
       fake: true,
     );
 
     try {
-      final Map<String, dynamic> result = await StoryApi.generateByText(
-        userPrompt: idea,
-        onJobId: gen.setJobId,
-        onJob: (job) {
-          if (!gen.isCurrent(run)) return;
-          final int q = int.tryParse('${job['queue_position']}') ?? 0;
-          final String stage = job['stage']?.toString().trim() ?? '';
-          gen.setText(
-            q > 0 ? '排隊中，前面還有 $q 個' : (stage.isNotEmpty ? stage : '紫薯編編寫中…'),
-          );
-        },
-      );
+      void onJob(Map<String, dynamic> job) {
+        if (!gen.isCurrent(run)) return;
+        final int q = int.tryParse('${job['queue_position']}') ?? 0;
+        final String stage = job['stage']?.toString().trim() ?? '';
+        gen.setText(
+          q > 0 ? '排隊中，前面還有 $q 個' : (stage.isNotEmpty ? stage : '紫薯編編寫中…'),
+        );
+      }
+
+      final Map<String, dynamic> result = voice != null
+          ? await StoryApi.generateByVoice(
+              audio: voice,
+              onJobId: gen.setJobId,
+              onJob: onJob,
+              onTranscript: (text) {
+                if (!gen.isCurrent(run)) return;
+                // 顯示「你說的是：……」，也填進輸入欄：辨識錯了可以取消後改字再送
+                gen.setTranscript(text);
+                _voiceKey.currentState?.showTranscript(text);
+              },
+            )
+          : await StoryApi.generateByText(
+              userPrompt: idea,
+              onJobId: gen.setJobId,
+              onJob: onJob,
+            );
 
       if (!gen.isCurrent(run)) return;
 
@@ -445,7 +447,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
         // 遊你說了算
         Positioned(
-          top: 0,
+          top: 28,
           left: 0,
           right: 0,
           child: Center(
@@ -464,15 +466,16 @@ class _SelectionPageState extends State<SelectionPage> {
           ),
         ),
 
+        // 隊友集結：放在畫布裡面（以前超出畫布上緣，那一塊點不到）
         Positioned(
-          top: -20,
+          top: 6,
           right: 5,
           child: _JoinTeamBadge(key: _teamKey, onTap: joinTeam),
         ),
 
         // 現在揪出發
         Positioned(
-          top: 200,
+          top: 228,
           left: 0,
           right: 0,
           child: Center(
@@ -501,7 +504,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
         // 來點遊意思
         Positioned(
-          top: 440,
+          top: 468,
           left: 0,
           right: 0,
           child: Center(
@@ -527,9 +530,11 @@ class _SelectionPageState extends State<SelectionPage> {
           canPop: !StoryGeneration.instance.active,
           child: Scaffold(
             backgroundColor: pageColor,
-            extendBody: true,
+            extendBody: false,
             resizeToAvoidBottomInset: false,
-            body: LayoutBuilder(
+            body: SafeArea(
+              bottom: false,
+              child: LayoutBuilder(
               builder: (context, c) {
                 // 直式手機以寬度為準縮放;橫向則以高度為準
                 final bool portrait = c.maxHeight >= c.maxWidth;
@@ -562,13 +567,11 @@ class _SelectionPageState extends State<SelectionPage> {
                 final EdgeInsets inset = MediaQuery.paddingOf(context);
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.only(
-                    top: inset.top + 24 * scale,
-                    bottom: inset.bottom + 8,
-                  ),
+                  padding: EdgeInsets.only(bottom: inset.bottom + 8),
                   child: Center(child: canvas),
                 );
               },
+            ),
             ),
             bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),

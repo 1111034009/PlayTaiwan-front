@@ -208,21 +208,6 @@ class _StoryNfcPageState extends State<StoryNfcPage>
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
         children: [
-          Icon(
-            Icons.qr_code_scanner_rounded,
-            size: 18,
-            color: const Color(0xFFE9DDC6).withValues(alpha: 0.75),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'QRcode驗證中',
-              style: AppTextStyles.bodyBold.copyWith(
-                color: const Color(0xFFE9DDC6),
-                letterSpacing: 1.4,
-              ),
-            ),
-          ),
           TextButton(
             onPressed: _cancel,
             style: TextButton.styleFrom(
@@ -235,6 +220,21 @@ class _StoryNfcPageState extends State<StoryNfcPage>
               '返回',
               style: AppTextStyles.bodyBold.copyWith(
                 color: AppColors.warmPaper,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.qr_code_scanner_rounded,
+            size: 18,
+            color: const Color(0xFFE9DDC6).withValues(alpha: 0.75),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'QRcode驗證中',
+              style: AppTextStyles.bodyBold.copyWith(
+                color: const Color(0xFFE9DDC6),
+                letterSpacing: 1.4,
               ),
             ),
           ),

@@ -29,6 +29,9 @@ class StoryGeneration extends ChangeNotifier {
   String? city;
   String? town;
 
+  /// 語音版：後端聽到的那句話
+  String? transcript;
+
   int _run = 0;
   double _target = 0;
   bool _fake = false;
@@ -55,6 +58,7 @@ class StoryGeneration extends ChangeNotifier {
     _startAt = DateTime.now();
     _cancelApi = cancelApi;
     jobId = null;
+    transcript = null;
     this.city = city;
     this.town = town;
     progress = 0.01;
@@ -99,6 +103,11 @@ class StoryGeneration extends ChangeNotifier {
   void setText(String value) {
     if (value.isEmpty || value == text) return;
     text = value;
+    notifyListeners();
+  }
+
+  void setTranscript(String value) {
+    transcript = value.trim().isEmpty ? null : value.trim();
     notifyListeners();
   }
 
@@ -216,7 +225,9 @@ class _GenerationLayerState extends State<GenerationLayer> {
             child: ScriptGeneratingOverlay(
               message: g.text,
               progress: g.progress,
-              detail: '${(g.progress * 100).round()}%',
+              detail: g.transcript == null
+                  ? '${(g.progress * 100).round()}%'
+                  : '你說的是：${g.transcript!.length > 60 ? '${g.transcript!.substring(0, 60)}…' : g.transcript}\n${(g.progress * 100).round()}%',
               stage: g.progress < 0.3 ? 0 : 1,
               onCancel: g.cancel,
               onHome: g.goHome,
