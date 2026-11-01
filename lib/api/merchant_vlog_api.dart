@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/app_session.dart';
+import 'job_api.dart';
 import 'package:flutter/foundation.dart';
 
 class VlogTone {
@@ -218,6 +219,10 @@ class MerchantVlogApi {
         .toList();
   }
 
+  /// 商家 VLOG 草稿（Job 模式）：
+  /// POST /api/MerchantVlog/PreviewJob（欄位跟舊的 Preview 一樣）拿 job_id →
+  /// 每 3 秒 GET /api/MerchantVlog/PreviewJob/{job_id}，done 時 result 就是草稿。
+  /// [onProgress] 給等待畫面顯示階段／排隊人數；[onJobId] 拿到 job_id 後叫，取消用 [cancelPreview]
   static Future<VlogPreview> preview({
     int? mmId,
     String? storeName,
@@ -226,10 +231,14 @@ class MerchantVlogApi {
     int? ntId,
     required String promoText,
     List<String> imagePaths = const [],
+    void Function(JobInfo job)? onProgress,
+    void Function(String jobId)? onJobId,
   }) async {
+    const failMessage = '草稿產生失敗';
+
     final req = http.MultipartRequest(
       'POST',
-      Uri.parse('$_base/api/MerchantVlog/Preview'),
+      Uri.parse('$_base/api/MerchantVlog/PreviewJob'),
     )..headers.addAll(_headers());
 
     void add(String key, Object? value) {
@@ -248,14 +257,28 @@ class MerchantVlogApi {
       req.files.add(await http.MultipartFile.fromPath('images', path));
     }
 
+    // 只是送出工作（上傳照片），不用等 AI；上傳給久一點的時間
     final streamed = await req.send().timeout(const Duration(minutes: 3));
     final res = await http.Response.fromStream(streamed);
 
-    final result = _unwrap(res);
+    final first = JobApi.parse(res, failMessage: failMessage);
+
+    final result = await JobApi.waitForResult(
+      first,
+      pollPath: (id) => '/api/MerchantVlog/PreviewJob/${Uri.encodeComponent(id)}',
+      failMessage: failMessage,
+      onProgress: onProgress,
+      onJobId: onJobId,
+    );
+
     if (result is! Map) throw Exception('草稿資料格式錯誤');
 
     return VlogPreview.fromJson(Map<String, dynamic>.from(result));
   }
+
+  static Future<void> cancelPreview(String jobId) => JobApi.cancel(
+    '/api/MerchantVlog/PreviewJob/${Uri.encodeComponent(jobId)}/Cancel',
+  );
 
   static Future<VlogFinalTask> createFinal({
     required int mmId,

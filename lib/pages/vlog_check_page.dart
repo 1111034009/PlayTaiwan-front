@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../api/job_api.dart';
 import '../api/story_api.dart';
 import '../api/vlog_watcher.dart';
 import '../core/app_colors.dart';
@@ -43,6 +44,11 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
   String _error = '';
   Map<String, dynamic> _data = {};
 
+  /// 草稿是後端排隊生成的（Job）：job_id 用來取消，_waitText 是等待畫面上的階段／排隊人數
+  String? _jobId;
+  String _waitText = '正在把你的旅程寫成腳本……';
+  bool _cancelling = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +68,11 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
 
   @override
   void dispose() {
+    // 草稿還在生成就離開：通知後端取消（取消不會留下草稿）
+    final String? jobId = _jobId;
+    if (jobId != null && _stage == _Stage.loading) {
+      StoryApi.cancelVisitorVlogPreview(jobId);
+    }
     _scriptController.dispose();
     _promoController.dispose();
     _memoryController.dispose();
@@ -125,12 +136,28 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
     setState(() {
       _stage = _Stage.loading;
       _error = '';
+      _jobId = null;
+      _cancelling = false;
+      _waitText = '正在把你的旅程寫成腳本……';
     });
 
     try {
       final Map<String, dynamic> data = await StoryApi.previewVisitorVlog(
         storyId: widget.storyId,
+        onJobId: (String id) {
+          _jobId = id;
+          // 還沒拿到 job_id 就按了取消：拿到馬上取消
+          if (_cancelling) StoryApi.cancelVisitorVlogPreview(id);
+        },
+        onProgress: (JobInfo job) {
+          if (!mounted || _stage != _Stage.loading) return;
+
+          final String text = job.waitingText;
+
+          if (text != _waitText) setState(() => _waitText = text);
+        },
       );
+      _jobId = null;
 
       try {
         final Map<String, dynamic> options = await StoryApi.getVlogOptions();
@@ -159,6 +186,8 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
         _promoController.text = _text(data['promo_copy']);
         _stage = _Stage.preview;
       });
+    } on JobCancelled {
+      // 使用者按了取消：_cancelPreview 已經處理畫面
     } catch (e) {
       if (!mounted) return;
 
@@ -167,6 +196,22 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
         _stage = _Stage.failed;
       });
     }
+  }
+
+  /// 等待畫面的「取消」：通知後端不要做了，回首頁
+  Future<void> _cancelPreview() async {
+    if (_cancelling) return;
+
+    setState(() => _cancelling = true);
+
+    final String? jobId = _jobId;
+    _jobId = null;
+
+    if (jobId != null) {
+      await StoryApi.cancelVisitorVlogPreview(jobId);
+    }
+
+    if (mounted) _goHome();
   }
 
   Future<void> _confirm() async {
@@ -232,7 +277,11 @@ class _VlogCheckPageState extends State<VlogCheckPage> {
   Widget _buildBody() {
     switch (_stage) {
       case _Stage.loading:
-        return const _FilmStatus(title: '旁白撰寫中', subtitle: '正在把你的旅程寫成腳本……');
+        return _FilmStatus(
+          title: '旁白撰寫中',
+          subtitle: _waitText,
+          onCancel: _cancelling ? null : _cancelPreview,
+        );
       case _Stage.creating:
         return const _FilmStatus(title: '送出確認中', subtitle: '正在把旁白交給剪輯師……');
       case _Stage.failed:
@@ -567,7 +616,14 @@ class _FilmStatus extends StatefulWidget {
   final String title;
   final String subtitle;
 
-  const _FilmStatus({required this.title, required this.subtitle});
+  /// 有給就在下面顯示「取消」
+  final VoidCallback? onCancel;
+
+  const _FilmStatus({
+    required this.title,
+    required this.subtitle,
+    this.onCancel,
+  });
 
   @override
   State<_FilmStatus> createState() => _FilmStatusState();
@@ -697,6 +753,20 @@ class _FilmStatusState extends State<_FilmStatus>
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySmallBold.copyWith(color: Colors.white70),
           ),
+          if (widget.onCancel != null) ...[
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: widget.onCancel,
+              child: Text(
+                '取消',
+                style: AppTextStyles.bodySmallBold.copyWith(
+                  color: Colors.white70,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Colors.white70,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

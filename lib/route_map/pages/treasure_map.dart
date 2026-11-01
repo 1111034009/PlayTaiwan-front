@@ -45,10 +45,14 @@ class TreasureMap extends StatefulWidget {
     this.onStageCleared,
     this.onNodeArrived,
     this.detourTo,
+    this.onDetourEnd,
   });
 
   final RouteStory story;
   final PlacePoint? detourTo;
+
+  /// 使用者按了「結束順路」：外面記住的目的地要一起清掉，切換頁面回來才不會又出現
+  final VoidCallback? onDetourEnd;
 
   /// 嵌在別的 App 裡（正式 App）：劇本名稱和進度條不畫，那邊的上列自己有；下方面板最底下多留一點空間
   final bool embedded;
@@ -131,6 +135,9 @@ class _TreasureMapState extends State<TreasureMap> {
 
   /// 使用者現在的位置，每一關都從這裡出發。拿不到定位時是 null
   PlacePoint? _myLocation;
+
+  /// 我面向的方向（度，0 = 北）；GPS 要在移動中才有，模擬行走時沒有
+  double? _heading;
   bool _locating = false;
   StreamSubscription<Position>? _positionSub;
 
@@ -707,14 +714,19 @@ class _TreasureMapState extends State<TreasureMap> {
   /// 真的定位。正在模擬行走時不理它，免得兩個位置搶來搶去
   void _onPosition(Position pos) {
     if (_simulated) return;
-    _onFix(LatLng(pos.latitude, pos.longitude), accuracy: pos.accuracy);
+    _onFix(
+      LatLng(pos.latitude, pos.longitude),
+      accuracy: pos.accuracy,
+      heading: pos.heading >= 0 && pos.speed > 0.5 ? pos.heading : _heading,
+    );
   }
 
   /// 位置更新了（真的定位或模擬行走都走這裡）：迷霧散開、路線跟著縮短、偏離太遠就重新規劃。
   /// [accuracy] 是定位的誤差半徑（公尺）
-  void _onFix(LatLng here, {double accuracy = 0}) {
+  void _onFix(LatLng here, {double accuracy = 0, double? heading}) {
     if (!mounted) return;
     setState(() {
+      _heading = heading;
       _myLocation = PlacePoint(
         lat: here.latitude,
         lng: here.longitude,
@@ -1154,6 +1166,7 @@ class _TreasureMapState extends State<TreasureMap> {
 
   /// 「結束順路」：順路的路線拿掉，回到這一關的主路線。人可能已經走開了，主路線從現在的位置重新規劃
   void _endDetour() {
+    widget.onDetourEnd?.call();
     _stopSim();
     setState(() {
       _dropDetour();
@@ -1965,6 +1978,12 @@ class _TreasureMapState extends State<TreasureMap> {
                     label: mate.name,
                     color: Pal.plum,
                   ),
+                // 我面向的方向（藍色扇形，畫在「我」的印章下面）
+                if (myLocation != null && _heading != null)
+                  headingMarker(
+                    _onRoute ? _progress!.point : myLocation.latLng,
+                    _heading!,
+                  ),
                 // 在路線上時「我」貼在路線上（定位會飄，貼上去才不會跟亮的路線之間有空隙）；偏離時畫在真正的位置
                 if (myLocation != null)
                   sealMarker(
@@ -1997,6 +2016,14 @@ class _TreasureMapState extends State<TreasureMap> {
                       onTap: () => _showStop(i),
                     ),
               ],
+            ),
+            // 地圖轉過才出現，點一下轉回正北；放在右邊工具列下面
+            NorthButton(
+              controller: _map,
+              margin: EdgeInsets.only(
+                top: _finished ? 12 : 12 + 58.0 * 3 + 2 + 10,
+                right: 12 + (_toolbarWidth + 3 - 40) / 2,
+              ),
             ),
             osmAttribution(),
           ],
@@ -2191,21 +2218,26 @@ class _TreasureMapState extends State<TreasureMap> {
 
     // 重新定位也是工具列的一格，跟上面兩格一樣寬；定位、查交通、規劃中轉圈
     final busy = _locating || _checking || _planning;
+    // 定位中整格填紅色，轉圈圈和字都是白色（跟上面「吃的」「景點」按下去的樣子一致）
     final locateCell = cell(
       tooltip: '定位',
       onTap: _locating ? null : _relocate,
+      fill: busy ? Pal.cinnabar : null,
       icon: busy
           ? const SizedBox(
               width: 24,
               height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : Icon(
               _myLocation != null ? Icons.my_location : Icons.location_disabled,
               size: 26,
               color: Pal.ink,
             ),
-      label: labelText('定位'),
+      label: labelText('定位', on: busy),
     );
 
     return Material(

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
+import 'job_api.dart';
 
 class StoryBadRequest implements Exception {
   final String message;
@@ -892,18 +893,38 @@ class StoryApi {
     return _resultMap(data, '抽取徽章失敗');
   }
 
+  /// 遊客 VLOG 草稿（Job 模式，不用卡著等）：
+  /// POST /api/VisitorVlog/PreviewJob 拿 job_id → 每 3 秒 GET /api/VisitorVlog/PreviewJob/{job_id}，
+  /// done 時 result 就是草稿（欄位跟舊的 Preview 一樣）。
+  /// [onProgress] 給等待畫面顯示階段（排隊中會寫前面還有幾個）；[onJobId] 拿到 job_id 後叫，
+  /// 按「取消」或離開頁面時用 [cancelVisitorVlogPreview] 取消（取消／失敗都不會留下草稿）
   static Future<Map<String, dynamic>> previewVisitorVlog({
     required String storyId,
+    void Function(JobInfo job)? onProgress,
+    void Function(String jobId)? onJobId,
   }) async {
-    final Map<String, dynamic> data = await _storyRequest(
-      method: 'POST',
-      path: '/api/VisitorVlog/Preview',
-      failMessage: '旁白草稿產生失敗',
-      body: {'story_id': int.tryParse(storyId) ?? storyId},
+    const String failMessage = '旁白草稿產生失敗';
+
+    final JobInfo first = await JobApi.startJson('/api/VisitorVlog/PreviewJob', {
+      'story_id': int.tryParse(storyId) ?? storyId,
+    }, failMessage: failMessage);
+
+    final dynamic result = await JobApi.waitForResult(
+      first,
+      pollPath: (id) => '/api/VisitorVlog/PreviewJob/${Uri.encodeComponent(id)}',
+      failMessage: failMessage,
+      onProgress: onProgress,
+      onJobId: onJobId,
     );
 
-    return _resultMap(data, '旁白草稿產生失敗');
+    if (result is! Map) throw Exception(failMessage);
+
+    return Map<String, dynamic>.from(result);
   }
+
+  static Future<void> cancelVisitorVlogPreview(String jobId) => JobApi.cancel(
+    '/api/VisitorVlog/PreviewJob/${Uri.encodeComponent(jobId)}/Cancel',
+  );
 
   static Future<Map<String, dynamic>> getVlogOptions() async {
     final Map<String, dynamic> data = await _storyRequest(

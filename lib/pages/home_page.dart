@@ -433,7 +433,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned(
                         left: 15,
-                        top: 270,
+                        top: 244,
                         width: 139,
                         height: 198,
                         child: _SimpleCard(
@@ -469,17 +469,15 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned(
                         left: 48,
-                        top: 261,
+                        top: 235,
                         width: 76,
                         height: 28,
                         child: _Tape(rotation: -0.015),
                       ),
-                      // 底部一排：右邊 x > 285 會被右下角的 QR / 小精靈浮動按鈕擋住，
-                      // 所以三顆都排在 15～285 之間（84 寬 × 3 + 間距 9 × 2）
                       Positioned(
                         left: 15,
-                        top: 512,
-                        width: 84,
+                        top: 474,
+                        width: 105,
                         height: 43,
                         child: KeyedSubtree(
                           key: _agentKey,
@@ -488,15 +486,15 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Positioned(
                         left: 19,
-                        top: 494,
+                        top: 456,
                         width: 76,
                         height: 28,
                         child: _Tape(rotation: -0.025),
                       ),
                       Positioned(
-                        left: 108,
-                        top: 512,
-                        width: 84,
+                        left: 36,
+                        top: 522,
+                        width: 105,
                         height: 43,
                         child: KeyedSubtree(
                           key: _browseKey,
@@ -504,9 +502,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Positioned(
-                        left: 201,
-                        top: 512,
-                        width: 84,
+                        left: 153,
+                        top: 510,
+                        width: 105,
                         height: 43,
                         child: _WalletButton(onTap: _openWallet),
                       ),
@@ -514,8 +512,8 @@ class _HomePageState extends State<HomePage> {
                       const Positioned(left: 283, top: 30, child: _PushPin()),
                       const Positioned(left: 320, top: 165, child: _PushPin()),
                       const Positioned(left: 264, top: 284, child: _PushPin()),
-                      const Positioned(left: 150, top: 502, child: _PushPin()),
-                      const Positioned(left: 243, top: 502, child: _PushPin()),
+                      const Positioned(left: 78, top: 512, child: _PushPin()),
+                      const Positioned(left: 195, top: 500, child: _PushPin()),
                     ],
                   ),
                 ),
@@ -1430,8 +1428,8 @@ class _ClueStringPainter extends CustomPainter {
     _StringLink(Offset(127, 54), Offset(294, 41), 10),
     _StringLink(Offset(294, 41), Offset(331, 176), 6),
     _StringLink(Offset(331, 176), Offset(275, 295), 8),
-    _StringLink(Offset(275, 295), Offset(86, 276), 18),
-    _StringLink(Offset(243, 523), Offset(90, 508), 22),
+    _StringLink(Offset(275, 295), Offset(86, 250), 18),
+    _StringLink(Offset(89, 523), Offset(206, 511), 10),
   ];
 
   @override
@@ -1480,8 +1478,7 @@ class _ClueStringPainter extends CustomPainter {
 
     final Paint knot = Paint()..color = const Color(0xFF8D1D12);
 
-    canvas.drawCircle(const Offset(86, 276), 2.6, knot);
-    canvas.drawCircle(const Offset(90, 508), 2.6, knot);
+    canvas.drawCircle(const Offset(86, 250), 2.6, knot);
   }
 
   @override
@@ -1501,15 +1498,15 @@ class _HomeDashedPainter extends CustomPainter {
 
     _drawDashedLine(
       canvas,
-      const Offset(92, 230),
-      const Offset(81, 270),
+      const Offset(92, 229),
+      const Offset(82, 244),
       whiteDash,
     );
 
     _drawDashedLine(
       canvas,
-      const Offset(79, 466),
-      const Offset(103, 511),
+      const Offset(79, 440),
+      const Offset(90, 467),
       whiteDash,
     );
   }

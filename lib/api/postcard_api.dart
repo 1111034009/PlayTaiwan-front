@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/app_session.dart';
+import 'job_api.dart';
 
 class AiPostcardResult {
   final String taskId;
@@ -71,11 +72,15 @@ class PostcardApi {
   }
 
   static String get _createAiUrl =>
-      '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/GenerateAi';
+      '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/GenerateAiJob';
 
   static String get _printUrl =>
       '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/Print';
 
+  /// AI 明信片（Job 模式）：POST /api/PostcardCatalog/GenerateAiJob（欄位跟舊的 GenerateAi 一樣）拿 job_id →
+  /// 每 3 秒 GET /api/PostcardCatalog/GenerateAiJob/{job_id}，done 的 result 就是明信片（p_id、p_summary、p_imag_url…）。
+  /// [onProgress] 給等待畫面顯示階段／排隊人數；[onJobId] 拿到 job_id 後叫。
+  ///
   /// 照片可以給檔案路徑 [imagePath]，或直接給內容 [imageBytes]（玩家剛拍的照片、網頁版沒有檔案路徑時用）。
   /// [nodeId] 是拿到這張明信片的劇本節點，有給後端才知道是哪一關的
   Future<AiPostcardResult> createAiPostcard({
@@ -87,6 +92,8 @@ class PostcardApi {
     required String storyId,
     String nodeId = '',
     required bool isNightEdition,
+    void Function(JobInfo job)? onProgress,
+    void Function(String jobId)? onJobId,
   }) async {
     final String? token = AppSession.token;
 
@@ -142,25 +149,27 @@ class PostcardApi {
       streamedResponse,
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'AI 明信片建立失敗\n'
-        'Status Code: ${response.statusCode}\n'
-        'Response: ${response.body}',
-      );
-    }
+    const String failMessage = 'AI 明信片建立失敗';
 
-    final dynamic decoded = jsonDecode(response.body);
+    // 這一步只是送出工作；做好的明信片在 job 的 result 裡
+    final JobInfo first = JobApi.parse(response, failMessage: failMessage);
 
-    if (decoded is! Map<String, dynamic>) {
+    final dynamic jobResult = await JobApi.waitForResult(
+      first,
+      pollPath: (id) =>
+          '/api/PostcardCatalog/GenerateAiJob/${Uri.encodeComponent(id)}',
+      failMessage: failMessage,
+      onProgress: onProgress,
+      onJobId: onJobId,
+    );
+
+    if (jobResult is! Map) {
       throw Exception('AI 明信片 API 回傳格式錯誤');
     }
 
-    if (decoded['isSuccess'] != true) {
-      throw Exception(decoded['message']?.toString() ?? 'AI 明信片建立失敗');
-    }
-
-    final AiPostcardResult result = AiPostcardResult.fromJson(decoded);
+    final AiPostcardResult result = AiPostcardResult.fromJson({
+      'Result': Map<String, dynamic>.from(jobResult),
+    });
 
     if (result.downloadUrl.isEmpty) {
       throw Exception('AI 明信片 API 未回傳 ImageUrl');

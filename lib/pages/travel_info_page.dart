@@ -142,6 +142,10 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   }
 
   Future<void> generateScript() async {
+    // 一按生成就先收鍵盤（人數欄打完常常沒收）
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
     final String people = peopleController.text.trim();
 
     if (people.isEmpty) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,9 +16,12 @@ import 'map_kit.dart';
 /// 沒有進行中的劇本時的地圖：直接抓我現在的位置，有目的地（例如小幫手推薦的地點）就一起標出來，
 /// 下面可以選交通方式，選了就用後端的路線規劃畫出從我的位置到目的地的路線
 class FreeMap extends StatefulWidget {
-  const FreeMap({super.key, this.destination});
+  const FreeMap({super.key, this.destination, this.onClose});
 
   final PlacePoint? destination;
+
+  /// 按掉目的地（卡片右上的 ✕）：外面把記住的目的地清掉，這張地圖就只剩我的位置
+  final VoidCallback? onClose;
 
   @override
   State<FreeMap> createState() => _FreeMapState();
@@ -25,6 +30,10 @@ class FreeMap extends StatefulWidget {
 class _FreeMapState extends State<FreeMap> {
   final MapController _controller = MapController();
   LatLng? _me;
+
+  /// 我面向的方向（度，0 = 北）。GPS 要在移動中才有，不動時不顯示
+  double? _heading;
+  StreamSubscription<Position>? _positionSub;
   bool _locating = true;
   bool _planning = false;
 
@@ -36,6 +45,32 @@ class _FreeMapState extends State<FreeMap> {
   void initState() {
     super.initState();
     _locate();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
+  }
+
+  /// 持續追蹤位置和面向的方向（每動 3 公尺更新），只更新藍點，不會重新規劃路線
+  void _watchPosition() {
+    if (_positionSub != null) return;
+    try {
+      _positionSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 3,
+        ),
+      ).listen((Position pos) {
+        if (!mounted) return;
+        setState(() {
+          _me = LatLng(pos.latitude, pos.longitude);
+          // heading 是 -1 或 0 又幾乎沒在動：代表不知道方向
+          _heading = pos.heading >= 0 && pos.speed > 0.5 ? pos.heading : _heading;
+        });
+      }, onError: (_) {});
+    } catch (_) {}
   }
 
   Future<void> _locate() async {
@@ -65,7 +100,13 @@ class _FreeMapState extends State<FreeMap> {
 
       if (!mounted) return;
 
-      setState(() => _me = LatLng(position.latitude, position.longitude));
+      setState(() {
+        _me = LatLng(position.latitude, position.longitude);
+        if (position.heading >= 0 && position.speed > 0.5) {
+          _heading = position.heading;
+        }
+      });
+      _watchPosition();
       _fit();
 
       if (widget.destination != null) {
@@ -228,6 +269,8 @@ class _FreeMapState extends State<FreeMap> {
                     width: 120,
                     height: 64,
                     alignment: Alignment.topCenter,
+                    // 地圖轉了，目的地的圖釘和名字還是正的
+                    rotate: true,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -250,6 +293,8 @@ class _FreeMapState extends State<FreeMap> {
                       ],
                     ),
                   ),
+                if (me != null && _heading != null)
+                  headingMarker(me, _heading!),
                 if (me != null)
                   Marker(
                     point: me,
@@ -268,6 +313,8 @@ class _FreeMapState extends State<FreeMap> {
                   ),
               ],
             ),
+            // 地圖轉過才出現，點一下轉回正北
+            NorthButton(controller: _controller),
             osmAttribution(),
           ],
         ),
@@ -283,7 +330,10 @@ class _FreeMapState extends State<FreeMap> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.my_location),
           ),
@@ -304,17 +354,37 @@ class _FreeMapState extends State<FreeMap> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _planning
-                          ? '路線規劃中…'
-                          : (option == null
-                                ? '選擇交通方式'
-                                : '${option.mode}・約 ${option.minutes.round()} 分鐘・${option.distanceKm.toStringAsFixed(1)} 公里'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodySmallBold.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _planning
+                                ? '路線規劃中…'
+                                : (option == null
+                                      ? '選擇交通方式'
+                                      : '${option.mode}・約 ${option.minutes.round()} 分鐘・${option.distanceKm.toStringAsFixed(1)} 公里'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodySmallBold.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        // 不去了：把這個目的地拿掉（切換頁面回來也不會再出現）
+                        if (widget.onClose != null)
+                          InkWell(
+                            onTap: widget.onClose,
+                            borderRadius: BorderRadius.circular(14),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 20,
+                                color: AppColors.softBrown,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     if (option != null && option.summary.isNotEmpty)
                       Padding(

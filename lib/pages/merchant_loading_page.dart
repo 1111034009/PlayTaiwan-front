@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../api/job_api.dart';
 import '../api/merchant_vlog_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_responsive.dart';
@@ -12,8 +13,15 @@ const Color _progressBackground = AppColors.paper;
 const Color _progressColor = Color(0xFFC7381E);
 const Color _black = Colors.black;
 
+/// 草稿工作：[onProgress] 回報階段／排隊人數、[onJobId] 回報 job_id（取消要用）
+typedef VlogPreviewTask =
+    Future<VlogPreview> Function(
+      void Function(JobInfo job) onProgress,
+      void Function(String jobId) onJobId,
+    );
+
 class VideoLoadingPage extends StatefulWidget {
-  final Future<VlogPreview> Function() task;
+  final VlogPreviewTask task;
 
   const VideoLoadingPage({super.key, required this.task});
 
@@ -28,6 +36,11 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
   static const double _holdValue = 0.99;
 
   late final AnimationController _progressController;
+
+  String? _jobId;
+  String _waitText = '';
+  bool _cancelling = false;
+  bool _finished = false;
 
   @override
   void initState() {
@@ -55,6 +68,9 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
 
   @override
   void dispose() {
+    // 還沒做完就離開：通知後端取消
+    final jobId = _jobId;
+    if (jobId != null && !_finished) MerchantVlogApi.cancelPreview(jobId);
     _progressController.dispose();
     super.dispose();
   }
@@ -63,12 +79,26 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
     Object result;
 
     try {
-      result = await widget.task();
+      result = await widget.task(
+        (job) {
+          if (!mounted || _cancelling) return;
+          final text = job.waitingText;
+          if (text != _waitText) setState(() => _waitText = text);
+        },
+        (id) {
+          _jobId = id;
+          // 還沒拿到 job_id 就按了取消：拿到馬上取消
+          if (_cancelling) MerchantVlogApi.cancelPreview(id);
+        },
+      );
     } catch (e) {
       result = e;
     }
 
-    if (!mounted) return;
+    _finished = true;
+
+    // 使用者取消了：_cancel 已經離開這一頁
+    if (!mounted || _cancelling) return;
 
     if (result is VlogPreview) {
       await _progressController.animateTo(
@@ -81,6 +111,19 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
     }
 
     if (mounted) Navigator.pop(context, result);
+  }
+
+  /// 「取消」：通知後端不要做了（取消不會留下草稿），回上一頁
+  Future<void> _cancel() async {
+    if (_cancelling) return;
+
+    setState(() => _cancelling = true);
+
+    final jobId = _jobId;
+
+    if (jobId != null) await MerchantVlogApi.cancelPreview(jobId);
+
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -167,6 +210,37 @@ class _VideoLoadingPageState extends State<VideoLoadingPage>
                             strokeWidth: 2.2,
                           );
                         },
+                      ),
+                    ),
+                  ),
+                  // 等待中的階段（排隊中會寫前面還有幾個）和取消
+                  Positioned(
+                    top: 512,
+                    left: 20,
+                    right: 20,
+                    child: Text(
+                      _waitText,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: _lightText,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 546,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: TextButton(
+                        onPressed: _cancelling ? null : _cancel,
+                        child: Text(
+                          '取消',
+                          style: AppTextStyles.bodySmallBold.copyWith(
+                            color: _lightText,
+                            decoration: TextDecoration.underline,
+                            decorationColor: _lightText,
+                          ),
+                        ),
                       ),
                     ),
                   ),

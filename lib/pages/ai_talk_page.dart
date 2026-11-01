@@ -468,6 +468,8 @@ class _AiTalkPageState extends State<AiTalkPage> {
   void _sendFreeText() {
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
+    // 送出就把鍵盤收起來（手機鍵盤常常一直開著）
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_guardBusy()) return;
     _inputController.clear();
     _handleFreeText(text);

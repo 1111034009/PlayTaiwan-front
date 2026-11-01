@@ -64,6 +64,9 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
 
   double _progress = 0.1;
 
+  /// 後端排隊生成時的階段／排隊人數，顯示在標題下面
+  String _waitText = '';
+
   Uint8List? _postcardImage;
 
   String? _postcardError;
@@ -141,6 +144,13 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
         storyId: widget.storyId?.toString() ?? storyId,
         nodeId: widget.nodeId?.toString() ?? '',
         isNightEdition: isNightEdition,
+        onProgress: (job) {
+          if (!mounted || !_isGenerating) return;
+
+          final String text = job.waitingText;
+
+          if (text != _waitText) setState(() => _waitText = text);
+        },
       );
 
       _taskId = result.taskId;
@@ -688,7 +698,9 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
                   top: 132,
                   child: Center(
                     child: Text(
-                      '獲得專屬記憶明信片',
+                      _isGenerating && _waitText.isNotEmpty
+                          ? _waitText
+                          : '獲得專屬記憶明信片',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.sectionTitle
                           .copyWith(color: _white80)

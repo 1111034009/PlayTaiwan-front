@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../route_map/map_destination.dart';
+
 // 工作階段
 class AppSession {
   static final ValueNotifier<String?> tokenNotifier = ValueNotifier<String?>(
@@ -35,5 +37,6 @@ class AppSession {
     store_id = null;
     merchantProfile = null;
     pendingQrUid = null;
+    MapDestination.clear();
   }
 }

@@ -11,6 +11,7 @@ import '../core/app_notice.dart';
 import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../route_map/api.dart';
+import '../route_map/map_destination.dart';
 import '../route_map/models.dart';
 import '../route_map/pages/treasure_map.dart';
 import '../route_map/widgets/free_map.dart';
@@ -45,6 +46,10 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   int _postcardCurrent = 0;
   int _postcardTotal = 0;
 
+  /// 要去的地點：這次帶進來的，沒有就用上次記住的（切換分頁回來還在）。
+  /// 按掉（✕／結束順路）才會清掉
+  PlacePoint? _dest;
+
   RouteStory? _story;
   bool _loading = true;
   String? _message;
@@ -65,6 +70,8 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
   @override
   void initState() {
     super.initState();
+    _dest = widget.detourTo ?? MapDestination.current;
+    MapDestination.current = _dest;
     _load();
   }
 
@@ -111,6 +118,11 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
         _noStory = false;
       });
     }
+  }
+
+  void _dropDestination() {
+    MapDestination.clear();
+    if (mounted) setState(() => _dest = null);
   }
 
   Future<void> _goSelect() async {
@@ -181,8 +193,12 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                 Expanded(
                   child: story == null
                       // 沒有劇本但是是從小幫手要前往某個地點：不擋，直接抓我現在的位置顯示地圖
-                      ? (widget.detourTo != null && !_loading
-                            ? FreeMap(destination: widget.detourTo)
+                      ? (_dest != null && !_loading
+                            ? FreeMap(
+                                key: ValueKey('${_dest!.lat},${_dest!.lng}'),
+                                destination: _dest,
+                                onClose: _dropDestination,
+                              )
                             : _placeholder())
                       // 地圖頁有自己的配色（羊皮紙、朱砂紅），字型用這個 App 的
                       : Theme(
@@ -192,7 +208,8 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                           child: TreasureMap(
                             key: ValueKey(story.storyId),
                             story: story,
-                            detourTo: widget.detourTo,
+                            detourTo: _dest,
+                            onDetourEnd: MapDestination.clear,
                             embedded: true,
                             // 比賽展示用：面板上多了「模擬沿路線走」「故意走偏」「模擬隊友」，模擬的位置會當成真的定位送給後端。
                             // 正式上線前把這一行拿掉

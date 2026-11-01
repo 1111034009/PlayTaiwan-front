@@ -48,10 +48,104 @@ Widget osmAttribution() => const SimpleAttributionWidget(
   backgroundColor: Color(0xCCF3E4C1),
 );
 
-/// 預設的地圖互動（不允許旋轉，箭頭方向才不會亂掉）
-const mapInteraction = InteractionOptions(
-  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+/// 預設的地圖互動：跟 Google 地圖一樣可以用兩指旋轉。
+/// 旋轉時路線上的方向箭頭跟著路走；印章、徽章、周邊地點的標記用 rotate: true 保持正的
+const mapInteraction = InteractionOptions(flags: InteractiveFlag.all);
+
+/// 地圖轉過之後才出現的指北針（跟 Google 地圖一樣）：點一下轉回正北。
+/// 要放在 FlutterMap 的 children 裡（要讀地圖現在的角度）
+class NorthButton extends StatelessWidget {
+  const NorthButton({
+    super.key,
+    required this.controller,
+    this.alignment = Alignment.topRight,
+    this.margin = const EdgeInsets.all(12),
+  });
+
+  final MapController controller;
+  final Alignment alignment;
+  final EdgeInsets margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final rotation = MapCamera.of(context).rotation;
+    if (rotation.abs() < 0.5) return const SizedBox.shrink();
+
+    return Align(
+      alignment: alignment,
+      child: Padding(
+        padding: margin,
+        child: Material(
+          color: Pal.parchment,
+          elevation: 3,
+          shape: const CircleBorder(side: BorderSide(color: Pal.ink, width: 1.3)),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => controller.rotate(0),
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: Transform.rotate(
+                // 跟著地圖轉同樣的角度：箭頭一直指著地圖上的北方
+                angle: rotation * math.pi / 180,
+                child: const Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(Icons.navigation, size: 26, color: Pal.cinnabar),
+                    Positioned(
+                      top: 3,
+                      child: Text(
+                        'N',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: Pal.ink,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 我面向的方向（GPS 的行進方向，要在移動中才準）：藍色扇形，放在「我」的位置下面。
+/// 不要設 rotate: true：要跟著地圖一起轉，指的才是真的方向
+Marker headingMarker(LatLng point, double degrees) => Marker(
+  point: point,
+  width: 64,
+  height: 64,
+  child: IgnorePointer(
+    child: Transform.rotate(
+      angle: degrees * math.pi / 180,
+      child: CustomPaint(painter: _HeadingPainter()),
+    ),
+  ),
 );
+
+class _HeadingPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.width / 2;
+    // 往上（北）開的 70 度扇形，由圓心往外漸層變淡
+    final rect = Rect.fromCircle(center: c, radius: r);
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: const [Color(0xAA2F80ED), Color(0x002F80ED)],
+      ).createShader(rect);
+    canvas.drawArc(rect, -math.pi / 2 - 0.61, 1.22, true, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
 /// 寬螢幕（電腦、平板橫放）：左邊地圖、右邊面板；窄螢幕（手機）：地圖在上、面板從下方拉起。
 class MapWithPanel extends StatefulWidget {

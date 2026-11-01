@@ -187,12 +187,14 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
       context,
       MaterialPageRoute(
         builder: (_) => VideoLoadingPage(
-          task: () => MerchantVlogApi.preview(
+          task: (onProgress, onJobId) => MerchantVlogApi.preview(
             mmId: mmId,
             storeName: storeName,
             ntId: toneId,
             promoText: promoText,
             imagePaths: newPaths,
+            onProgress: onProgress,
+            onJobId: onJobId,
           ),
         ),
       ),

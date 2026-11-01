@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,8 +16,10 @@ import '../core/auth_guard.dart';
 import '../core/story_generation.dart';
 import '../block/navigationbar.dart';
 import '../block/script_generating_overlay.dart';
+import '../block/voice_idea_field.dart';
 
 import '../api/story_api.dart';
+import '../api/voice_api.dart';
 
 import 'script_detail_page.dart';
 import 'home_page.dart';
@@ -52,6 +55,8 @@ class _SelectionPageState extends State<SelectionPage> {
   String? selectedCity;
   String? selectedDistrict;
   final TextEditingController ideaController = TextEditingController();
+  final GlobalKey<VoiceIdeaFieldState> _voiceKey =
+      GlobalKey<VoiceIdeaFieldState>();
 
   static const Set<String> _validCities = {
     '臺北市',
@@ -275,7 +280,15 @@ class _SelectionPageState extends State<SelectionPage> {
     AppNotice.show(message);
   }
 
+  /// 收鍵盤：unfocus + 直接叫系統輸入法隱藏（Android 偶爾只 unfocus 收不掉）
+  void _hideKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  }
+
   void startAdventure() {
+    _hideKeyboard();
+
     final String? city = selectedCity;
 
     if (city == null || !_isValidCity(city)) {
@@ -293,6 +306,8 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   void randomAdventure() {
+    _hideKeyboard();
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PlayIdeaPage()),
@@ -300,6 +315,8 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   void joinTeam() {
+    _hideKeyboard();
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PairJoinPage()),
@@ -307,11 +324,35 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Future<void> customAdventure() async {
+    // 一按「開始」就先收鍵盤（放在最前面：已經在生成中、輸入有誤時也會收）
+    _hideKeyboard();
+
     final StoryGeneration gen = StoryGeneration.instance;
 
     if (gen.active) {
       gen.showOverlay();
       return;
+    }
+
+    // 停掉錄音／播放
+    // 還在錄但不到 5 秒：不能開始（錄音欄會提示），讓使用者繼續錄
+    final bool voiceReady = await _voiceKey.currentState?.stopAll() ?? true;
+    if (!voiceReady) return;
+
+    // 有錄音：先把錄音檔交給後端轉成文字，填進輸入欄再去生成（API 之後補，見 voice_api.dart）
+    final File? voice = _voiceKey.currentState?.recording;
+
+    if (voice != null) {
+      try {
+        final String text = await VoiceApi.transcribe(voice);
+
+        if (!mounted) return;
+
+        _voiceKey.currentState?.showTranscript(text);
+      } catch (e) {
+        _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
+        return;
+      }
     }
 
     final String idea = ideaController.text.trim();
@@ -415,6 +456,7 @@ class _SelectionPageState extends State<SelectionPage> {
                 key: _ideaKey,
                 child: _CustomAdventureContent(
                   ideaController: ideaController,
+                  voiceKey: _voiceKey,
                   onPressed: customAdventure,
                 ),
               ),
@@ -866,10 +908,12 @@ class _RandomAdventureContent extends StatelessWidget {
 
 class _CustomAdventureContent extends StatelessWidget {
   final TextEditingController ideaController;
+  final GlobalKey<VoiceIdeaFieldState> voiceKey;
   final VoidCallback onPressed;
 
   const _CustomAdventureContent({
     required this.ideaController,
+    required this.voiceKey,
     required this.onPressed,
   });
 
@@ -909,38 +953,20 @@ class _CustomAdventureContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 24,
-            child: TextField(
-              controller: ideaController,
-              textInputAction: TextInputAction.done,
-              maxLines: 1,
-              cursorColor: AppColors.primaryAccent,
-              style: AppTextStyles.bodyEmphasisBold.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: '例如:建議輸入人數與需求，預設為1人)',
-                hintStyle: AppTextStyles.bodyCompact.copyWith(
-                  color: AppColors.mutedText,
-                ),
-              ),
-            ),
-          ),
-          Container(
-            height: 1,
-            width: double.infinity,
-            color: const Color(0xFF514A44),
+          // 可打字，也可語音輸入（辨識後能「聽一遍」確認，或點 ✕ 變回手動輸入）
+          VoiceIdeaField(
+            key: voiceKey,
+            controller: ideaController,
+            hintText: '例如:建議輸入人數與需求，預設為1人)',
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: _RedStartButton(text: '開始', onPressed: onPressed),
+          // 錄音的按鈕在左邊、開始在右邊
+          Row(
+            children: [
+              VoiceIdeaControls(fieldKey: voiceKey),
+              const Spacer(),
+              _RedStartButton(text: '開始', onPressed: onPressed),
+            ],
           ),
         ],
       ),
