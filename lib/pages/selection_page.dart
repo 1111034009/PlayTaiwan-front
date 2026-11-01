@@ -11,6 +11,8 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/taiwan_districts.dart';
 import '../core/app_notice.dart';
+import '../core/auth_guard.dart';
+import '../core/story_generation.dart';
 import '../block/navigationbar.dart';
 import '../block/script_generating_overlay.dart';
 
@@ -304,53 +306,13 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  String? _jobId;
-  bool _cancelled = false;
-
-  void _cancelGenerating() {
-    _cancelled = true;
-    final id = _jobId;
-    if (id != null) StoryApi.cancelGenerateByText(id).catchError((_) {});
-    _progressTimer?.cancel();
-    if (mounted) setState(() => isGeneratingStory = false);
-    AppNotice.show('已取消生成');
-  }
-
-  void _startGeneratingProgress() {
-    _progressTimer?.cancel();
-
-    setState(() {
-      isGeneratingStory = true;
-      generatingProgress = 0.01;
-      generatingText = '紫薯編尋找中…';
-    });
-
-    const int totalTicks = 600;
-    int tick = 0;
-
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      tick++;
-
-      setState(() {
-        generatingProgress = (0.01 + 0.96 * (tick / totalTicks)).clamp(
-          0.01,
-          0.97,
-        );
-
-        generatingText = tick < 300 ? '紫薯編尋找中…' : '紫薯編編寫中…';
-      });
-
-      if (tick >= totalTicks) timer.cancel();
-    });
-  }
-
   Future<void> customAdventure() async {
-    if (isGeneratingStory) return;
+    final StoryGeneration gen = StoryGeneration.instance;
+
+    if (gen.active) {
+      gen.showOverlay();
+      return;
+    }
 
     final String idea = ideaController.text.trim();
 
@@ -361,36 +323,34 @@ class _SelectionPageState extends State<SelectionPage> {
       return;
     }
 
-    _cancelled = false;
-    _jobId = null;
-    _startGeneratingProgress();
+    // 沒有真的進度：假的進度條 5 分鐘跑到 97%，做好了才快速跑到 100% 再跳轉
+    final int run = gen.start(
+      text: '紫薯編尋找中…',
+      cancelApi: StoryApi.cancelGenerateByText,
+      fake: true,
+    );
 
     try {
       final Map<String, dynamic> result = await StoryApi.generateByText(
         userPrompt: idea,
-        onJobId: (id) {
-          _jobId = id;
-          if (_cancelled) StoryApi.cancelGenerateByText(id).catchError((_) {});
+        onJobId: gen.setJobId,
+        onJob: (job) {
+          if (!gen.isCurrent(run)) return;
+          final int q = int.tryParse('${job['queue_position']}') ?? 0;
+          final String stage = job['stage']?.toString().trim() ?? '';
+          gen.setText(
+            q > 0 ? '排隊中，前面還有 $q 個' : (stage.isNotEmpty ? stage : '紫薯編編寫中…'),
+          );
         },
       );
 
-      if (_cancelled) return;
-      _progressTimer?.cancel();
+      if (!gen.isCurrent(run)) return;
 
-      if (!mounted) return;
+      await gen.complete();
 
-      setState(() {
-        generatingProgress = 1.0;
-        generatingText = '劇本生成完成';
-      });
+      if (!gen.isCurrent(run)) return;
 
-      await Future<void>.delayed(const Duration(milliseconds: 600));
-
-      if (!mounted) return;
-
-      setState(() {
-        isGeneratingStory = false;
-      });
+      gen.finish();
 
       final dynamic data = result['data'];
       final dynamic intent = result['parsed_intent'];
@@ -406,8 +366,9 @@ class _SelectionPageState extends State<SelectionPage> {
       final int partySize = intent is Map
           ? (int.tryParse(intent['traveler_count']?.toString() ?? '') ?? 1)
           : 1;
-      Navigator.push(
-        context,
+
+      // 人可能已經離開這一頁（先回首頁了），所以用全域的 navigator 跳轉
+      AuthGuard.navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (context) => ScriptDetailPage(
             title: title.isEmpty ? '未命名劇本' : title,
@@ -420,18 +381,10 @@ class _SelectionPageState extends State<SelectionPage> {
         ),
       );
     } catch (e) {
-      _progressTimer?.cancel();
+      if (e is StoryCancelled || gen.cancelled || !gen.isCurrent(run)) return;
 
-      if (!mounted) return;
-
-      setState(() {
-        isGeneratingStory = false;
-        generatingProgress = 0.0;
-      });
-
-      if (e is StoryCancelled || _cancelled) return;
-
-      _showLocationMessage(e.toString().replaceFirst('Exception: ', ''));
+      gen.finish();
+      AppNotice.show(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -529,7 +482,7 @@ class _SelectionPageState extends State<SelectionPage> {
     return Stack(
       children: [
         PopScope(
-          canPop: !isGeneratingStory,
+          canPop: !StoryGeneration.instance.active,
           child: Scaffold(
             backgroundColor: pageColor,
             extendBody: true,
@@ -578,16 +531,6 @@ class _SelectionPageState extends State<SelectionPage> {
             bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),
         ),
-        if (isGeneratingStory)
-          Positioned.fill(
-            child: ScriptGeneratingOverlay(
-              message: generatingText,
-              progress: generatingProgress,
-              detail: '${(generatingProgress * 100).round()}%',
-              stage: generatingText.contains('尋找') ? 0 : 1,
-              onCancel: _cancelGenerating,
-            ),
-          ),
       ],
     );
   }

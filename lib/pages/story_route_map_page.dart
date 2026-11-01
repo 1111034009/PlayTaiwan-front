@@ -13,6 +13,7 @@ import '../core/app_text_styles.dart';
 import '../route_map/api.dart';
 import '../route_map/models.dart';
 import '../route_map/pages/treasure_map.dart';
+import '../route_map/widgets/free_map.dart';
 import '../route_map/theme.dart';
 import 'story_play_page.dart';
 import 'story_postcard_page.dart';
@@ -179,7 +180,10 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                 ),
                 Expanded(
                   child: story == null
-                      ? _placeholder()
+                      // 沒有劇本但是是從小幫手要前往某個地點：不擋，直接抓我現在的位置顯示地圖
+                      ? (widget.detourTo != null && !_loading
+                            ? FreeMap(destination: widget.detourTo)
+                            : _placeholder())
                       // 地圖頁有自己的配色（羊皮紙、朱砂紅），字型用這個 App 的
                       : Theme(
                           data: buildTheme(

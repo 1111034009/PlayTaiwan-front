@@ -679,6 +679,10 @@ class _PastMediaPageState extends State<PastMediaPage> {
       imageUrl: _imageUrl(postcard['ImageUrl']?.toString()),
       name: postcard['PostcardName']?.toString().trim() ?? '',
       isSpecial: special,
+      postcardId:
+          postcard['PostcardId']?.toString() ??
+          postcard['postcard_id']?.toString() ??
+          '',
     );
 
     if (!mounted) return;

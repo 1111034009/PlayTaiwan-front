@@ -17,6 +17,7 @@ import 'core/bgm_service.dart';
 import 'block/app_shell.dart';
 import 'admin/admin_shell.dart';
 import 'api/vlog_watcher.dart';
+import 'core/story_generation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,12 @@ class PlayTaiwanApp extends StatelessWidget {
       navigatorKey: AuthGuard.navigatorKey,
       scaffoldMessengerKey: rootMessengerKey,
       navigatorObservers: [AuthGuard.observer],
+      builder: (context, child) => Stack(
+        children: [
+          Positioned.fill(child: child ?? const SizedBox.shrink()),
+          const GenerationLayer(),
+        ],
+      ),
       title: '日遊所思，夜遊所夢',
       debugShowCheckedModeBanner: false,
 

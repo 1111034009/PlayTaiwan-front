@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
+import '../core/auth_guard.dart';
+import '../core/story_generation.dart';
 import '../core/app_text_styles.dart';
 import '../api/story_api.dart';
 import '../block/navigationbar.dart';
@@ -52,19 +54,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   final Set<String> selectedTransports = {};
 
   bool isGenerating = false;
-  String? _jobId;
-  bool _cancelled = false;
-
-  void _cancelGenerating() {
-    _cancelled = true;
-    final id = _jobId;
-    if (id != null) StoryApi.cancelGenerateGameStory(id).catchError((_) {});
-    _progressTimer?.cancel();
-    if (mounted) setState(() => isGenerating = false);
-    AppNotice.show('已取消生成');
-  }
-
   double maxTravelMinutes = 30;
+  double _apiProgress = 0;
   int generatingTotal = 0;
   int generatingFinished = 0;
 
@@ -81,37 +72,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 
     segmentProgress = [0];
     _segmentsNotifier.value = segmentProgress;
-
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted) return;
-
-      final next = List<double>.from(segmentProgress);
-
-      for (int i = 0; i < next.length; i++) {
-        if (i < generatingFinished) {
-          next[i] = (next[i] + 0.12).clamp(0.0, 1.0);
-        } else if (i == generatingFinished) {
-          final double t =
-              DateTime.now().difference(_segStart).inMilliseconds / 240000;
-          final double target = (t * 0.95).clamp(0.0, 0.95);
-
-          if (target > next[i]) {
-            next[i] = target;
-          }
-        }
-      }
-
-      final String text = (generatingFinished == 0 && next[0] < 0.5)
-          ? '紫薯編找資料中…'
-          : '紫薯編寫劇本中…';
-
-      segmentProgress = next;
-      _segmentsNotifier.value = next;
-
-      if (text != generatingText) {
-        setState(() => generatingText = text);
-      }
-    });
+    _apiProgress = 0;
   }
 
   @override
@@ -201,92 +162,87 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       return;
     }
 
-    if (isGenerating) {
+    final StoryGeneration gen = StoryGeneration.instance;
+
+    if (gen.active) {
+      gen.showOverlay();
       return;
     }
 
     partySize = peopleCount;
-    _cancelled = false;
-    _jobId = null;
 
-    setState(() {
-      isGenerating = true;
-      generatingText = '紫薯編找資料中…';
-      generatingTotal = 0;
-      generatingFinished = 0;
-    });
+    // 人可能已經離開這一頁（先回首頁了），要用的值先留起來
+    final String city = widget.cityName;
+    final String town = widget.townName;
+    final List<String> transports = selectedTransports.toList();
+    final int party = peopleCount;
 
-    _startSegments();
+    // 後端有 progress（0～100）：用它當目標，進度條慢慢靠過去，不會突然跳過去
+    final int run = gen.start(
+      text: '紫薯編找資料中…',
+      cancelApi: StoryApi.cancelGenerateGameStory,
+    );
 
     try {
       final Map<String, dynamic> result =
           await StoryApi.generateScriptBlueprint(
-            cityName: widget.cityName,
-            townName: widget.townName.trim().isEmpty
-                ? null
-                : widget.townName.trim(),
+            cityName: city,
+            townName: town.trim().isEmpty ? null : town.trim(),
             travelerCount: peopleCount,
             preferences: selectedPreferences.toList(),
-            transportation: selectedTransports.toList(),
+            transportation: transports,
             maxTravelMinutes: maxTravelMinutes.round(),
-            onJobId: (id) {
-              _jobId = id;
-              if (_cancelled) {
-                StoryApi.cancelGenerateGameStory(id).catchError((_) {});
-              }
-            },
-            onProgress: (total, finished) {
-              if (!mounted || _cancelled) return;
-              if (finished != _lastFinished) {
-                _lastFinished = finished;
-                _segStart = DateTime.now();
-              }
-              setState(() {
-                generatingTotal = total;
-                generatingFinished = finished;
-              });
+            onJobId: gen.setJobId,
+            onJob: (job) {
+              if (!gen.isCurrent(run)) return;
+              final int p = (int.tryParse('${job['progress']}') ?? 0).clamp(
+                0,
+                100,
+              );
+              final int q = int.tryParse('${job['queue_position']}') ?? 0;
+              final String t = job['progress_text']?.toString().trim() ?? '';
+              gen.setTarget(p / 100);
+              gen.setText(
+                q > 0 ? '排隊中，前面還有 $q 個' : (t.isNotEmpty ? t : '紫薯編寫劇本中…'),
+              );
             },
           );
 
-      if (!mounted || _cancelled) {
-        return;
+      if (!gen.isCurrent(run)) return;
+
+      await gen.complete();
+
+      if (!gen.isCurrent(run)) return;
+
+      gen.finish();
+
+      if (mounted) {
+        setState(() => generatedScript = result);
+        _showScriptCompleteDialog();
+      } else {
+        // 已經先回首頁了：直接跳到選擇劇本
+        AuthGuard.navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => ChooseScriptPage(
+              generatedScript: result,
+              cityName: city,
+              townName: town,
+              transportation: transports,
+              partySize: party,
+            ),
+          ),
+        );
       }
-
-      setState(() {
-        generatedScript = result;
-      });
-
-      _progressTimer?.cancel();
-      setState(() {
-        segmentProgress = [1];
-        _segmentsNotifier.value = segmentProgress;
-        generatingText = '劇本生成完成';
-      });
-
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      if (!mounted) return;
-
-      setState(() => isGenerating = false);
-      _showScriptCompleteDialog();
     } catch (e) {
-      _progressTimer?.cancel();
+      if (e is StoryCancelled || gen.cancelled || !gen.isCurrent(run)) return;
 
-      if (!mounted) {
-        return;
-      }
+      gen.finish();
 
-      setState(() {
-        isGenerating = false;
-        segmentProgress = [0];
-        _segmentsNotifier.value = segmentProgress;
-      });
-      if (e is StoryCancelled || _cancelled) return;
       final String message = e
           .toString()
           .replaceFirst('Exception: ', '')
           .trim();
-      _showMessage(message.isNotEmpty ? message : '劇本生成失敗，請稍後再試');
+      AppNotice.show(message.isNotEmpty ? message : '劇本生成失敗，請稍後再試');
     }
   }
 
@@ -508,20 +464,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
         ),
 
-        if (isGenerating)
-          Positioned.fill(
-            child: ValueListenableBuilder<List<double>>(
-              valueListenable: _segmentsNotifier,
-              builder: (_, segs, __) => ScriptGeneratingOverlay(
-                message: generatingText,
-                progress: 0,
-                segments: segs,
-                detail: generatingDetail.isEmpty ? null : generatingDetail,
-                stage: generatingText.contains('找資料') ? 0 : 1,
-                onCancel: _cancelGenerating,
-              ),
-            ),
-          ),
       ],
     );
   }

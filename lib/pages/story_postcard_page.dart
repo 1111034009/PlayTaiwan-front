@@ -626,6 +626,7 @@ class _StoryPostcardPageState extends State<StoryPostcardPage>
       imageUrl: url,
       name: widget.spotName ?? '',
       isSpecial: false,
+      postcardId: _taskId ?? '',
     );
 
     if (!mounted) return;

@@ -5,11 +5,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/app_notice.dart';
 import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../api/postcard_api.dart';
 
 class PostcardGifDownload {
   const PostcardGifDownload._();
@@ -80,20 +83,33 @@ class PostcardGifDownload {
     required String imageUrl,
     required String name,
     required bool isSpecial,
+    String postcardId = '',
   }) async {
     try {
+      // 分享時一起帶明信片的文字（後端的 ShareText）
+      final String shareText = await PostcardApi.fetchShareText(postcardId);
+
       final File file = await prepare(
         imageUrl: imageUrl,
         name: name,
         isSpecial: isSpecial,
       );
 
+      final String text = shareText.isNotEmpty
+          ? shareText
+          : (name.isEmpty ? '回憶明信片' : name);
+
+      // 有些 App（LINE、IG 等）分享圖片時會丟掉文字，所以同時複製到剪貼簿，貼上就有
+      await Clipboard.setData(ClipboardData(text: text));
+      AppNotice.show('分享文字已複製，若對方 App 沒帶出文字，貼上即可');
+
       await SharePlus.instance.share(
         ShareParams(
           files: [
             XFile(file.path, mimeType: isSpecial ? 'image/gif' : 'image/png'),
           ],
-          text: name.isEmpty ? '回憶明信片' : name,
+          text: text,
+          subject: name.isEmpty ? null : name,
         ),
       );
 

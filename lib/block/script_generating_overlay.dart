@@ -12,6 +12,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
   final int? stage;
   final List<double>? segments;
   final VoidCallback? onCancel;
+  final VoidCallback? onHome;
 
   const ScriptGeneratingOverlay({
     super.key,
@@ -21,6 +22,7 @@ class ScriptGeneratingOverlay extends StatefulWidget {
     this.stage,
     this.segments,
     this.onCancel,
+    this.onHome,
   });
 
   @override
@@ -52,9 +54,15 @@ class _ScriptGeneratingOverlayState extends State<ScriptGeneratingOverlay>
   Widget build(BuildContext context) {
     return Material(
       color: Colors.black.withValues(alpha: 0.88),
-      child: SizedBox.expand(
+      // 點黑色區塊 = 回首頁、背景繼續生成
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onHome,
+        child: SizedBox.expand(
         child: Center(
-          child: Container(
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
             width: 282,
             padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
             decoration: BoxDecoration(
@@ -173,14 +181,53 @@ class _ScriptGeneratingOverlayState extends State<ScriptGeneratingOverlay>
                     _LoadingDot(animation: _controller, delay: 0.4),
                   ],
                 ),
-                if (widget.onCancel != null)
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text('取消生成'),
+                if (widget.onHome != null) ...[
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: FilledButton.icon(
+                      onPressed: widget.onHome,
+                      icon: const Icon(Icons.home_rounded, size: 20),
+                      label: const Text('回首頁，背景繼續生成'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        textStyle: AppTextStyles.bodyBold,
+                      ),
+                    ),
                   ),
+                ],
+                if (widget.onCancel != null) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: TextButton.icon(
+                      onPressed: widget.onCancel,
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('取消生成'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryDark,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: AppColors.primaryDark.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        textStyle: AppTextStyles.bodySmallBold,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
+          ),
+        ),
         ),
       ),
     );

@@ -41,6 +41,35 @@ class AiPostcardResult {
 }
 
 class PostcardApi {
+  /// GET /api/PostcardCatalog/{id}：分享時一起帶的文字（ShareText）；拿不到回空字串
+  static Future<String> fetchShareText(String postcardId) async {
+    final String? token = AppSession.token;
+    final String id = postcardId.trim();
+
+    if (token == null || token.isEmpty || id.isEmpty) return '';
+
+    try {
+      final http.Response response = await http.get(
+        Uri.parse(
+          '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/${Uri.encodeComponent(id)}',
+        ),
+        headers: {'accept': 'text/plain', 'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) return '';
+
+      final dynamic data = jsonDecode(utf8.decode(response.bodyBytes));
+      final dynamic result = data is Map ? data['Result'] : null;
+
+      if (result is! Map) return '';
+
+      return (result['ShareText'] ?? result['Summary'])?.toString().trim() ??
+          '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   static String get _createAiUrl =>
       '${dotenv.env['API_BASE_URL']}/api/PostcardCatalog/GenerateAi';
 

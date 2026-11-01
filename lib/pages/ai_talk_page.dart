@@ -911,6 +911,46 @@ Future<void> _openUrl(BuildContext context, String url) async {
   }
 }
 
+/// 「前往」開 App 自己的地圖：優先用後端給的座標，沒有就用地址／名稱查座標
+Future<void> _goOwnMap(
+  BuildContext context,
+  Map<String, dynamic> spot,
+  String name,
+  String address,
+) async {
+  double? lat = double.tryParse('${spot['lat'] ?? spot['latitude'] ?? ''}');
+  double? lng = double.tryParse(
+    '${spot['lng'] ?? spot['lon'] ?? spot['longitude'] ?? ''}',
+  );
+
+  if (lat == null || lng == null) {
+    for (final String q in [address, name]) {
+      if (q.trim().isEmpty) continue;
+      try {
+        final point = await StoryApi.geocodeLocation(cityName: q);
+        lat = point.lat;
+        lng = point.lng;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  if (!context.mounted) return;
+
+  if (lat == null || lng == null) {
+    AppNotice.show('找不到這個地點的座標');
+    return;
+  }
+
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => StoryRouteMapPage(
+        detourTo: PlacePoint(lat: lat!, lng: lng!, name: name),
+      ),
+    ),
+  );
+}
+
 Future<void> _openMap(BuildContext context, String query) {
   return _openUrl(
     context,
@@ -1097,7 +1137,11 @@ class _SpinResultCard extends StatelessWidget {
     final String description = _text(spot['description']);
     final String calendarUrl = _text(tools['tool_1_calendar_sync']);
     final double? distance = double.tryParse(_text(spot['distance_m']));
-    final dynamic rawTags = spot['tags'];
+    // 顯示 AI 抽出來的關鍵字（phase_2_cognition.extracted_tags）；沒有才用景點自己的標籤
+    final dynamic extracted = _map(agent['phase_2_cognition'])['extracted_tags'];
+    final dynamic rawTags = extracted is List && extracted.isNotEmpty
+        ? extracted
+        : spot['tags'];
     final List<String> tags = rawTags is List
         ? rawTags.map(_text).where((tag) => tag.isNotEmpty).toList()
         : [];
@@ -1211,10 +1255,7 @@ class _SpinResultCard extends StatelessWidget {
                   icon: Icons.near_me,
                   label: '前往',
                   filled: true,
-                  onTap: () => _openMap(
-                    context,
-                    address.isNotEmpty ? '$name $address' : name,
-                  ),
+                  onTap: () => _goOwnMap(context, spot, name, address),
                 ),
               ),
             ],

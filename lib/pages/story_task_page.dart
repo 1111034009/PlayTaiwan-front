@@ -39,6 +39,7 @@ class _Task {
     : id = (j['task_id'] as num?)?.toInt() ?? 0,
       typeName = _str(j['type_name']),
       mode = _str(j['answer_mode']),
+      intro = _str(j['task_intro']),
       describe = _str(j['task_describe']),
       clue = _str(j['clue_text']),
       options = ((j['options'] as List?) ?? const [])
@@ -49,6 +50,7 @@ class _Task {
   final int id;
   final String typeName;
   final String mode;
+  final String intro;
   final String describe;
 
   /// 協作解謎型：自己座位的線索，其他題型是空的
@@ -480,6 +482,18 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
               ],
             ),
             const SizedBox(height: 8),
+            if (task.intro.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  task.intro,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Pal.inkSoft,
+                    height: 1.45,
+                  ),
+                ),
+              ),
             Text(
               task.describe,
               style: const TextStyle(

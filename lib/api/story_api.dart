@@ -100,6 +100,7 @@ class StoryApi {
     int maxTravelMinutes = 30,
     void Function(int total, int finished)? onProgress,
     void Function(String jobId)? onJobId,
+    void Function(Map<String, dynamic> job)? onJob,
   }) async {
     final String cleanCityName = cityName.trim();
 
@@ -145,6 +146,7 @@ class StoryApi {
       failMessage: '劇本生成失敗，請稍後再試',
       onJobId: onJobId,
       onProgress: (job) {
+        onJob?.call(job);
         onProgress?.call(
           int.tryParse(job['total_count']?.toString() ?? '') ?? 0,
           int.tryParse(job['finished_count']?.toString() ?? '') ?? 0,
@@ -719,6 +721,7 @@ class StoryApi {
     required String userPrompt,
     void Function(String stage)? onStage,
     void Function(String jobId)? onJobId,
+    void Function(Map<String, dynamic> job)? onJob,
   }) async {
     final String prompt = userPrompt.trim();
 
@@ -739,6 +742,7 @@ class StoryApi {
       failMessage: '劇本生成失敗，稍後嘗試',
       onJobId: onJobId,
       onProgress: (job) {
+        onJob?.call(job);
         onStage?.call(job['stage']?.toString().trim() ?? '');
       },
     );
@@ -842,7 +846,19 @@ class StoryApi {
       },
     );
 
-    return _resultMap(data, '推薦生成失敗，請稍後再試');
+    final Map<String, dynamic> job = await _pollJob(
+      first: data,
+      path: '/api/Story/spin',
+      failMessage: '推薦生成失敗，請稍後再試',
+    );
+
+    final dynamic result = job['result'];
+
+    if (result is! Map) {
+      throw Exception('推薦生成失敗，請稍後再試');
+    }
+
+    return Map<String, dynamic>.from(result);
   }
 
   static Future<Map<String, dynamic>> _resultMap(
