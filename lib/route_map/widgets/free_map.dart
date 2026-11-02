@@ -222,7 +222,7 @@ class _FreeMapState extends State<FreeMap> {
                   : modeStyle(seg.mode, lineColor: seg.color).color,
               strokeWidth: modeStyle(seg.mode, lineColor: seg.color).width,
               pattern: modeStyle(seg.mode, lineColor: seg.color).pattern,
-              borderStrokeWidth: modeStyle(seg.mode).casing ? 2.5 : 0,
+              borderStrokeWidth: routeCasingWidth,
               borderColor: Colors.white,
             ),
       ];
@@ -233,8 +233,10 @@ class _FreeMapState extends State<FreeMap> {
       return [
         Polyline(
           points: [me, dest.latLng],
-          strokeWidth: 3,
+          strokeWidth: 5,
           color: AppColors.primaryAccent,
+          borderStrokeWidth: routeCasingWidth,
+          borderColor: Colors.white,
         ),
       ];
     }
@@ -266,8 +268,8 @@ class _FreeMapState extends State<FreeMap> {
                 if (dest != null)
                   Marker(
                     point: dest.latLng,
-                    width: 120,
-                    height: 64,
+                    width: 160,
+                    height: 72,
                     alignment: Alignment.topCenter,
                     // 地圖轉了，目的地的圖釘和名字還是正的
                     rotate: true,
@@ -279,15 +281,27 @@ class _FreeMapState extends State<FreeMap> {
                           size: 36,
                           color: AppColors.primaryAccent,
                         ),
+                        // 名字加底色和框（跟景點印章的名字一樣），不會跟底圖的路名疊在一起看不清楚
                         if ((dest.name ?? '').isNotEmpty)
-                          Text(
-                            dest.name!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF40342D),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xF2FBF3DF),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Pal.ink, width: 1.2),
+                            ),
+                            child: Text(
+                              dest.name!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: MapText.caption,
+                                fontWeight: FontWeight.bold,
+                                color: Pal.ink,
+                              ),
                             ),
                           ),
                       ],

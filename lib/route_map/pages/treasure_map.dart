@@ -176,7 +176,9 @@ class _TreasureMapState extends State<TreasureMap> {
   /// 每一關規劃好的路線，破關後留著（地圖上調淡），key 是關卡索引
   final Map<int, RoutePlan> _plans = {};
   final Map<int, int> _chosen = {};
-  bool _showSteps = false;
+
+  /// 路線卡片的「每一步怎麼走」展開了沒；null = 依交通方式（搭公車、捷運預設展開，一眼看到在哪一站上車）
+  bool? _showSteps;
 
   /// 順路去周邊地點的路線放在 _plans 的這個 key（關卡是 0 以上）
   static const _detourKey = -1;
@@ -404,7 +406,7 @@ class _TreasureMapState extends State<TreasureMap> {
       setState(() {
         _selectedPlace = null;
         _selectedStop = null;
-        _showSteps = false;
+        _showSteps = null;
         _progress = null;
         _dropDetour();
       });
@@ -427,7 +429,7 @@ class _TreasureMapState extends State<TreasureMap> {
         _dropDetour();
         _selectedPlace = null;
         _selectedStop = null;
-        _showSteps = false;
+        _showSteps = null;
         _progress = null;
       });
       _enterStage();
@@ -547,7 +549,7 @@ class _TreasureMapState extends State<TreasureMap> {
         _dropDetour();
         _selectedPlace = null;
         _selectedStop = null;
-        _showSteps = false;
+        _showSteps = null;
         _progress = null;
         _applyMap(TreasureMapData.fromJson(result as Map<String, dynamic>));
       });
@@ -1794,6 +1796,7 @@ class _TreasureMapState extends State<TreasureMap> {
   Widget _buildMap() {
     final routeLines = <Polyline>[];
     final rideStops = <Marker>[];
+    final rideStopLabels = <Marker>[];
     final arrows = <Marker>[];
     final badges = <Marker>[];
 
@@ -1848,7 +1851,7 @@ class _TreasureMapState extends State<TreasureMap> {
             color: color.withValues(alpha: alpha),
             strokeWidth: style.width,
             pattern: style.pattern,
-            borderStrokeWidth: style.casing ? 2.5 : 0,
+            borderStrokeWidth: routeCasingWidth,
             borderColor: Colors.white.withValues(alpha: alpha),
           ),
         );
@@ -1872,6 +1875,10 @@ class _TreasureMapState extends State<TreasureMap> {
                 ),
               ),
             );
+          }
+          if (seg.stops.length >= 2) {
+            rideStopLabels.add(_rideStopMarker(seg.stops.first, '上車', color));
+            rideStopLabels.add(_rideStopMarker(seg.stops.last, '下車', color));
           }
         }
 
@@ -1952,6 +1959,8 @@ class _TreasureMapState extends State<TreasureMap> {
               paths: _revealPaths,
               pathMeters: _revealPath,
             ),
+            // 上車站、下車站的站名畫在迷霧上面，站名往右長，不會被路線旁的迷霧蓋掉
+            MarkerLayer(markers: rideStopLabels),
             MarkerLayer(
               markers: [
                 if (start != null)
@@ -2990,6 +2999,8 @@ class _TreasureMapState extends State<TreasureMap> {
       return const [Text('這一關規劃不出路線', style: TextStyle(color: Pal.inkSoft))];
     final leg = plan.legs.first;
     final color = _optionColor(option);
+    final ride = option.segments.any((s) => s.isRide);
+    final showSteps = _showSteps ?? ride;
 
     return [
       for (final w in plan.warnings)
@@ -3016,8 +3027,8 @@ class _TreasureMapState extends State<TreasureMap> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(
-            color: _showSteps ? color : Pal.parchmentDeep,
-            width: _showSteps ? 2.5 : 1.2,
+            color: showSteps ? color : Pal.parchmentDeep,
+            width: showSteps ? 2.5 : 1.2,
           ),
         ),
         child: Column(
@@ -3025,7 +3036,7 @@ class _TreasureMapState extends State<TreasureMap> {
           children: [
             InkWell(
               onTap: () {
-                setState(() => _showSteps = !_showSteps);
+                setState(() => _showSteps = !showSteps);
                 _fitStage();
               },
               borderRadius: BorderRadius.circular(10),
@@ -3067,7 +3078,7 @@ class _TreasureMapState extends State<TreasureMap> {
                       ],
                     ),
                     Icon(
-                      _showSteps ? Icons.expand_less : Icons.expand_more,
+                      showSteps ? Icons.expand_less : Icons.expand_more,
                       color: Pal.inkSoft,
                     ),
                   ],
@@ -3086,17 +3097,19 @@ class _TreasureMapState extends State<TreasureMap> {
                 ],
               ),
             ),
-            if (_showSteps)
+            if (showSteps)
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                 decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: Pal.parchmentDeep)),
                 ),
-                child: Column(
-                  children: [
-                    for (final seg in option.segments) _segmentRow(seg),
-                  ],
-                ),
+                child: ride
+                    ? _rideSteps(leg, option)
+                    : Column(
+                        children: [
+                          for (final seg in option.segments) _segmentRow(seg),
+                        ],
+                      ),
               ),
           ],
         ),
@@ -3113,9 +3126,17 @@ class _TreasureMapState extends State<TreasureMap> {
     final seg = option.segments[progress.segment];
     final color = _optionColor(option);
     final arrived = progress.remainingMeters < 30;
+    // 走完這一段要搭車：提醒走到哪一站、搭哪一路
+    final next = progress.segment + 1 < option.segments.length
+        ? option.segments[progress.segment + 1]
+        : null;
 
     final (IconData icon, Color tone, String text) = seg.isRide
-        ? (Icons.directions_transit, Pal.inkSoft, '搭${seg.mode}中，下車後才判斷有沒有偏離')
+        ? (
+            Icons.directions_transit,
+            Pal.inkSoft,
+            '搭${seg.routeName ?? seg.mode}中，在「${seg.alightName ?? ''}」下車；下車後才判斷有沒有偏離',
+          )
         : !_onRoute
         ? (
             _planning ? Icons.sync : Icons.warning_amber,
@@ -3124,6 +3145,12 @@ class _TreasureMapState extends State<TreasureMap> {
           )
         : arrived
         ? (Icons.flag, Pal.moss, _activeKey == _detourKey ? '到了' : '到景點了')
+        : next != null && next.isRide
+        ? (
+            Icons.navigation,
+            Pal.moss,
+            '走到「${next.boardName ?? ''}」搭 ${next.routeName ?? next.mode}${next.headsign == null ? '' : '（${next.headsign}）'}',
+          )
         : (Icons.navigation, Pal.moss, '在路線上，路線會跟著你的位置縮短');
 
     return Padding(
@@ -3232,6 +3259,342 @@ class _TreasureMapState extends State<TreasureMap> {
     );
   }
 
+  static const _stepTimeWidth = 46.0;
+  static const _stepRailWidth = 26.0;
+
+  /// 搭公車、捷運的每一步，像導航 App 的時間軸：走到哪一站、搭哪一路往哪裡、坐幾站在哪一站下車，
+  /// 左邊是預計到那裡的時間。點站名地圖會移到那一站
+  Widget _rideSteps(RouteLeg leg, RouteOption option) {
+    final segs = option.segments;
+    final rows = <Widget>[];
+    var minutes = 0.0;
+
+    Color colorOf(RouteSegment s) =>
+        s.mode == '捷運' ? s.color : modeStyle(s.mode).color;
+    String stationName(RouteSegment s, String? name) =>
+        s.mode == '捷運' ? '${name ?? ''} 站' : (name ?? '');
+
+    // 起點；第一段就搭車（起點就在站牌旁）時，起點直接寫上車站
+    if (segs.isNotEmpty && !segs.first.isRide) {
+      rows.add(
+        _stepStop(0, leg.fromName, Pal.ink, point: segs.first.points.firstOrNull),
+      );
+    }
+
+    for (var i = 0; i < segs.length; i++) {
+      final seg = segs[i];
+      final next = i + 1 < segs.length ? segs[i + 1] : null;
+
+      if (seg.isRide) {
+        final color = colorOf(seg);
+        if (i == 0) {
+          rows.add(
+            _stepStop(
+              minutes,
+              stationName(seg, seg.boardName),
+              color,
+              tag: '上車',
+              point: seg.stops.firstOrNull?.latLng,
+            ),
+          );
+        }
+        rows.add(_stepRide(seg, color));
+        minutes += seg.waitMinutes + seg.minutes;
+        rows.add(
+          _stepStop(
+            minutes,
+            stationName(seg, seg.alightName),
+            color,
+            tag: next?.mode == '轉乘' ? '轉乘' : '下車',
+            point: seg.stops.lastOrNull?.latLng,
+          ),
+        );
+        // 下車站就在景點旁（不用再走）
+        if (next == null) {
+          rows.add(
+            _stepStop(minutes, leg.toName, Pal.cinnabar, point: seg.points.lastOrNull),
+          );
+        }
+        continue;
+      }
+
+      // 步行、站內轉乘：走到下一段的上車站，最後一段走到景點
+      rows.add(_stepMove(seg));
+      minutes += seg.minutes + seg.waitMinutes;
+      if (next == null) {
+        rows.add(
+          _stepStop(minutes, leg.toName, Pal.cinnabar, point: seg.points.lastOrNull),
+        );
+      } else if (next.isRide) {
+        rows.add(
+          _stepStop(
+            minutes,
+            stationName(next, next.boardName),
+            colorOf(next),
+            tag: '上車',
+            point: next.stops.firstOrNull?.latLng,
+          ),
+        );
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rows,
+    );
+  }
+
+  /// 時間軸上的一站：預計到那裡的時間、圓點、站名，上車／下車的標籤
+  Widget _stepStop(
+    double minutes,
+    String name,
+    Color color, {
+    String? tag,
+    LatLng? point,
+  }) {
+    return InkWell(
+      onTap: point == null ? null : () => _focusOn(point, zoom: 17),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _stepTimeWidth,
+              child: Text(
+                _arriveText(minutes),
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.inkSoft,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _stepRailWidth,
+              child: Center(
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color, width: 3),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Pal.ink,
+                ),
+              ),
+            ),
+            if (tag != null)
+              Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  tag,
+                  style: TextStyle(
+                    fontSize: MapText.micro,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            if (point != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(Icons.place_outlined, size: 16, color: Pal.inkSoft),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 時間軸上兩站之間的那一段：左邊一條線（步行是點點），右邊寫怎麼走
+  Widget _stepLine(
+    Color color, {
+    required bool dotted,
+    required List<Widget> children,
+  }) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(width: _stepTimeWidth),
+          SizedBox(
+            width: _stepRailWidth,
+            child: CustomPaint(painter: _StepRail(color, dotted: dotted)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 步行到站牌、下車後步行、捷運站內轉乘
+  Widget _stepMove(RouteSegment seg) {
+    final style = modeStyle(seg.mode, lineColor: seg.color);
+    final walk = seg.mode == '步行';
+    return _stepLine(
+      style.color,
+      dotted: walk,
+      children: [
+        Row(
+          children: [
+            Icon(style.icon, size: 16, color: style.color),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                walk
+                    ? '步行約 ${seg.minutes.ceil()} 分・${_metersText(seg.distanceKm * 1000)}'
+                    : '${seg.instruction}，約 ${seg.minutes.ceil()} 分',
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.inkSoft,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 搭車那一段：路線號碼、往哪個方向、候車、坐幾站、經過哪些站
+  Widget _stepRide(RouteSegment seg, Color color) {
+    final style = modeStyle(seg.mode, lineColor: seg.color);
+    final passing = seg.stops.length > 2
+        ? seg.stops
+              .skip(1)
+              .take(seg.stops.length - 2)
+              .map((s) => s.name ?? '')
+              .where((n) => n.isNotEmpty)
+              .join('、')
+        : '';
+    const soft = TextStyle(fontSize: MapText.caption, color: Pal.inkSoft);
+    return _stepLine(
+      color,
+      dotted: false,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(style.icon, size: 14, color: Colors.white),
+                  const SizedBox(width: 3),
+                  Text(
+                    seg.routeName ?? seg.mode,
+                    style: const TextStyle(
+                      fontSize: MapText.caption,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (seg.headsign != null)
+              Text(
+                seg.headsign!,
+                style: const TextStyle(
+                  fontSize: MapText.caption,
+                  color: Pal.ink,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        if (seg.waitMinutes > 0)
+          Text('候車約 ${seg.waitMinutes.ceil()} 分', style: soft),
+        Text('坐 ${seg.stopCount} 站・約 ${seg.minutes.ceil()} 分', style: soft),
+        if (passing.isNotEmpty)
+          Text(
+            '經過：$passing',
+            style: const TextStyle(
+              fontSize: MapText.micro,
+              color: Pal.inkSoft,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 地圖上的上車站、下車站：比途中的站大，旁邊寫「上車・站名」，看得出要去哪個站牌等車
+  Marker _rideStopMarker(PlacePoint stop, String tag, Color color) => Marker(
+    point: stop.latLng,
+    width: 170,
+    height: 24,
+    // 圓點對準站牌，站名往右邊長
+    alignment: const Alignment(1 - 18 / 170, 0),
+    rotate: true,
+    child: Row(
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 4),
+            boxShadow: const [
+              BoxShadow(color: Color(0x44000000), blurRadius: 3),
+            ],
+          ),
+        ),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color, width: 1.5),
+            ),
+            child: Text(
+              '$tag・${stop.name ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: MapText.micro,
+                color: Pal.ink,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Widget _segmentRow(RouteSegment seg) {
     final style = modeStyle(seg.mode, lineColor: seg.color);
     final color = seg.mode == '捷運' ? seg.color : style.color;
@@ -3328,4 +3691,31 @@ class _LineSample extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LineSample oldDelegate) =>
       oldDelegate.style != style;
+}
+
+/// 步驟時間軸左邊那條線：搭車是實線，步行是點點
+class _StepRail extends CustomPainter {
+  _StepRail(this.color, {required this.dotted});
+  final Color color;
+  final bool dotted;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final x = size.width / 2;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    if (dotted) {
+      for (double y = 3; y < size.height; y += 7) {
+        canvas.drawCircle(Offset(x, y), 2, paint);
+      }
+    } else {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StepRail oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.dotted != dotted;
 }

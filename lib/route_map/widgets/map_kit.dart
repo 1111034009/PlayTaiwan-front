@@ -9,21 +9,22 @@ import '../theme.dart';
 
 const _distance = Distance();
 
-/// 舊地圖的泛黃色調（一半原色 + 一半 sepia）
+/// 舊地圖的羊皮紙色調：泛黃之外整體壓暗，白色變成米黃（約 #EDE0BF）。
+/// 電子地圖底色接近白色，不壓暗的話太刺眼，深色路線和白色外框也不明顯
 const _sepia = ColorFilter.matrix(<double>[
-  0.70,
-  0.38,
-  0.09,
+  0.56,
+  0.30,
+  0.07,
   0,
   0,
-  0.17,
-  0.84,
-  0.08,
+  0.16,
+  0.66,
+  0.06,
   0,
   0,
-  0.14,
-  0.27,
-  0.57,
+  0.12,
+  0.22,
+  0.41,
   0,
   0,
   0,
@@ -33,18 +34,21 @@ const _sepia = ColorFilter.matrix(<double>[
   0,
 ]);
 
-/// 藏寶圖底圖（OpenStreetMap + 泛黃濾鏡）。
+/// 藏寶圖底圖（國土測繪中心臺灣通用電子地圖 + 泛黃濾鏡）。
+/// 用「無等高線及門牌」版（EMAP16）：只有路名和少數地標，不像 OpenStreetMap 滿是門牌號碼和店家圖示，劇本的印章比較顯眼。
 /// 濾鏡整個圖層套一次，不要每一塊圖磚各包一層：畫面上幾十塊圖磚就多幾十層合成，地圖開久了手機會發燙
 Widget treasureTiles() => ColorFiltered(
   colorFilter: _sepia,
   child: TileLayer(
-    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    urlTemplate:
+        'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/{z}/{y}/{x}',
     userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
   ),
 );
 
+/// 底圖來源標示（名稱沿用，底圖已改用國土測繪中心的電子地圖）
 Widget osmAttribution() => const SimpleAttributionWidget(
-  source: Text('OpenStreetMap contributors'),
+  source: Text('內政部國土測繪中心'),
   backgroundColor: Color(0xCCF3E4C1),
 );
 
