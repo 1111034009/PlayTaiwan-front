@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/app_notice.dart';
@@ -34,22 +35,55 @@ const _sepia = ColorFilter.matrix(<double>[
   0,
 ]);
 
-/// 藏寶圖底圖（國土測繪中心臺灣通用電子地圖 + 泛黃濾鏡）。
+const _nlscTiles =
+    'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/{z}/{y}/{x}';
+const _osmTiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+/// 國土測繪中心的圖磚服務偶爾整個連不上（2026-11-02 就斷過）。伺服器沒回應時瀏覽器要等二十幾秒才逾時，
+/// 整片地圖一直空白，所以第一次畫地圖時先試抓一塊圖磚，4 秒內抓不到，這次開 App 就改用 OpenStreetMap
+final _nlscReachable = ValueNotifier<bool>(true);
+bool _nlscChecked = false;
+
+void _checkNlsc() {
+  if (_nlscChecked) return;
+  _nlscChecked = true;
+  http
+      .get(
+        Uri.parse(
+          'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/7/55/107',
+        ),
+      )
+      .timeout(const Duration(seconds: 4))
+      .then((r) => _nlscReachable.value = r.statusCode == 200)
+      .catchError((_) => _nlscReachable.value = false);
+}
+
+/// 藏寶圖底圖（國土測繪中心臺灣通用電子地圖 + 泛黃濾鏡；連不上時改用 OpenStreetMap）。
 /// 用「無等高線及門牌」版（EMAP16）：只有路名和少數地標，不像 OpenStreetMap 滿是門牌號碼和店家圖示，劇本的印章比較顯眼。
 /// 濾鏡整個圖層套一次，不要每一塊圖磚各包一層：畫面上幾十塊圖磚就多幾十層合成，地圖開久了手機會發燙
-Widget treasureTiles() => ColorFiltered(
-  colorFilter: _sepia,
-  child: TileLayer(
-    urlTemplate:
-        'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/{z}/{y}/{x}',
-    userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
-  ),
-);
+Widget treasureTiles() {
+  _checkNlsc();
+  return ValueListenableBuilder<bool>(
+    valueListenable: _nlscReachable,
+    builder: (context, nlsc, _) => ColorFiltered(
+      colorFilter: _sepia,
+      child: TileLayer(
+        // 換圖源時整層重建，不沿用另一個圖源的圖磚
+        key: ValueKey(nlsc),
+        urlTemplate: nlsc ? _nlscTiles : _osmTiles,
+        userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
+      ),
+    ),
+  );
+}
 
-/// 底圖來源標示（名稱沿用，底圖已改用國土測繪中心的電子地圖）
-Widget osmAttribution() => const SimpleAttributionWidget(
-  source: Text('內政部國土測繪中心'),
-  backgroundColor: Color(0xCCF3E4C1),
+/// 底圖來源標示（名稱沿用；跟著底圖換）
+Widget osmAttribution() => ValueListenableBuilder<bool>(
+  valueListenable: _nlscReachable,
+  builder: (context, nlsc, _) => SimpleAttributionWidget(
+    source: Text(nlsc ? '內政部國土測繪中心' : 'OpenStreetMap contributors'),
+    backgroundColor: const Color(0xCCF3E4C1),
+  ),
 );
 
 /// 預設的地圖互動：跟 Google 地圖一樣可以用兩指旋轉。
