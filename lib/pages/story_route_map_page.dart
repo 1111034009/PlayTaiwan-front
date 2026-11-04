@@ -165,6 +165,43 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
 
             return Column(
               children: [
+                // 上列：有劇本是「地點探索度」「明信片」；沒有劇本時沒有進度可以看，換成一條「選擇劇本」的提示
+                if (story == null && !_loading && _noStory)
+                  Container(
+                    height: topOffset + 48,
+                    width: double.infinity,
+                    color: AppColors.paper,
+                    alignment: Alignment.bottomCenter,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 10, 4),
+                    child: SizedBox(
+                      height: 44,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.explore_outlined,
+                            color: AppColors.primary,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '還沒開始探險',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodySmallBold.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          FilledButton(
+                            onPressed: _goSelect,
+                            child: const Text('選擇劇本'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
                 // 上列：跟原本的地圖頁同一個排法
                 Container(
                   height: topOffset + topBarHeight,
@@ -192,12 +229,22 @@ class _StoryRouteMapPageState extends State<StoryRouteMapPage> {
                 ),
                 Expanded(
                   child: story == null
-                      // 沒有劇本但是是從小幫手要前往某個地點：不擋，直接抓我現在的位置顯示地圖
-                      ? (_dest != null && !_loading
-                            ? FreeMap(
-                                key: ValueKey('${_dest!.lat},${_dest!.lng}'),
-                                destination: _dest,
-                                onClose: _dropDestination,
+                      // 沒有劇本：不擋，直接抓我現在的位置顯示地圖，右上可以找附近吃的、景點；
+                      // 從小幫手要前往某個地點也是這張。目的地在地圖裡面換，地圖不會重新建立
+                      ? (!_loading && (_noStory || _dest != null)
+                            ? Theme(
+                                data: buildTheme(
+                                  fontFamily: AppTextStyles.body.fontFamily,
+                                ),
+                                child: FreeMap(
+                                  key: const ValueKey('free-map'),
+                                  destination: _dest,
+                                  onClose: _dropDestination,
+                                  onDestination: (dest) {
+                                    MapDestination.current = dest;
+                                    _dest = dest;
+                                  },
+                                ),
                               )
                             : _placeholder())
                       // 地圖頁有自己的配色（羊皮紙、朱砂紅），字型用這個 App 的

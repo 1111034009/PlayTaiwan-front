@@ -185,7 +185,46 @@ class _HeadingPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+/// 手機上的底部面板：地圖用來知道面板現在蓋住地圖下方多高、把面板收起來。
+/// 寬螢幕的面板在地圖右邊，不會蓋到地圖，[cover] 一律是 0
+class MapPanelController extends ChangeNotifier {
+  MapPanelController() {
+    _sheet.addListener(notifyListeners);
+  }
+
+  final _sheet = DraggableScrollableController();
+  double _height = 0;
+  double _collapsed = 0;
+  bool _side = false;
+
+  /// 面板現在蓋住地圖下方多高（像素）
+  double get cover {
+    if (_side) return 0;
+    return (_sheet.isAttached ? _sheet.size : _collapsed) * _height;
+  }
+
+  /// 面板收起來時蓋住多高（像素）
+  double get collapsedCover => _side ? 0 : _collapsed * _height;
+
+  /// 收到最低：只露出最上面的「下一步」，地圖整個看得到
+  void collapse() {
+    if (_side || !_sheet.isAttached) return;
+    _sheet.animateTo(
+      _collapsed,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _sheet.dispose();
+    super.dispose();
+  }
+}
+
 /// 寬螢幕（電腦、平板橫放）：左邊地圖、右邊面板；窄螢幕（手機）：地圖在上、面板從下方拉起。
+/// 手機上的面板會卡在三個高度：收起（只露出面板最上面一小段，預設）、一半、全開，不會停在半路蓋住地圖
 class MapWithPanel extends StatefulWidget {
   const MapWithPanel({
     super.key,
@@ -193,10 +232,12 @@ class MapWithPanel extends StatefulWidget {
     required this.panel,
     this.floating,
     this.floatingRight = false,
+    this.controller,
   });
 
   final Widget map;
   final Widget Function(ScrollController? controller) panel;
+  final MapPanelController? controller;
 
   /// 常駐在地圖角落的小東西（地圖上的 NPC），放在不擋畫面的地方：
   /// 寬螢幕在地圖右下角；手機在左下角、貼著面板的上緣跟著移動（右邊是交通方式的按鈕，會擠在一起）。
@@ -211,8 +252,11 @@ class MapWithPanel extends StatefulWidget {
 }
 
 class _MapWithPanelState extends State<MapWithPanel> {
-  /// 面板現在佔螢幕高度的比例
-  final _extent = ValueNotifier(0.42);
+  /// 手機上面板收起來時露出的高度（像素，不含下面被導覽列蓋住的部分）：剛好看得到面板最上面的「下一步」
+  static const _collapsedVisible = 120.0;
+
+  /// 面板現在佔螢幕高度的比例；還沒拉過是 null（收起來的高度）
+  final _extent = ValueNotifier<double?>(null);
 
   @override
   void dispose() {
@@ -226,6 +270,7 @@ class _MapWithPanelState extends State<MapWithPanel> {
     return LayoutBuilder(
       builder: (context, c) {
         if (c.maxWidth >= 900) {
+          widget.controller?._side = true;
           return Row(
             children: [
               Expanded(
@@ -258,21 +303,26 @@ class _MapWithPanelState extends State<MapWithPanel> {
             ],
           );
         }
-        final minExtent =
-            ((MediaQuery.paddingOf(context).bottom + 72) / c.maxHeight).clamp(
-              0.12,
-              0.4,
-            );
+        // 收起來：露出面板最上面一小段（下面被導覽列蓋住的部分另外加）；一半；全開
+        final collapsed =
+            ((MediaQuery.paddingOf(context).bottom + _collapsedVisible) /
+                    c.maxHeight)
+                .clamp(0.12, 0.4);
+        const half = 0.5, full = 0.92;
+        widget.controller
+          ?.._side = false
+          .._height = c.maxHeight
+          .._collapsed = collapsed;
         return Stack(
           children: [
             Positioned.fill(child: map),
             if (floating != null)
-              ValueListenableBuilder<double>(
+              ValueListenableBuilder<double?>(
                 valueListenable: _extent,
                 builder: (context, extent, child) => Positioned(
                   left: widget.floatingRight ? null : 12,
                   right: widget.floatingRight ? 12 : null,
-                  bottom: math.min(extent, 0.6) * c.maxHeight + 10,
+                  bottom: math.min(extent ?? collapsed, 0.6) * c.maxHeight + 10,
                   child: child!,
                 ),
                 child: floating,
@@ -283,9 +333,13 @@ class _MapWithPanelState extends State<MapWithPanel> {
                 return false;
               },
               child: DraggableScrollableSheet(
-                initialChildSize: 0.42,
-                minChildSize: minExtent,
-                maxChildSize: 0.92,
+                controller: widget.controller?._sheet,
+                initialChildSize: collapsed,
+                minChildSize: collapsed,
+                maxChildSize: full,
+                // 放手後卡到最近的一段，不會停在半路
+                snap: true,
+                snapSizes: [if (collapsed < half - 0.05) half],
                 builder: (context, controller) => Container(
                   decoration: const BoxDecoration(
                     color: Pal.parchment,
@@ -602,8 +656,13 @@ Marker sealMarker(
 /// 路線中間點（依長度），放交通方式徽章用
 LatLng midpoint(List<LatLng> pts) => pointAlong(pts, lineLength(pts) / 2).$1;
 
-/// 鏡頭留白：寬螢幕避開左上角圖例；手機避開下方拉起的面板（約 42% 高），左右留地標名稱的寬度
-EdgeInsets mapFitPadding(BuildContext context, {double base = 50}) {
+/// 鏡頭留白：寬螢幕避開左上角圖例；手機避開下方拉起的面板（[cover] 是面板蓋住的高度，沒給就當成約 42% 高），
+/// 左右留地標名稱的寬度
+EdgeInsets mapFitPadding(
+  BuildContext context, {
+  double base = 50,
+  double? cover,
+}) {
   final size = MediaQuery.sizeOf(context);
   if (size.width >= 900)
     return EdgeInsets.fromLTRB(base + 110, base, base, base);
@@ -611,7 +670,7 @@ EdgeInsets mapFitPadding(BuildContext context, {double base = 50}) {
     base * 0.9,
     base + 20,
     base * 0.9,
-    size.height * 0.42 + base * 0.6,
+    (cover ?? size.height * 0.42) + base * 0.6,
   );
 }
 
