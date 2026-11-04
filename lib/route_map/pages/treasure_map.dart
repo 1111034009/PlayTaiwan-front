@@ -207,6 +207,17 @@ class _TreasureMapState extends State<TreasureMap> {
   /// null = 依螢幕寬度決定（寬螢幕展開、手機收起）
   bool? _legendOpen;
 
+  /// 手機上的底部面板：現在蓋住地圖多高、把它收起來
+  final _panel = MapPanelController();
+
+  /// 鏡頭上一次對準時，算進去的面板高度（像素）。面板拉上拉下停住後，地圖跟著移動差的一半，
+  /// 原本看的東西一直留在沒被蓋住的那一塊中間
+  double? _panelCoverAtFit;
+  Timer? _panelSettle;
+
+  /// 搭車那一步有展開「經過的站」的（key 見 _rideKey）；預設收起來，整段步驟才短到面板一半就看得完
+  final Set<String> _passingOpen = {};
+
   // 周邊好去：玩家按了「吃的」「拍照」才用現在的位置向後端查（不會自動一直查），再按一次收起來；
   // 只有在迷霧露出來的範圍裡才看得到
   List<NearbyPlace> _nearby = [];
@@ -292,6 +303,7 @@ class _TreasureMapState extends State<TreasureMap> {
       (_) => _pollReminders(),
     );
     _teamTimer = Timer.periodic(const Duration(seconds: 8), (_) => _pollTeam());
+    _panel.addListener(_onPanelMoved);
   }
 
   @override
@@ -305,6 +317,8 @@ class _TreasureMapState extends State<TreasureMap> {
     _simTimer?.cancel();
     _mateTimer?.cancel();
     _positionSub?.cancel();
+    _panelSettle?.cancel();
+    _panel.dispose();
     super.dispose();
   }
 
@@ -1730,24 +1744,70 @@ class _TreasureMapState extends State<TreasureMap> {
               if (_origin != null) _origin!.latLng,
               if (node.hasPoint) node.point,
             ];
-      fitTo(_map, points, padding: mapFitPadding(context, base: 70));
+      // 面板拉得很高時還是用地圖的六成來放路線，不然擠在一小條裡縮得太小
+      final cover = math.min(
+        _panel.cover,
+        _map.camera.nonRotatedSize.height * 0.6,
+      );
+      fitTo(_map, points, padding: mapFitPadding(context, base: 70, cover: cover));
+      _panelCoverAtFit = cover;
     } catch (_) {}
   }
 
   /// 把地圖移到這個點，不拉遠。點要落在沒被蓋住的地方：
-  /// 手機上卡片在地圖上緣、面板從下方拉起（約 42% 高），放在兩者中間；寬螢幕卡片在左下，稍微往上。
-  void _focusOn(LatLng point, {double? zoom}) {
+  /// 手機上卡片在地圖上緣（約到 210）、面板從下方拉起（[cover] 是面板會蓋住的高度，沒給就用現在的），放在兩者中間；
+  /// 寬螢幕卡片在左下，稍微往上。
+  void _focusOn(LatLng point, {double? zoom, double? cover}) {
     try {
       final camera = _map.camera;
       final height = camera.nonRotatedSize.height;
       final wide = MediaQuery.sizeOf(context).width >= 900;
-      final dy = wide ? -30.0 : (210 + height * 0.58) / 2 - height / 2;
+      final covered = cover ?? _panel.cover;
+      // 面板拉得很高時，至少留 120 像素在卡片下面
+      final panelTop = math.min(height, math.max(height - covered, 330.0));
+      final dy = wide ? -30.0 : (210 + panelTop) / 2 - height / 2;
       _map.move(
         point,
         math.max(camera.zoom, zoom ?? camera.zoom),
         offset: Offset(0, dy),
       );
+      _panelCoverAtFit = height - panelTop;
     } catch (_) {}
+  }
+
+  /// 點步驟裡的一段（步行、搭車）：面板收起來，地圖放大到看得到整段
+  void _focusSegment(RouteSegment seg) {
+    final points = seg.points.isNotEmpty
+        ? seg.points
+        : [for (final s in seg.stops) s.latLng];
+    if (points.isEmpty) return;
+    _panel.collapse();
+    try {
+      final cover = _panel.collapsedCover;
+      fitTo(
+        _map,
+        points,
+        padding: mapFitPadding(context, base: 70, cover: cover),
+      );
+      _panelCoverAtFit = cover;
+    } catch (_) {}
+  }
+
+  /// 面板拉上拉下：停住之後地圖跟著上下移，原本在畫面中間看的東西留在沒被蓋住的那一塊中間
+  void _onPanelMoved() {
+    _panelSettle?.cancel();
+    _panelSettle = Timer(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      final cover = _panel.cover;
+      final before = _panelCoverAtFit ?? cover;
+      _panelCoverAtFit = cover;
+      final delta = cover - before;
+      if (delta.abs() < 8) return;
+      try {
+        final camera = _map.camera;
+        _map.move(camera.center, camera.zoom, offset: Offset(0, -delta / 2));
+      } catch (_) {}
+    });
   }
 
   // ─────────────────────────── 畫面 ───────────────────────────
@@ -1786,6 +1846,7 @@ class _TreasureMapState extends State<TreasureMap> {
       );
     }
     return MapWithPanel(
+      controller: _panel,
       map: _buildMap(),
       panel: _buildPanel,
       floating: _npcBuddy(),
@@ -1851,7 +1912,7 @@ class _TreasureMapState extends State<TreasureMap> {
             color: color.withValues(alpha: alpha),
             strokeWidth: style.width,
             pattern: style.pattern,
-            borderStrokeWidth: style.casing ? 2.5 : 0,
+            borderStrokeWidth: routeCasingWidth,
             borderColor: Colors.white.withValues(alpha: alpha),
           ),
         );
@@ -2418,6 +2479,10 @@ class _TreasureMapState extends State<TreasureMap> {
               ),
             ),
           ),
+        ?_nextStep(),
+        if (_finished) ..._finishedPanel() else ..._stagePanel(),
+        const SizedBox(height: 14),
+        // 劇本名稱和關卡選單放在下面：要看別的關卡再把面板拉上來。
         // 劇本與進度。嵌在正式 App 裡時進度條不畫：那邊上列的「地點探索度」就是同一個數字（onProgress）
         Text(
           _story.title,
@@ -2502,9 +2567,90 @@ class _TreasureMapState extends State<TreasureMap> {
             if (v != null) _showStop(v, zoom: 16);
           },
         ),
-        const SizedBox(height: 14),
-        if (_finished) ..._finishedPanel() else ..._stagePanel(),
       ],
+    );
+  }
+
+  /// 面板最上面的「下一步」，字放大：手機上面板收起來時只露出這一段，地圖整個看得到。
+  /// 搭車中、偏離路線、到了：用跟著走的提示；其他時候說接下來要搭的車（走到哪一站搭哪一路），沒有要搭車就是用什麼方式去哪裡。
+  /// 下面一行是交通方式、要多久、多遠
+  Widget? _nextStep() {
+    if (_finished || _nodes.isEmpty) return null;
+    final node = _nodes[_stage];
+    final option = _optionOf(_activeKey);
+    final legs = _plans[_activeKey]?.legs ?? const <RouteLeg>[];
+    final to = legs.isNotEmpty ? legs.first.toName : node.label;
+    final progress = _progress;
+
+    final IconData icon;
+    final Color tone;
+    final String text;
+    if (option == null) {
+      (icon, tone, text) = (Icons.flag, Pal.cinnabar, '前往「${node.label}」');
+    } else {
+      final seg = progress == null ? null : option.segments[progress.segment];
+      final special =
+          seg != null &&
+          (seg.isRide || !_onRoute || progress!.remainingMeters < 30);
+      final ride = option.segments
+          .skip(progress?.segment ?? 0)
+          .where((s) => s.isRide)
+          .firstOrNull;
+      (icon, tone, text) = special
+          ? _followHint(option, progress!)
+          : ride != null
+          ? (
+              Icons.directions_bus,
+              Pal.moss,
+              '走到「${ride.boardName ?? ''}」搭 ${ride.routeName ?? ride.mode}${ride.headsign == null ? '' : '（${ride.headsign}）'}',
+            )
+          : (modeStyle(option.mode).icon, Pal.moss, '${option.mode}前往「$to」');
+    }
+    final busy = _entering || _checking || _planning;
+    final detail = option == null
+        ? (busy ? '路線規劃中…' : '還沒有路線，把面板拉上來看看')
+        : '${option.mode}・約 ${option.minutes.ceil()} 分・${option.distanceKm.toStringAsFixed(1)} 公里・到「$to」';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 30, color: tone),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: MapText.body,
+                    fontWeight: FontWeight.bold,
+                    color: Pal.ink,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: MapText.caption,
+                    color: Pal.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3121,17 +3267,19 @@ class _TreasureMapState extends State<TreasureMap> {
       ? '${(meters / 10).round() * 10} 公尺'
       : '${(meters / 1000).toStringAsFixed(1)} 公里';
 
-  /// 跟著位置走的狀態：還剩多遠、多久，現在在路線上還是偏離了
-  Widget _followStatus(RouteOption option, RouteProgress progress) {
+  /// 跟著位置走的提示：搭車中、偏離了、到了，或走到哪一站搭哪一路
+  (IconData, Color, String) _followHint(
+    RouteOption option,
+    RouteProgress progress,
+  ) {
     final seg = option.segments[progress.segment];
-    final color = _optionColor(option);
     final arrived = progress.remainingMeters < 30;
     // 走完這一段要搭車：提醒走到哪一站、搭哪一路
     final next = progress.segment + 1 < option.segments.length
         ? option.segments[progress.segment + 1]
         : null;
 
-    final (IconData icon, Color tone, String text) = seg.isRide
+    return seg.isRide
         ? (
             Icons.directions_transit,
             Pal.inkSoft,
@@ -3152,6 +3300,15 @@ class _TreasureMapState extends State<TreasureMap> {
             '走到「${next.boardName ?? ''}」搭 ${next.routeName ?? next.mode}${next.headsign == null ? '' : '（${next.headsign}）'}',
           )
         : (Icons.navigation, Pal.moss, '在路線上，路線會跟著你的位置縮短');
+  }
+
+  /// 跟著位置走的狀態：還剩多遠、多久，現在在路線上還是偏離了
+  Widget _followStatus(RouteOption option, RouteProgress progress) {
+    final color = _optionColor(option);
+    final (IconData icon, Color tone, String text) = _followHint(
+      option,
+      progress,
+    );
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -3263,7 +3420,8 @@ class _TreasureMapState extends State<TreasureMap> {
   static const _stepRailWidth = 26.0;
 
   /// 搭公車、捷運的每一步，像導航 App 的時間軸：走到哪一站、搭哪一路往哪裡、坐幾站在哪一站下車，
-  /// 左邊是預計到那裡的時間。點站名地圖會移到那一站
+  /// 左邊是預計到那裡的時間。點站名地圖會移到那一站；點中間那一段（步行、搭車）地圖放大看整段。
+  /// 兩種都會把面板收起來
   Widget _rideSteps(RouteLeg leg, RouteOption option) {
     final segs = option.segments;
     final rows = <Widget>[];
@@ -3277,12 +3435,7 @@ class _TreasureMapState extends State<TreasureMap> {
     // 起點；第一段就搭車（起點就在站牌旁）時，起點直接寫上車站
     if (segs.isNotEmpty && !segs.first.isRide) {
       rows.add(
-        _stepStop(
-          0,
-          leg.fromName,
-          Pal.ink,
-          point: segs.first.points.firstOrNull,
-        ),
+        _stepStop(0, leg.fromName, Pal.ink, point: segs.first.points.firstOrNull),
       );
     }
 
@@ -3317,12 +3470,7 @@ class _TreasureMapState extends State<TreasureMap> {
         // 下車站就在景點旁（不用再走）
         if (next == null) {
           rows.add(
-            _stepStop(
-              minutes,
-              leg.toName,
-              Pal.cinnabar,
-              point: seg.points.lastOrNull,
-            ),
+            _stepStop(minutes, leg.toName, Pal.cinnabar, point: seg.points.lastOrNull),
           );
         }
         continue;
@@ -3333,12 +3481,7 @@ class _TreasureMapState extends State<TreasureMap> {
       minutes += seg.minutes + seg.waitMinutes;
       if (next == null) {
         rows.add(
-          _stepStop(
-            minutes,
-            leg.toName,
-            Pal.cinnabar,
-            point: seg.points.lastOrNull,
-          ),
+          _stepStop(minutes, leg.toName, Pal.cinnabar, point: seg.points.lastOrNull),
         );
       } else if (next.isRide) {
         rows.add(
@@ -3367,7 +3510,13 @@ class _TreasureMapState extends State<TreasureMap> {
     LatLng? point,
   }) {
     return InkWell(
-      onTap: point == null ? null : () => _focusOn(point, zoom: 17),
+      // 點了面板自己收起來，地圖移到那一站，不用再把面板拉下來找
+      onTap: point == null
+          ? null
+          : () {
+              _panel.collapse();
+              _focusOn(point, zoom: 17, cover: _panel.collapsedCover);
+            },
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
@@ -3435,32 +3584,50 @@ class _TreasureMapState extends State<TreasureMap> {
     );
   }
 
-  /// 時間軸上兩站之間的那一段：左邊一條線（步行是點點），右邊寫怎麼走
+  /// 時間軸上兩站之間的那一段：左邊一條線（步行是點點），右邊寫怎麼走。
+  /// 有 [onTap] 的整段可以點，右上角跟站名一樣有地點圖示
   Widget _stepLine(
     Color color, {
     required bool dotted,
     required List<Widget> children,
+    VoidCallback? onTap,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(width: _stepTimeWidth),
-          SizedBox(
-            width: _stepRailWidth,
-            child: CustomPaint(painter: _StepRail(color, dotted: dotted)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: children,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(width: _stepTimeWidth),
+            SizedBox(
+              width: _stepRailWidth,
+              child: CustomPaint(painter: _StepRail(color, dotted: dotted)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
               ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 4, top: 8),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Icon(
+                    Icons.place_outlined,
+                    size: 16,
+                    color: Pal.inkSoft,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -3472,6 +3639,7 @@ class _TreasureMapState extends State<TreasureMap> {
     return _stepLine(
       style.color,
       dotted: walk,
+      onTap: () => _focusSegment(seg),
       children: [
         Row(
           children: [
@@ -3494,9 +3662,15 @@ class _TreasureMapState extends State<TreasureMap> {
     );
   }
 
-  /// 搭車那一段：路線號碼、往哪個方向、候車、坐幾站、經過哪些站
+  /// 「經過的站」展開狀態用的 key：同一路、同一個上下車站就是同一段（重新規劃回來也記得）
+  static String _rideKey(RouteSegment seg) =>
+      '${seg.routeName}|${seg.boardName}|${seg.alightName}';
+
+  /// 搭車那一段：路線號碼、往哪個方向、候車、坐幾站；經過哪些站預設收起來，點「經過的站」才列出來
   Widget _stepRide(RouteSegment seg, Color color) {
     final style = modeStyle(seg.mode, lineColor: seg.color);
+    final key = _rideKey(seg);
+    final open = _passingOpen.contains(key);
     final passing = seg.stops.length > 2
         ? seg.stops
               .skip(1)
@@ -3509,6 +3683,7 @@ class _TreasureMapState extends State<TreasureMap> {
     return _stepLine(
       color,
       dotted: false,
+      onTap: () => _focusSegment(seg),
       children: [
         Wrap(
           spacing: 6,
@@ -3550,11 +3725,54 @@ class _TreasureMapState extends State<TreasureMap> {
         const SizedBox(height: 3),
         if (seg.waitMinutes > 0)
           Text('候車約 ${seg.waitMinutes.ceil()} 分', style: soft),
-        Text('坐 ${seg.stopCount} 站・約 ${seg.minutes.ceil()} 分', style: soft),
-        if (passing.isNotEmpty)
+        Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              '坐 ${seg.stopCount} 站・約 ${seg.minutes.ceil()} 分',
+              style: soft,
+            ),
+            if (passing.isNotEmpty)
+              InkWell(
+                onTap: () => setState(() {
+                  if (!_passingOpen.remove(key)) _passingOpen.add(key);
+                }),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        open ? '收起經過的站' : '經過的站',
+                        style: TextStyle(
+                          fontSize: MapText.caption,
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Icon(
+                        open ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                        color: color,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (open)
           Text(
             '經過：$passing',
-            style: const TextStyle(fontSize: MapText.micro, color: Pal.inkSoft),
+            style: const TextStyle(
+              fontSize: MapText.micro,
+              color: Pal.inkSoft,
+            ),
           ),
       ],
     );
@@ -3607,57 +3825,62 @@ class _TreasureMapState extends State<TreasureMap> {
     ),
   );
 
+  /// 沒有搭車的路線（步行、腳踏車、開車…）的一步；點了面板收起來，地圖放大看這一段
   Widget _segmentRow(RouteSegment seg) {
     final style = modeStyle(seg.mode, lineColor: seg.color);
     final color = seg.mode == '捷運' ? seg.color : style.color;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(style.icon, size: 15, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  seg.instruction,
-                  style: const TextStyle(fontSize: MapText.caption),
-                ),
-                if (seg.waitMinutes > 0)
-                  Text(
-                    '候車約 ${seg.waitMinutes.ceil()} 分鐘',
-                    style: const TextStyle(
-                      fontSize: MapText.caption,
-                      color: Pal.inkSoft,
-                    ),
-                  ),
-                if (seg.isRide && seg.stops.length > 2)
-                  Text(
-                    '經過：${seg.stops.skip(1).take(seg.stops.length - 2).map((s) => s.name).join('、')}',
-                    style: const TextStyle(
-                      fontSize: MapText.caption,
-                      color: Pal.inkSoft,
-                    ),
-                  ),
-              ],
+    return InkWell(
+      onTap: () => _focusSegment(seg),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(style.icon, size: 15, color: Colors.white),
             ),
-          ),
-          Text(
-            '${seg.minutes.ceil()} 分',
-            style: TextStyle(
-              fontSize: MapText.caption,
-              color: color,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    seg.instruction,
+                    style: const TextStyle(fontSize: MapText.caption),
+                  ),
+                  if (seg.waitMinutes > 0)
+                    Text(
+                      '候車約 ${seg.waitMinutes.ceil()} 分鐘',
+                      style: const TextStyle(
+                        fontSize: MapText.caption,
+                        color: Pal.inkSoft,
+                      ),
+                    ),
+                  if (seg.isRide && seg.stops.length > 2)
+                    Text(
+                      '經過：${seg.stops.skip(1).take(seg.stops.length - 2).map((s) => s.name).join('、')}',
+                      style: const TextStyle(
+                        fontSize: MapText.caption,
+                        color: Pal.inkSoft,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+            Text(
+              '${seg.minutes.ceil()} 分',
+              style: TextStyle(
+                fontSize: MapText.caption,
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

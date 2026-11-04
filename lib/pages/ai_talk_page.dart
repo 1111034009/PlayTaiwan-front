@@ -93,6 +93,10 @@ class _AiTalkPageState extends State<AiTalkPage> {
   _Entry? _typing;
 
   bool _isFood(NearbyPlaceData place) {
+    // 後端有標分類就照分類（餐廳的名字不一定有「餐」「麵」這些字，例如「又見一炊煙」）；舊版後端沒有分類才看名字猜
+    final String? category = place.category;
+    if (category != null) return category == '餐廳';
+
     final String name = place.title.toLowerCase();
 
     return _foodKeywords.any((keyword) => name.contains(keyword));
@@ -397,16 +401,17 @@ class _AiTalkPageState extends State<AiTalkPage> {
 
     final List<NearbyPlaceData> all = NearbyCache.instance.places;
 
-    List<NearbyPlaceData> pool = all
+    final List<NearbyPlaceData> pool = all
         .where((place) => _isFood(place) == food)
         .toList();
 
+    // 選吃喝就只給吃喝、選其他就只給其他；這一類附近沒有就直說，不拿另一類充數
     if (pool.isEmpty) {
-      pool = List.of(all);
-    }
-
-    if (pool.isEmpty) {
-      _npcText('附近兩公里內暫時沒有找到地方，換個地方再試試吧！');
+      _npcText(
+        food
+            ? '附近兩公里內暫時沒有找到吃喝的地方，換個地方再試試吧！'
+            : '附近兩公里內暫時沒有找到地方，換個地方再試試吧！',
+      );
       _showMainMenu();
       return;
     }

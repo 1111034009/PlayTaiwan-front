@@ -830,7 +830,9 @@ class StoryApi {
     return job;
   }
 
-  static Future<({String city, String town})> currentCityTown() async {
+  /// 手機 GPS 位置與所在縣市、行政區（縣市給舊版後端用；新版後端直接用 lat、lng 找附近）
+  static Future<({String city, String town, double lat, double lng})>
+  currentCityTown() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('請開啟手機的位置服務');
     }
@@ -897,7 +899,12 @@ class StoryApi {
       throw Exception('無法判斷目前所在的縣市');
     }
 
-    return (city: city, town: town);
+    return (
+      city: city,
+      town: town,
+      lat: position.latitude,
+      lng: position.longitude,
+    );
   }
 
   static Future<Map<String, dynamic>> spinRecommendation({
@@ -919,6 +926,9 @@ class StoryApi {
         'input_text': text,
         'city_name': area.city,
         if (area.town.isNotEmpty) 'town_name': area.town,
+        // 後端用 GPS 找附近；沒帶時用行政區中心，離使用者可能好幾公里
+        'lat': area.lat,
+        'lng': area.lng,
       },
     );
 

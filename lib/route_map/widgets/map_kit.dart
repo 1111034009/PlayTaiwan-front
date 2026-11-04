@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/app_notice.dart';
@@ -9,21 +10,22 @@ import '../theme.dart';
 
 const _distance = Distance();
 
-/// 舊地圖的泛黃色調（一半原色 + 一半 sepia）
+/// 舊地圖的羊皮紙色調：泛黃之外整體壓暗，白色變成米黃（約 #EDE0BF）。
+/// 電子地圖底色接近白色，不壓暗的話太刺眼，深色路線和白色外框也不明顯
 const _sepia = ColorFilter.matrix(<double>[
-  0.70,
-  0.38,
-  0.09,
+  0.56,
+  0.30,
+  0.07,
   0,
   0,
-  0.17,
-  0.84,
-  0.08,
+  0.16,
+  0.66,
+  0.06,
   0,
   0,
-  0.14,
-  0.27,
-  0.57,
+  0.12,
+  0.22,
+  0.41,
   0,
   0,
   0,
@@ -33,19 +35,55 @@ const _sepia = ColorFilter.matrix(<double>[
   0,
 ]);
 
-/// 藏寶圖底圖（OpenStreetMap + 泛黃濾鏡）。
-/// 濾鏡整個圖層套一次，不要每一塊圖磚各包一層：畫面上幾十塊圖磚就多幾十層合成，地圖開久了手機會發燙
-Widget treasureTiles() => ColorFiltered(
-  colorFilter: _sepia,
-  child: TileLayer(
-    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
-  ),
-);
+const _nlscTiles =
+    'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/{z}/{y}/{x}';
+const _osmTiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-Widget osmAttribution() => const SimpleAttributionWidget(
-  source: Text('OpenStreetMap contributors'),
-  backgroundColor: Color(0xCCF3E4C1),
+/// 國土測繪中心的圖磚服務偶爾整個連不上（2026-11-02 就斷過）。伺服器沒回應時瀏覽器要等二十幾秒才逾時，
+/// 整片地圖一直空白，所以第一次畫地圖時先試抓一塊圖磚，4 秒內抓不到，這次開 App 就改用 OpenStreetMap
+final _nlscReachable = ValueNotifier<bool>(true);
+bool _nlscChecked = false;
+
+void _checkNlsc() {
+  if (_nlscChecked) return;
+  _nlscChecked = true;
+  http
+      .get(
+        Uri.parse(
+          'https://wmts.nlsc.gov.tw/wmts/EMAP16/default/GoogleMapsCompatible/7/55/107',
+        ),
+      )
+      .timeout(const Duration(seconds: 4))
+      .then((r) => _nlscReachable.value = r.statusCode == 200)
+      .catchError((_) => _nlscReachable.value = false);
+}
+
+/// 藏寶圖底圖（國土測繪中心臺灣通用電子地圖 + 泛黃濾鏡；連不上時改用 OpenStreetMap）。
+/// 用「無等高線及門牌」版（EMAP16）：只有路名和少數地標，不像 OpenStreetMap 滿是門牌號碼和店家圖示，劇本的印章比較顯眼。
+/// 濾鏡整個圖層套一次，不要每一塊圖磚各包一層：畫面上幾十塊圖磚就多幾十層合成，地圖開久了手機會發燙
+Widget treasureTiles() {
+  _checkNlsc();
+  return ValueListenableBuilder<bool>(
+    valueListenable: _nlscReachable,
+    builder: (context, nlsc, _) => ColorFiltered(
+      colorFilter: _sepia,
+      child: TileLayer(
+        // 換圖源時整層重建，不沿用另一個圖源的圖磚
+        key: ValueKey(nlsc),
+        urlTemplate: nlsc ? _nlscTiles : _osmTiles,
+        userAgentPackageName: 'tw.playtaiwan.play_taiwan_demo',
+      ),
+    ),
+  );
+}
+
+/// 底圖來源標示（名稱沿用；跟著底圖換）
+Widget osmAttribution() => ValueListenableBuilder<bool>(
+  valueListenable: _nlscReachable,
+  builder: (context, nlsc, _) => SimpleAttributionWidget(
+    source: Text(nlsc ? '內政部國土測繪中心' : 'OpenStreetMap contributors'),
+    backgroundColor: const Color(0xCCF3E4C1),
+  ),
 );
 
 /// 預設的地圖互動：跟 Google 地圖一樣可以用兩指旋轉。
@@ -147,7 +185,46 @@ class _HeadingPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+/// 手機上的底部面板：地圖用來知道面板現在蓋住地圖下方多高、把面板收起來。
+/// 寬螢幕的面板在地圖右邊，不會蓋到地圖，[cover] 一律是 0
+class MapPanelController extends ChangeNotifier {
+  MapPanelController() {
+    _sheet.addListener(notifyListeners);
+  }
+
+  final _sheet = DraggableScrollableController();
+  double _height = 0;
+  double _collapsed = 0;
+  bool _side = false;
+
+  /// 面板現在蓋住地圖下方多高（像素）
+  double get cover {
+    if (_side) return 0;
+    return (_sheet.isAttached ? _sheet.size : _collapsed) * _height;
+  }
+
+  /// 面板收起來時蓋住多高（像素）
+  double get collapsedCover => _side ? 0 : _collapsed * _height;
+
+  /// 收到最低：只露出最上面的「下一步」，地圖整個看得到
+  void collapse() {
+    if (_side || !_sheet.isAttached) return;
+    _sheet.animateTo(
+      _collapsed,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _sheet.dispose();
+    super.dispose();
+  }
+}
+
 /// 寬螢幕（電腦、平板橫放）：左邊地圖、右邊面板；窄螢幕（手機）：地圖在上、面板從下方拉起。
+/// 手機上的面板會卡在三個高度：收起（只露出面板最上面一小段，預設）、一半、全開，不會停在半路蓋住地圖
 class MapWithPanel extends StatefulWidget {
   const MapWithPanel({
     super.key,
@@ -155,10 +232,12 @@ class MapWithPanel extends StatefulWidget {
     required this.panel,
     this.floating,
     this.floatingRight = false,
+    this.controller,
   });
 
   final Widget map;
   final Widget Function(ScrollController? controller) panel;
+  final MapPanelController? controller;
 
   /// 常駐在地圖角落的小東西（地圖上的 NPC），放在不擋畫面的地方：
   /// 寬螢幕在地圖右下角；手機在左下角、貼著面板的上緣跟著移動（右邊是交通方式的按鈕，會擠在一起）。
@@ -173,8 +252,11 @@ class MapWithPanel extends StatefulWidget {
 }
 
 class _MapWithPanelState extends State<MapWithPanel> {
-  /// 面板現在佔螢幕高度的比例
-  final _extent = ValueNotifier(0.42);
+  /// 手機上面板收起來時露出的高度（像素，不含下面被導覽列蓋住的部分）：剛好看得到面板最上面的「下一步」
+  static const _collapsedVisible = 120.0;
+
+  /// 面板現在佔螢幕高度的比例；還沒拉過是 null（收起來的高度）
+  final _extent = ValueNotifier<double?>(null);
 
   @override
   void dispose() {
@@ -188,6 +270,7 @@ class _MapWithPanelState extends State<MapWithPanel> {
     return LayoutBuilder(
       builder: (context, c) {
         if (c.maxWidth >= 900) {
+          widget.controller?._side = true;
           return Row(
             children: [
               Expanded(
@@ -220,21 +303,26 @@ class _MapWithPanelState extends State<MapWithPanel> {
             ],
           );
         }
-        final minExtent =
-            ((MediaQuery.paddingOf(context).bottom + 72) / c.maxHeight).clamp(
-              0.12,
-              0.4,
-            );
+        // 收起來：露出面板最上面一小段（下面被導覽列蓋住的部分另外加）；一半；全開
+        final collapsed =
+            ((MediaQuery.paddingOf(context).bottom + _collapsedVisible) /
+                    c.maxHeight)
+                .clamp(0.12, 0.4);
+        const half = 0.5, full = 0.92;
+        widget.controller
+          ?.._side = false
+          .._height = c.maxHeight
+          .._collapsed = collapsed;
         return Stack(
           children: [
             Positioned.fill(child: map),
             if (floating != null)
-              ValueListenableBuilder<double>(
+              ValueListenableBuilder<double?>(
                 valueListenable: _extent,
                 builder: (context, extent, child) => Positioned(
                   left: widget.floatingRight ? null : 12,
                   right: widget.floatingRight ? 12 : null,
-                  bottom: math.min(extent, 0.6) * c.maxHeight + 10,
+                  bottom: math.min(extent ?? collapsed, 0.6) * c.maxHeight + 10,
                   child: child!,
                 ),
                 child: floating,
@@ -245,9 +333,13 @@ class _MapWithPanelState extends State<MapWithPanel> {
                 return false;
               },
               child: DraggableScrollableSheet(
-                initialChildSize: 0.42,
-                minChildSize: minExtent,
-                maxChildSize: 0.92,
+                controller: widget.controller?._sheet,
+                initialChildSize: collapsed,
+                minChildSize: collapsed,
+                maxChildSize: full,
+                // 放手後卡到最近的一段，不會停在半路
+                snap: true,
+                snapSizes: [if (collapsed < half - 0.05) half],
                 builder: (context, controller) => Container(
                   decoration: const BoxDecoration(
                     color: Pal.parchment,
@@ -564,8 +656,13 @@ Marker sealMarker(
 /// 路線中間點（依長度），放交通方式徽章用
 LatLng midpoint(List<LatLng> pts) => pointAlong(pts, lineLength(pts) / 2).$1;
 
-/// 鏡頭留白：寬螢幕避開左上角圖例；手機避開下方拉起的面板（約 42% 高），左右留地標名稱的寬度
-EdgeInsets mapFitPadding(BuildContext context, {double base = 50}) {
+/// 鏡頭留白：寬螢幕避開左上角圖例；手機避開下方拉起的面板（[cover] 是面板蓋住的高度，沒給就當成約 42% 高），
+/// 左右留地標名稱的寬度
+EdgeInsets mapFitPadding(
+  BuildContext context, {
+  double base = 50,
+  double? cover,
+}) {
   final size = MediaQuery.sizeOf(context);
   if (size.width >= 900)
     return EdgeInsets.fromLTRB(base + 110, base, base, base);
@@ -573,7 +670,7 @@ EdgeInsets mapFitPadding(BuildContext context, {double base = 50}) {
     base * 0.9,
     base + 20,
     base * 0.9,
-    size.height * 0.42 + base * 0.6,
+    (cover ?? size.height * 0.42) + base * 0.6,
   );
 }
 

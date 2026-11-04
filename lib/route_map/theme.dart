@@ -84,23 +84,23 @@ ThemeData buildTheme({String? fontFamily}) {
   );
 }
 
-/// 各交通方式在地圖上的畫法：顏色、線型、圖示都不一樣，一眼就分得出來
+/// 路線的白色外框（兩邊各一半寬）。每種交通方式都加：底圖是羊皮紙色，白邊把路線跟底下的道路分開，長輩也看得清楚
+const routeCasingWidth = 4.0;
+
+/// 各交通方式在地圖上的畫法：顏色、線型、圖示都不一樣，一眼就分得出來。
+/// 給長輩看的配色：都是深色、線比較粗；最常一起出現的步行（藍）和公車（紅）不用綠配紅，色盲也分得出來
 class ModeStyle {
   const ModeStyle({
     required this.icon,
     required this.color,
     required this.pattern,
     required this.width,
-    this.casing = false,
   });
 
   final IconData icon;
   final Color color;
   final StrokePattern pattern;
   final double width;
-
-  /// 公車、捷運加白色外框，看起來像實體路線
-  final bool casing;
 }
 
 /// 公車是市區公車與客運；台灣好行是另外一個交通方式，可以單獨勾選
@@ -111,61 +111,58 @@ ModeStyle modeStyle(String mode, {Color? lineColor}) {
     case '步行':
       return const ModeStyle(
         icon: Icons.directions_walk,
-        color: Color(0xFF2E7D32),
+        color: Color(0xFF1A47A0),
         pattern: StrokePattern.dotted(spacingFactor: 1.8),
-        width: 5,
+        width: 8,
       );
     case '腳踏車':
       return ModeStyle(
         icon: Icons.pedal_bike,
-        color: const Color(0xFFEF6C00),
-        pattern: StrokePattern.dashed(segments: const [14, 7]),
-        width: 5,
+        color: const Color(0xFFB85300),
+        pattern: StrokePattern.dashed(segments: const [18, 8]),
+        width: 7,
       );
     case '機車':
       return ModeStyle(
         icon: Icons.two_wheeler,
-        color: const Color(0xFF7B1FA2),
-        pattern: StrokePattern.dashed(segments: const [20, 6, 4, 6]),
-        width: 5,
+        color: const Color(0xFF6A1B9A),
+        pattern: StrokePattern.dashed(segments: const [24, 7, 5, 7]),
+        width: 7,
       );
     case '汽車':
       return const ModeStyle(
         icon: Icons.directions_car,
-        color: Color(0xFF37474F),
+        color: Color(0xFF263238),
         pattern: StrokePattern.solid(),
-        width: 6,
+        width: 8,
       );
     case '公車':
       return const ModeStyle(
         icon: Icons.directions_bus,
-        color: Color(0xFFC62828),
+        color: Color(0xFFB3261E),
         pattern: StrokePattern.solid(),
-        width: 7,
-        casing: true,
+        width: 9,
       );
     case '台灣好行':
       return const ModeStyle(
         icon: Icons.airport_shuttle,
-        color: Color(0xFF1565C0),
+        color: Color(0xFF00695C),
         pattern: StrokePattern.solid(),
-        width: 7,
-        casing: true,
+        width: 9,
       );
     case '捷運':
       return ModeStyle(
         icon: Icons.subway,
         color: lineColor ?? const Color(0xFF00897B),
         pattern: const StrokePattern.solid(),
-        width: 8,
-        casing: true,
+        width: 9,
       );
     default: // 轉乘
       return const ModeStyle(
         icon: Icons.transfer_within_a_station,
-        color: Color(0xFF757575),
+        color: Color(0xFF616161),
         pattern: StrokePattern.dotted(),
-        width: 4,
+        width: 6,
       );
   }
 }

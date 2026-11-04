@@ -157,6 +157,7 @@ class NearbyCache {
           lat: placeLat,
           lon: placeLon,
           distanceM: distanceM ?? 0,
+          category: item['category']?.toString(),
         ),
       );
     }
@@ -200,10 +201,14 @@ class NearbyPlaceData {
   final double lon;
   final double distanceM;
 
+  /// 後端標的「景點」或「餐廳」；舊版後端沒有這個欄位時是 null
+  final String? category;
+
   const NearbyPlaceData({
     required this.title,
     required this.lat,
     required this.lon,
     required this.distanceM,
+    this.category,
   });
 }
