@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -12,6 +12,7 @@ import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 enum _Filter { all, unused, used, expired }
 
 class WalletPage extends StatefulWidget {
@@ -196,7 +197,7 @@ class _WalletPageState extends State<WalletPage> {
           await showGeneralDialog<bool>(
             context: context,
             barrierDismissible: false,
-            barrierLabel: '核銷中',
+            barrierLabel: trs('核銷中'),
             barrierColor: AppColors.dialogBarrier,
             transitionDuration: const Duration(milliseconds: 280),
             transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -643,7 +644,7 @@ class _WalletPageState extends State<WalletPage> {
                       children: [
                         Text(
                           store,
-                          maxLines: 1,
+                          maxLines: LangLayout.lines(1),
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.bodyBold.copyWith(
                             color: _darkText,

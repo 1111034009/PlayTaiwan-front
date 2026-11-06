@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_notice.dart';
 import '../../core/app_text_styles.dart';
 import '../models.dart';
 import '../theme.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 車票的外形，照正式 App 的 img/ticket.png 畫：外圈一道土黃色的框，裡面是米色的票面、咖啡色的細線，
 /// 右邊一條票根（一道實線隔開，中間一道虛線），虛線上下兩端各有一個半圓的缺口（挖空，看得到後面的地圖）。
 /// 用畫的不用那張圖：卡片的高度會跟著內容變，圖拉長壓扁缺口會變形
@@ -159,7 +160,7 @@ class PlaceTicket extends StatelessWidget {
         if (onClose != null)
           // 不用 IconButton：它會把點擊範圍撐到 48，名稱那一行跟著變高
           Tooltip(
-            message: '關閉',
+            message: trs('關閉'),
             child: InkWell(
               onTap: onClose,
               customBorder: const CircleBorder(),

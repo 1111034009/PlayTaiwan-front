@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gal/gal.dart';
@@ -16,6 +16,7 @@ import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _cardColor = AppColors.merchantPaper;
 const Color _textColor = AppColors.textPrimary;
@@ -580,7 +581,7 @@ class _MerchantCouponPageState extends State<MerchantCouponPage> {
             ),
             actions: [
               IconButton(
-                tooltip: '重新整理',
+                tooltip: trs('重新整理'),
                 onPressed: _isLoading || _isBusy ? null : _loadCoupons,
                 icon: const Icon(Icons.refresh),
               ),
@@ -951,8 +952,8 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
 
   InputDecoration _decoration(String label, {String? hint}) {
     return InputDecoration(
-      labelText: label,
-      hintText: hint,
+      labelText: trs(label),
+      hintText: trs(hint),
       labelStyle: AppTextStyles.bodySmall.copyWith(color: _textColor),
       hintStyle: AppTextStyles.caption.copyWith(color: Colors.black45),
       filled: true,
@@ -978,8 +979,9 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
       style: AppTextStyles.body.copyWith(color: _textColor),
       decoration: _decoration(label, hint: hint),
       textCapitalization: capitalization,
-      validator: (value) =>
-          value == null || value.trim().isEmpty ? emptyMessage : null,
+      validator: trValidator(
+        (value) => value == null || value.trim().isEmpty ? emptyMessage : null,
+      ),
     );
   }
 
@@ -1090,7 +1092,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  validator: (value) {
+                  validator: trValidator((value) {
                     final number = double.tryParse(value?.trim() ?? '');
 
                     if (number == null || number < 0) return '請輸入有效的數值';
@@ -1100,7 +1102,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                     }
 
                     return null;
-                  },
+                  }),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1714,7 +1716,7 @@ class _CouponQrDialogState extends State<_CouponQrDialog> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    tooltip: '分享',
+                    tooltip: trs('分享'),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: _textColor,
@@ -1724,7 +1726,7 @@ class _CouponQrDialogState extends State<_CouponQrDialog> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    tooltip: '下載',
+                    tooltip: trs('下載'),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: _textColor,
@@ -1743,7 +1745,7 @@ class _CouponQrDialogState extends State<_CouponQrDialog> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    tooltip: '關閉',
+                    tooltip: trs('關閉'),
                     style: _filledStyle(),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),

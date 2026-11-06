@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -21,6 +21,7 @@ import 'story_postcard_page.dart';
 import 'story_task_page.dart';
 import 'selection_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 地圖頁（真的地圖）：正在玩的劇本的藏寶圖，一關一關解開。
 /// 上列和下面的導覽列是這個 App 自己的；中間的地圖和功能（迷霧、路線、景點卡片、順路、提醒、隊友位置）在 lib/route_map，
 /// 是從路線展示專案搬過來的 [TreasureMap]。

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -14,6 +14,7 @@ import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
 const Color _shadowColor = AppColors.deepRed;
@@ -455,7 +456,7 @@ class _BadgeItemState extends State<_BadgeItem> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Badge',
+      barrierLabel: trs('Badge'),
       barrierColor: Colors.black.withOpacity(0.90),
       transitionDuration: const Duration(milliseconds: 300),
 

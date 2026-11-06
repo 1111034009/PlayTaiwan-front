@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../theme.dart';
 import 'place_ticket.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 天氣圖示：後端 GET /api/Map/Weather 的 condition
 IconData weatherIcon(String? condition) => switch (condition) {
   'clear' => Icons.wb_sunny,
@@ -78,7 +79,7 @@ class NpcBuddy extends StatelessWidget {
     final avatar =
         this.avatar ??
         Tooltip(
-          message: name == null || name!.isEmpty ? 'NPC' : name!,
+          message: trs(name == null || name!.isEmpty ? 'NPC' : name!),
           child: GestureDetector(
             onTap: onTap,
             child: Container(
@@ -204,7 +205,7 @@ class NpcBuddy extends StatelessWidget {
                   ),
                 ),
               IconButton(
-                tooltip: '收起來',
+                tooltip: trs('收起來'),
                 onPressed: onClose,
                 icon: const Icon(Icons.close, size: 16, color: Pal.inkSoft),
                 padding: EdgeInsets.zero,

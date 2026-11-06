@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -10,6 +10,8 @@ import '../core/app_responsive.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
@@ -334,9 +336,11 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           ),
                           cursorColor: _red,
                           decoration: InputDecoration(
-                            hintText: '請勿輸入無註冊的店家名稱',
-                            hintStyle: AppTextStyles.captionSmall
-                                .copyWith(color: _hintColor),
+                            hint: FitHint(
+                              '請勿輸入無註冊的店家名稱',
+                              style: AppTextStyles.captionSmall
+                                  .copyWith(color: _hintColor),
+                            ),
                             contentPadding: const EdgeInsets.only(
                               left: 2,
                               right: 2,
@@ -395,7 +399,7 @@ class _MerchantInputPageState extends State<MerchantInputPage> {
                           ),
                           cursorColor: _red,
                           decoration: InputDecoration(
-                            hintText: '請輸入店家優惠、特色、活動資訊',
+                            hintText: trs('請輸入店家優惠、特色、活動資訊'),
                             hintStyle: AppTextStyles.captionSmall
                                 .copyWith(color: _hintColor),
                             border: InputBorder.none,

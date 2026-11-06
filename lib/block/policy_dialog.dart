@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 服務條款 / 隱私權政策 兩個分頁
 enum PolicyTab { terms, privacy }
 
@@ -14,7 +15,7 @@ Future<void> showPolicyDialog(
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
-    barrierLabel: '關閉條款',
+    barrierLabel: trs('關閉條款'),
     barrierColor: AppColors.dialogBarrier,
     transitionDuration: const Duration(milliseconds: 260),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -188,7 +189,7 @@ class _PolicyDialogState extends State<PolicyDialog> {
             ),
           ),
           IconButton(
-            tooltip: '關閉',
+            tooltip: trs('關閉'),
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.close, color: Colors.white),
           ),

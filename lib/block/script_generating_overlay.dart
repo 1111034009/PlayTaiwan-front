@@ -1,10 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class ScriptGeneratingOverlay extends StatefulWidget {
   final String message;
   final double progress;

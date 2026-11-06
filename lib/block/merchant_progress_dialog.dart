@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/merchant_vlog_api.dart';
 import '../api/video_check.dart';
@@ -8,6 +8,7 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _paperColor = AppColors.merchantPaper;
 const Color _darkText = AppColors.textPrimary;
 const Color _progressTrack = AppColors.paper;

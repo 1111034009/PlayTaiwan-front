@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api/merchant_browse_api.dart';
@@ -9,6 +9,8 @@ import '../core/app_text_styles.dart';
 import '../core/story_generation.dart';
 import '../core/taiwan_districts.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 /// 逛逛商家（遊客瀏覽商家與優惠券）：GET /api/Merchant/Browse。
 /// 可以依縣市、行政區、關鍵字、「只看有優惠券」篩選，往下滑自動載入下一頁。
 /// 等劇本生成的時候進來，會自動帶劇本的縣市、行政區（[StoryGeneration.city] / [StoryGeneration.town]）
@@ -322,9 +324,11 @@ class _MerchantBrowsePageState extends State<MerchantBrowsePage> {
                     decoration: InputDecoration(
                       isCollapsed: true,
                       border: InputBorder.none,
-                      hintText: '搜尋店名、店家介紹',
-                      hintStyle: AppTextStyles.bodyCompact.copyWith(
-                        color: AppColors.inputHint,
+                      hint: FitHint(
+                        '搜尋店名、店家介紹',
+                        style: AppTextStyles.bodyCompact.copyWith(
+                          color: AppColors.inputHint,
+                        ),
                       ),
                     ),
                   ),
@@ -642,9 +646,9 @@ class _AreaDropdown extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
           items: [
-            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel)),
+            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel, maxLines: 1)),
             for (final String item in items)
-              DropdownMenuItem<String?>(value: item, child: Text(item)),
+              DropdownMenuItem<String?>(value: item, child: Text(trArea(item), maxLines: 1)),
           ],
           onChanged: enabled ? onChanged : null,
         ),
@@ -830,7 +834,8 @@ class _StoreCard extends StatelessWidget {
                               store.address.isEmpty
                                   ? '${store.city}${store.town}'
                                   : store.address,
-                              maxLines: 1,
+                              // 英文地址（No. 100, Sec. 3, Sanmin Rd., …）比中文長很多
+                              maxLines: LangLayout.lines(1),
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.micro.copyWith(
                                 color: AppColors.mutedText,

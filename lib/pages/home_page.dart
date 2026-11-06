@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../block/navigationbar.dart';
@@ -20,6 +20,8 @@ import 'wallet_page.dart';
 import 'merchant_browse_page.dart';
 import 'love_story_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -87,8 +89,8 @@ class _HomePageState extends State<HomePage> {
         ),
         TutorialStep(
           target: _agentKey,
-          title: '探員資訊',
-          text: '改名字、調背景音樂都在這裡，也能重看教學',
+          title: '探員資訊・語言 Language',
+          text: '改名字、調背景音樂、切換語言（English、日本語、한국어、台語、客語）都在這裡，也能重看教學。換語言後，畫面文字、劇本內容與 NPC 語音都會跟著換',
           align: ContentAlign.top,
         ),
         TutorialStep(
@@ -530,7 +532,7 @@ class _HomePageState extends State<HomePage> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: '關閉探員資訊',
+      barrierLabel: trs('關閉探員資訊'),
       barrierColor: AppColors.dialogBarrier,
       transitionDuration: const Duration(milliseconds: 280),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -598,7 +600,7 @@ class _HomePageState extends State<HomePage> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: '關閉編輯',
+      barrierLabel: trs('關閉編輯'),
       barrierColor: AppColors.dialogBarrier,
       transitionDuration: const Duration(milliseconds: 260),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -897,11 +899,14 @@ class _HomePageState extends State<HomePage> {
                       color: Color(0xFF8C1D13),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      '喜愛劇本',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.captionBold.copyWith(
-                        color: darkText,
+                    Flexible(
+                      child: Text(
+                        '喜愛劇本',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: AppTextStyles.captionBold.copyWith(
+                          color: darkText,
+                        ),
                       ),
                     ),
                   ],
@@ -1207,6 +1212,50 @@ class _AgentInfoDialog extends StatelessWidget {
                       ),
                     ],
                   ),
+                  // 語言：選單名稱固定中英並列，看不懂中文的人也找得到
+                  InkWell(
+                    onTap: () => showLanguagePicker(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.translate_rounded,
+                            size: 20,
+                            color: Color(0xFF40342D),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            // 不翻譯（外國旅客才找得到），放不下時縮字
+                            child: ShrinkToFit(
+                              minScale: LangLayout.minScaleOf(context),
+                              child: FlutterText(
+                                '語言 Language',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.subtitle.copyWith(
+                                  color: const Color(0xFF40342D),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FlutterText(
+                            AppLang.names[AppLang.code]!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.primaryAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.primaryAccent,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const Spacer(),
                   SizedBox(
                     width: double.infinity,
@@ -1354,7 +1403,7 @@ class _EditField extends StatelessWidget {
       ),
       cursorColor: AppColors.primaryAccent,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: trs(label),
         labelStyle: AppTextStyles.captionBold.copyWith(
           color: const Color(0xFF6F6258),
         ),

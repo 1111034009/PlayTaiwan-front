@@ -19,6 +19,7 @@ import 'block/app_shell.dart';
 import 'admin/admin_shell.dart';
 import 'api/vlog_watcher.dart';
 import 'core/story_generation.dart';
+import 'core/i18n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ Future<void> main() async {
     originalDebugPrint(message, wrapWidth: wrapWidth);
   };
   await dotenv.load(fileName: ".env");
+  await AppLang.load();
   AuthGuard.init();
   await AudioPlayer.global.setAudioContext(
     AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers).build(),
@@ -42,6 +44,14 @@ class PlayTaiwanApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 換語言時重建 MaterialApp（系統元件的語言）；畫面文字由 AppLang.rebuildAll 重畫
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLang.current,
+      builder: (context, _, _) => _app(),
+    );
+  }
+
+  Widget _app() {
     return MaterialApp(
       navigatorKey: AuthGuard.navigatorKey,
       scaffoldMessengerKey: rootMessengerKey,
@@ -52,12 +62,12 @@ class PlayTaiwanApp extends StatelessWidget {
           const GenerationLayer(),
         ],
       ),
-      title: '日遊所思，夜遊所夢',
+      title: trs('日遊所思，夜遊所夢'),
       debugShowCheckedModeBanner: false,
 
-      // 設定繁體中文
-      locale: const Locale('zh', 'TW'),
-      supportedLocales: const [Locale('zh', 'TW'), Locale('en', 'US')],
+      // 預設繁體中文，依使用者選的語言切換（台語、客語的系統元件用繁體中文）
+      locale: AppLang.locale,
+      supportedLocales: AppLang.supportedLocales,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

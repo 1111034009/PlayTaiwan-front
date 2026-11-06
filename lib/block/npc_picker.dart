@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/story_api.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 Future<void> showNpcPicker(BuildContext context) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
 

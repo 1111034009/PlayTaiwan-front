@@ -76,6 +76,63 @@ class VisitorAnalysisApi {
 
     return VisitorStrategyChatResult.fromJson(result);
   }
+
+  /// 全台總覽：沒選景點時的整體圖表（後端從 Neo4j 統計，快取 30 分鐘；refresh 立即重算）
+  static Future<VisitorOverview> fetchOverview({bool refresh = false}) async {
+    final uri = Uri.parse(
+      '$_baseUrl/api/VisitorAnalysis/Overview${refresh ? '?refresh=true' : ''}',
+    );
+    final response = await http
+        .get(uri, headers: {'accept': 'application/json'})
+        .timeout(const Duration(minutes: 1));
+
+    final body = _decode(response, '全台總覽查詢失敗');
+    final result = body['Result'];
+    if (result is! Map<String, dynamic>) {
+      throw Exception('全台總覽 API 缺少 Result');
+    }
+    return VisitorOverview.fromJson(result);
+  }
+
+  /// 全台問答：不帶景點；AI 不能用時後端改用統計回答（status = fallback）
+  static Future<VisitorStrategyChatResult> chatOverview(String question) async {
+    final uri = Uri.parse('$_baseUrl/api/VisitorAnalysis/Overview/Chat');
+    final response = await http
+        .post(
+          uri,
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'question': question}),
+        )
+        .timeout(const Duration(minutes: 5));
+
+    final body = _decode(response, '全台問答失敗');
+    final result = body['Result'];
+    if (result is! Map<String, dynamic>) {
+      throw Exception('全台問答 API 缺少 Result');
+    }
+    return VisitorStrategyChatResult.fromJson(result);
+  }
+
+  static Map<String, dynamic> _decode(http.Response response, String failure) {
+    Map<String, dynamic>? body;
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, dynamic>) body = decoded;
+    } catch (_) {}
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        body?['message']?.toString() ?? '$failure：HTTP ${response.statusCode}',
+      );
+    }
+    if (body == null || body['isSuccess'] != true) {
+      throw Exception(body?['message']?.toString() ?? failure);
+    }
+    return body;
+  }
 }
 
 class VisitorStrategyChatResult {
@@ -113,7 +170,9 @@ class VisitorStrategyChatResult {
   }
 
   String displayText() {
-    if (status == 'ok' && reply != null && reply!.trim().isNotEmpty) {
+    if ((status == 'ok' || status == 'fallback') &&
+        reply != null &&
+        reply!.trim().isNotEmpty) {
       return reply!.trim();
     }
     if (status == 'attraction_not_found') {
@@ -294,6 +353,157 @@ class InboundAnalysis {
         if (purposeVfrPct != null) '探親訪友': purposeVfrPct!,
       };
 }
+
+/// 全台總覽（Neo4j 統計）
+class VisitorOverview {
+  VisitorOverview.fromJson(Map<String, dynamic> json)
+      : generatedAt = DateTime.tryParse(json['generated_at']?.toString() ?? ''),
+        totals = VisitorOverviewTotals.fromJson(_map(json['totals'])),
+        cities = _list(json['cities']).map(VisitorOverviewCity.fromJson).toList(),
+        domestic = VisitorOverviewProfile.fromJson(_map(json['domestic'])),
+        inbound = VisitorOverviewProfile.fromJson(_map(json['inbound'])),
+        hotelClasses = _values(json['hotel_classes']),
+        attractionCategories = _values(json['attraction_categories']),
+        eventMonths = _values(json['event_months']),
+        topFootfall =
+            _list(json['top_footfall']).map(VisitorOverviewFootfall.fromJson).toList(),
+        insights = _list(json['insights']).map(VisitorOverviewInsight.fromJson).toList();
+
+  final DateTime? generatedAt;
+  final VisitorOverviewTotals totals;
+  final List<VisitorOverviewCity> cities;
+  final VisitorOverviewProfile domestic;
+  final VisitorOverviewProfile inbound;
+  final Map<String, double> hotelClasses;
+  final Map<String, double> attractionCategories;
+  final Map<String, double> eventMonths;
+  final List<VisitorOverviewFootfall> topFootfall;
+  final List<VisitorOverviewInsight> insights;
+}
+
+class VisitorOverviewTotals {
+  VisitorOverviewTotals.fromJson(Map<String, dynamic> json)
+      : attractions = _int(json['attractions']),
+        restaurants = _int(json['restaurants']),
+        hotels = _int(json['hotels']),
+        events = _int(json['events']),
+        cities = _int(json['cities']),
+        analyzedAttractions = _int(json['analyzed_attractions']),
+        domesticAttractions = _int(json['domestic_attractions']),
+        inboundAttractions = _int(json['inbound_attractions']),
+        footfallAttractions = _int(json['footfall_attractions']);
+
+  final int attractions;
+  final int restaurants;
+  final int hotels;
+  final int events;
+  final int cities;
+  final int analyzedAttractions;
+  final int domesticAttractions;
+  final int inboundAttractions;
+  final int footfallAttractions;
+}
+
+class VisitorOverviewCity {
+  VisitorOverviewCity.fromJson(Map<String, dynamic> json)
+      : city = json['city']?.toString() ?? '',
+        attractions = _int(json['attractions']),
+        restaurants = _int(json['restaurants']),
+        hotels = _int(json['hotels']),
+        events = _int(json['events']),
+        hotelsPerAttraction = _double(json['hotels_per_attraction']) ?? 0,
+        analyzedAttractions = _int(json['analyzed_attractions']),
+        analyzedPct = _double(json['analyzed_pct']) ?? 0,
+        surveyTrips = _int(json['survey_trips']),
+        footfallMeanSum = _double(json['footfall_mean_sum']) ?? 0;
+
+  final String city;
+  final int attractions;
+  final int restaurants;
+  final int hotels;
+  final int events;
+  final double hotelsPerAttraction;
+  final int analyzedAttractions;
+  final double analyzedPct;
+  final int surveyTrips;
+  final double footfallMeanSum;
+}
+
+class VisitorOverviewProfile {
+  VisitorOverviewProfile.fromJson(Map<String, dynamic> json)
+      : attractions = _int(json['attractions']),
+        trips = _int(json['trips']),
+        femalePct = _double(json['female_pct']),
+        meanDays = _double(json['mean_days']),
+        meanNights = _double(json['mean_nights']),
+        mainAges = _values(json['main_ages']),
+        ageShares = _values(json['age_shares']),
+        purposes = _values(json['purposes']),
+        transports = _values(json['transports']),
+        activities = _values(json['activities']),
+        clusters = _values(json['clusters']);
+
+  final int attractions;
+  final int trips;
+  final double? femalePct;
+  final double? meanDays;
+  final double? meanNights;
+
+  /// 各景點的主要年齡層（值 = 景點數）
+  final Map<String, double> mainAges;
+
+  /// 年齡結構（值 = %）；只有來臺有
+  final Map<String, double> ageShares;
+  final Map<String, double> purposes;
+
+  /// 列在該景點前三名的景點占比（%）
+  final Map<String, double> transports;
+  final Map<String, double> activities;
+
+  /// 旅客分群（值 = 景點數）
+  final Map<String, double> clusters;
+}
+
+class VisitorOverviewFootfall {
+  VisitorOverviewFootfall.fromJson(Map<String, dynamic> json)
+      : uid = json['uid']?.toString() ?? '',
+        name = json['name']?.toString() ?? '',
+        city = json['city']?.toString() ?? '',
+        visitorsMean = _double(json['visitors_mean']) ?? 0;
+
+  final String uid;
+  final String name;
+  final String city;
+  final double visitorsMean;
+}
+
+class VisitorOverviewInsight {
+  VisitorOverviewInsight.fromJson(Map<String, dynamic> json)
+      : topic = json['topic']?.toString() ?? '',
+        title = json['title']?.toString() ?? '',
+        text = json['text']?.toString() ?? '';
+
+  final String topic;
+  final String title;
+  final String text;
+}
+
+Map<String, dynamic> _map(dynamic value) =>
+    value is Map<String, dynamic> ? value : const {};
+
+List<Map<String, dynamic>> _list(dynamic value) =>
+    value is List ? value.whereType<Map<String, dynamic>>().toList() : const [];
+
+int _int(dynamic value) => (value as num?)?.toInt() ?? 0;
+
+double? _double(dynamic value) => (value as num?)?.toDouble();
+
+/// [{label, value}, …] → 保留順序的 Map
+Map<String, double> _values(dynamic value) => {
+      for (final item in _list(value))
+        if ((item['label']?.toString() ?? '').isNotEmpty)
+          item['label'].toString(): _double(item['value']) ?? 0,
+    };
 
 /// 解析「自用汽車 81.3%；遊覽車 10.9%」這類字串
 Map<String, double> parseLabeledPercents(String? raw) {

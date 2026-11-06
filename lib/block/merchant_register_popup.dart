@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,6 +8,7 @@ import '../core/app_text_styles.dart';
 import '../api/merchant_register_api.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class ParsedTaiwanAddress {
   final String city;
   final String town;
@@ -161,7 +162,7 @@ InputDecoration _inputDecoration({required String hintText}) {
   );
 
   return InputDecoration(
-    hintText: hintText,
+    hintText: trs(hintText),
     hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
     contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
     border: border,
@@ -934,7 +935,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
           const SizedBox(height: 3),
           TextFormField(
             controller: controller,
-            validator: validator,
+            validator: trValidator(validator),
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
             onChanged: onChanged,
@@ -945,7 +946,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
               color: AppColors.textPrimary,
             ),
             cursorColor: AppColors.primary,
-            decoration: _inputDecoration(hintText: hint),
+            decoration: _inputDecoration(hintText: trs(hint)),
           ),
         ],
       ),
@@ -991,7 +992,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                   key: ObjectKey(row),
                   initialValue: row.day,
                   isExpanded: true,
-                  decoration: _inputDecoration(hintText: ''),
+                  decoration: _inputDecoration(hintText: trs('')),
                   dropdownColor: AppColors.merchantPaper,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textPrimary,
@@ -1014,7 +1015,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                 ),
               ),
               IconButton(
-                tooltip: '刪除時段',
+                tooltip: trs('刪除時段'),
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 onPressed: () {
                   setState(() {
@@ -1260,7 +1261,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                                   initialValue: _category,
                                   isExpanded: true,
                                   decoration: _inputDecoration(
-                                    hintText: '選擇地點類別',
+                                    hintText: trs('選擇地點類別'),
                                   ),
                                   dropdownColor: AppColors.merchantPaper,
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -1315,7 +1316,7 @@ class _StoryNewPlacePopupState extends State<StoryNewPlacePopup> {
                                     isExpanded: true,
                                     menuMaxHeight: 320,
                                     decoration: _inputDecoration(
-                                      hintText: '選擇細分類',
+                                      hintText: trs('選擇細分類'),
                                     ),
                                     dropdownColor: AppColors.merchantPaper,
                                     style: AppTextStyles.bodySmall.copyWith(

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -8,6 +8,7 @@ import '../core/app_text_styles.dart';
 import 'travel_info_page.dart';
 import '../block/navigationbar.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _resultText = AppColors.textPrimary;
@@ -624,7 +625,7 @@ class _WheelPainter extends CustomPainter {
       );
 
       final TextPainter textPainter = TextPainter(
-        text: TextSpan(text: locations[i].wheelName, style: labelStyle),
+        text: trSpan(TextSpan(text: locations[i].wheelName, style: labelStyle)),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
         maxLines: 1,

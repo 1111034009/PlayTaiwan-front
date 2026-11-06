@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api/story_api.dart';
@@ -15,6 +15,7 @@ import '../core/app_responsive.dart';
 import '../core/app_text_styles.dart';
 import '../core/bgm_service.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _topColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;

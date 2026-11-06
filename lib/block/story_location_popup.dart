@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _popupBackground = AppColors.paper;
 const Color _popupText = AppColors.textPrimary;
 const Color _popupRed = AppColors.primaryAccent;

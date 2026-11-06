@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:url_launcher/url_launcher.dart';
 import '../route_map/models.dart' show PlacePoint;
 import 'story_route_map_page.dart';
@@ -13,6 +13,7 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const String _kNpcAvatarAsset = 'img/talk_cat.png';
 
 /// 對話訊息的發送者
@@ -609,7 +610,7 @@ class _Header extends StatelessWidget {
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.paper),
-            tooltip: '<< 返回',
+            tooltip: trs('<< 返回'),
           ),
           Container(
             decoration: BoxDecoration(
@@ -704,7 +705,7 @@ class _InputBar extends StatelessWidget {
                   border: InputBorder.none,
                   isCollapsed: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  hintText: '想問小精靈些什麼呢……',
+                  hintText: trs('想問小精靈些什麼呢……'),
                   hintStyle: AppTextStyles.body.copyWith(
                     color: AppColors.inputHint,
                   ),

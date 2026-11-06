@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api/pair_api.dart';
@@ -8,6 +8,7 @@ import '../core/app_text_styles.dart';
 import 'pair_lobby_page.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class PairJoinPage extends StatefulWidget {
   const PairJoinPage({super.key});
 
@@ -369,8 +370,8 @@ class _PairJoinPageState extends State<PairJoinPage> {
             color: _red,
             letterSpacing: 10,
           ),
-          decoration: const InputDecoration(
-            hintText: '0000',
+          decoration: InputDecoration(
+            hintText: trs('0000'),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: Color(0xFF514A44)),
             ),

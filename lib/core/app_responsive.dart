@@ -23,6 +23,9 @@ abstract final class AppResponsive {
 
   /// 固定畫布（360x640）在大螢幕上最多放大幾倍，避免平板上整個爆大
   static const double canvasMaxScale = 1.5;
+
+  /// 最短邊至少這麼長就算平板（彈窗放大、圖示放大、多語系縮字都用這個）
+  static const double tabletShortestSide = 600;
 }
 
 /// 一般（可捲動 / 列表）頁面的共用外框。
@@ -225,7 +228,7 @@ class ScaledDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final MediaQueryData mq = MediaQuery.of(context);
     final double shortest = mq.size.shortestSide;
-    final double s = shortest >= 600
+    final double s = shortest >= AppResponsive.tabletShortestSide
         ? (shortest / 420).clamp(1.0, 1.6).toDouble()
         : 1.0;
 
@@ -272,4 +275,4 @@ double frameWidth(BuildContext context) {
 
 /// 平板（最短邊 ≥ 600）上，小圖示／頭像放大的倍數
 double tabletBoost(BuildContext context) =>
-    MediaQuery.sizeOf(context).shortestSide >= 600 ? 1.4 : 1.0;
+    MediaQuery.sizeOf(context).shortestSide >= AppResponsive.tabletShortestSide ? 1.4 : 1.0;

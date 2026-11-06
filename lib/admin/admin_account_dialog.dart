@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/admin_api.dart';
 import 'admin_theme.dart';
 import 'admin_widgets.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class AccountDialog extends StatefulWidget {
   const AccountDialog({super.key, required this.name});
 

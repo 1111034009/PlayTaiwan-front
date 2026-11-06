@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api/job_api.dart';
@@ -11,6 +11,7 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _lightText = AppColors.paper;
 const Color _cardColor = Color(0xFFF4EBD8);

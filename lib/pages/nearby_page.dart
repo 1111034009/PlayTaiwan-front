@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../block/navigationbar.dart';
@@ -7,6 +7,7 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../api/nearby_cache.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _backColor = AppColors.dangerDark;
 const Color _titleColor = Color(0xFF841D0B);
@@ -708,6 +709,7 @@ class _CategoryButtonState extends State<_CategoryButton> {
           ),
           child: Text(
             widget.text,
+            maxLines: 1,
             style: AppTextStyles.captionBold.copyWith(
               color: widget.selected ? _selectedTagText : _tagText,
             ),

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -12,6 +12,7 @@ import '../core/app_text_styles.dart';
 import 'qrcode_information_page.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class _QrScanException implements Exception {
   const _QrScanException(this.message);
 

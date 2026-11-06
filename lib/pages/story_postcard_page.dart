@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 
@@ -14,6 +14,7 @@ import '../core/app_colors.dart';
 import '../core/app_notice.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _lightText = AppColors.paper;
 const Color _white80 = Color(0xCCFFFFFF);

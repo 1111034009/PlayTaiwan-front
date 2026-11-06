@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'auth_guard.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class _NoticeItem {
   final String message;
   Timer? timer;

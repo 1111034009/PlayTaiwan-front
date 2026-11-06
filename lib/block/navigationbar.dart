@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'dart:ui';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class AppNavigationBar extends StatefulWidget {
   final int currentIndex;
 
@@ -159,7 +160,7 @@ class _NavigationItem extends StatelessWidget {
             style:
                 (selected ? AppTextStyles.microBold : AppTextStyles.captionBold)
                     .copyWith(color: AppColors.textPrimary, height: 1.0),
-            child: Text(label, textAlign: TextAlign.center),
+            child: Text(label, textAlign: TextAlign.center, maxLines: 1),
           ),
         ],
       ),

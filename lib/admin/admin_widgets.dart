@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import '../core/app_notice.dart';
 import 'admin_theme.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 String adminError(Object e) => e.toString().replaceFirst('Exception: ', '');
 
 String adminDate(dynamic v) {
@@ -101,7 +103,7 @@ Widget adminField(
       minLines: lines,
       maxLines: lines == 1 ? 1 : lines + 3,
       style: AdminText.body,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: trs(label)),
     ),
   );
 }
@@ -113,7 +115,7 @@ Widget adminIconButton(
   Color color = AdminColors.textMuted,
 }) {
   return IconButton(
-    tooltip: tip,
+    tooltip: trs(tip),
     onPressed: onPressed,
     padding: EdgeInsets.zero,
     constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -311,14 +313,14 @@ class AdminSearch extends StatelessWidget {
       onSubmitted: (_) => onSubmit(),
       style: AdminText.bodySmall,
       decoration: InputDecoration(
-        hintText: hint,
+        hint: FitHint(hint, fieldStyle: AdminText.bodySmall),
         prefixIcon: const Icon(
           Icons.search,
           size: 20,
           color: AdminColors.textMuted,
         ),
         suffixIcon: IconButton(
-          tooltip: '清除',
+          tooltip: trs('清除'),
           icon: const Icon(Icons.close, size: 18, color: AdminColors.textMuted),
           onPressed: () {
             controller.clear();
@@ -353,7 +355,7 @@ class AdminDropdown<T> extends StatelessWidget {
       child: DropdownButtonFormField<T?>(
         value: value,
         isExpanded: true,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: trs(label)),
         style: AdminText.bodySmall,
         dropdownColor: AdminColors.surface,
         items: [

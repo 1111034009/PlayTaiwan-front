@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../core/app_session.dart';
 import '../core/app_notice.dart';
+import '../core/i18n.dart';
 import 'job_api.dart';
 
 class StoryBadRequest implements Exception {
@@ -375,9 +376,13 @@ class StoryApi {
   }
 
   static Future<String> preparePrologueVoice({required String storyId}) async {
+    // 多語系：英、日文由後端先翻好前傳再用該語言發音（韓文用英文）；中文、台語、客語照中文唸
+    final String lang = AppLang.contentLang == AppLang.zhTW
+        ? ''
+        : '?lang=${Uri.encodeComponent(AppLang.code)}';
     final Map<String, dynamic> data = await _storyRequest(
       method: 'POST',
-      path: '/api/Npc/Prologue/${_cleanStoryId(storyId)}',
+      path: '/api/Npc/Prologue/${_cleanStoryId(storyId)}$lang',
       failMessage: '前傳語音產生失敗',
     );
 
@@ -405,8 +410,11 @@ class StoryApi {
     final String cleanNpcName = chosenNpc.isNotEmpty
         ? chosenNpc
         : (npcName?.trim() ?? '');
-    final String cacheKey =
-        'npc_voice_${base64Url.encode(utf8.encode('$cleanNpcName|$cleanText'))}';
+    // 不同語言唸的是不同語音檔（中文 key 照舊，已存的語音照樣用）
+    final String voiceLang = AppLang.contentLang;
+    final String cacheKey = voiceLang == AppLang.zhTW
+        ? 'npc_voice_${base64Url.encode(utf8.encode('$cleanNpcName|$cleanText'))}'
+        : 'npc_voice_${base64Url.encode(utf8.encode('$voiceLang|$cleanNpcName|$cleanText'))}';
 
     final String cachedPath = prefs.getString(cacheKey) ?? '';
 
@@ -426,6 +434,7 @@ class StoryApi {
         'text': cleanText,
         if (cleanVoice.isNotEmpty) 'voice': cleanVoice,
         if (cleanNpcName.isNotEmpty) 'npc_name': cleanNpcName,
+        if (voiceLang != AppLang.zhTW) 'lang': AppLang.code,
       },
     );
 

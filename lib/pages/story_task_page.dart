@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:image_picker/image_picker.dart';
 
 import '../route_map/api.dart';
@@ -7,6 +7,7 @@ import '../route_map/theme.dart';
 import '../core/app_notice.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 做任務：地圖頁按「做任務」打開的答題頁，這一關的題目在這裡作答。
 /// 題目、作答方式、通過了沒都問後端（GET /api/Task/Node/{id}），送出答案是 POST /api/Task/Answer；
 /// 全部通過這一關就破關：這一頁會自己關掉回地圖，地圖確認破關後解鎖下一關、跳出這一關的明信片。
@@ -636,8 +637,8 @@ class _StoryTaskPageState extends State<StoryTaskPage> {
             minLines: 1,
             maxLines: 4,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: '輸入你的答案',
+            decoration: InputDecoration(
+              hintText: trs('輸入你的答案'),
               border: OutlineInputBorder(),
               isDense: true,
             ),

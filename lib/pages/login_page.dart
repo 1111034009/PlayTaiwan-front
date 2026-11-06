@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/bgm_service.dart';
@@ -14,6 +14,8 @@ import '../api/nearby_cache.dart';
 import '../block/policy_dialog.dart';
 import 'qrcode_information_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -318,7 +320,7 @@ class _LoginPageState extends State<LoginPage> {
     final bool? result = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: '關閉忘記密碼',
+      barrierLabel: trs('關閉忘記密碼'),
       barrierColor: AppColors.dialogBarrier,
       transitionDuration: const Duration(milliseconds: 280),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -356,8 +358,12 @@ class _LoginPageState extends State<LoginPage> {
 
   InputDecoration inputDecoration({required String hintText}) {
     return InputDecoration(
-      hintText: hintText,
-      hintStyle: AppTextStyles.bodySmall.copyWith(color: hintColor),
+      // 帳號、密碼欄都置中
+      hint: FitHint(
+        hintText,
+        style: AppTextStyles.bodySmall.copyWith(color: hintColor),
+        textAlign: TextAlign.center,
+      ),
       contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 6),
       border: const UnderlineInputBorder(
         borderSide: BorderSide(color: lineColor, width: 1),
@@ -628,6 +634,33 @@ class _LoginPageState extends State<LoginPage> {
               bottom: MediaQuery.paddingOf(context).bottom + 4,
               child: Center(child: _PrivacyLink(onTap: _showPrivacyDialog)),
             ),
+          // 登入前就能換語言（看不懂中文的旅客找得到：地球圖示＋目前語言名稱）
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            right: 12,
+            child: Material(
+              color: Colors.white.withValues(alpha: .85),
+              shape: const StadiumBorder(),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () => showLanguagePicker(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.language, size: 18, color: Color(0xFF40342D)),
+                      const SizedBox(width: 6),
+                      FlutterText(
+                        AppLang.names[AppLang.code]!,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF40342D)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -835,8 +868,8 @@ class _ForgotPasswordField extends StatelessWidget {
       ),
       cursorColor: AppColors.primaryAccent,
       decoration: InputDecoration(
-        labelText: 'Email',
-        hintText: '請輸入註冊時使用的 Email',
+        labelText: trs('Email'),
+        hintText: trs('請輸入註冊時使用的 Email'),
         labelStyle: AppTextStyles.captionBold.copyWith(
           color: const Color(0xFF6F6258),
         ),
@@ -1019,7 +1052,7 @@ class _RegisterLink extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: RichText(
-        text: TextSpan(
+        text: trSpan(TextSpan(
           children: [
             TextSpan(
               text: '還沒帳號？',
@@ -1034,7 +1067,7 @@ class _RegisterLink extends StatelessWidget {
               ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

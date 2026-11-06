@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -8,6 +8,7 @@ import '../core/app_notice.dart';
 import '../block/navigationbar.dart';
 import 'story_postcard_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _background = AppColors.questionBackground;
 const Color _textColor = AppColors.textPrimary;
 const Color _optionTextColor = Color(0xFF000000);
@@ -63,7 +64,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierLabel: '線索',
+      barrierLabel: trs('線索'),
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 420),
       pageBuilder:
@@ -101,7 +102,7 @@ class _StoryQuestionPageState extends State<StoryQuestionPage> {
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierLabel: '錯題線索',
+      barrierLabel: trs('錯題線索'),
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 420),
       pageBuilder:

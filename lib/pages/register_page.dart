@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/app_notice.dart';
@@ -11,13 +11,14 @@ import '../core/app_text_styles.dart';
 import '../block/policy_dialog.dart';
 import 'merchant_register_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 InputDecoration registerInputDecoration({required String hintText}) {
   const border = UnderlineInputBorder(
     borderSide: BorderSide(color: AppColors.inputLine, width: 1),
   );
 
   return InputDecoration(
-    hintText: hintText,
+    hintText: trs(hintText),
     hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
     contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
     border: border,
@@ -401,7 +402,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                     cursorColor: AppColors.primary,
                                     decoration: registerInputDecoration(
-                                      hintText: '請輸入帳號名稱',
+                                      hintText: trs('請輸入帳號名稱'),
                                     ),
                                   ),
                                 ),
@@ -424,7 +425,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                     cursorColor: AppColors.primary,
                                     decoration: registerInputDecoration(
-                                      hintText: '請輸入 Email',
+                                      hintText: trs('請輸入 Email'),
                                     ),
                                   ),
                                 ),
@@ -440,7 +441,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     focusNode: passwordFocus,
                                     controller: passwordController,
                                     obscureText: password,
-                                    hintText: '請輸入密碼',
+                                    hintText: trs('請輸入密碼'),
                                     onToggle: () {
                                       setState(() {
                                         password = !password;
@@ -460,7 +461,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     focusNode: confirmPasswordFocus,
                                     controller: confirmPasswordController,
                                     obscureText: confirmPassword,
-                                    hintText: '再次輸入密碼',
+                                    hintText: trs('再次輸入密碼'),
                                     onToggle: () {
                                       setState(() {
                                         confirmPassword = !confirmPassword;
@@ -564,7 +565,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                       child: RichText(
                                         textAlign: TextAlign.center,
-                                        text: TextSpan(
+                                        text: trSpan(TextSpan(
                                           style: AppTextStyles.bodySmall
                                               .copyWith(
                                                 color: AppColors.textPrimary,
@@ -581,7 +582,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                                   ),
                                             ),
                                           ],
-                                        ),
+                                        )),
                                       ),
                                     ),
                                   ),
@@ -745,7 +746,7 @@ class _PasswordField extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
             cursorColor: AppColors.primary,
-            decoration: registerInputDecoration(hintText: hintText),
+            decoration: registerInputDecoration(hintText: trs(hintText)),
           ),
         ),
         Positioned(

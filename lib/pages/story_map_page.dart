@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_notice.dart';
 import '../core/app_colors.dart';
@@ -16,6 +16,7 @@ import 'nearby_page.dart';
 import 'story_play_page.dart';
 import 'story_question_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _topColor = AppColors.paper;
 
@@ -755,14 +756,14 @@ class _TreasureMapBackgroundPainter extends CustomPainter {
     );
 
     final TextPainter compassText = TextPainter(
-      text: const TextSpan(
+      text: trSpan(const TextSpan(
         text: 'N',
         style: TextStyle(
           color: Color(0x74452F20),
           fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
-      ),
+      )),
       textDirection: TextDirection.ltr,
     )..layout();
 
@@ -1590,7 +1591,7 @@ class _LocationName extends StatelessWidget {
       ),
       child: Text(
         '${location.order}. ${location.name}',
-        maxLines: 1,
+        maxLines: LangLayout.lines(1),
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
         style: AppTextStyles.captionBold.copyWith(

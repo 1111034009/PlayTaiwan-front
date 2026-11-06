@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/admin_api.dart';
 import '../core/app_session.dart';
@@ -10,6 +10,7 @@ import 'stories_page.dart';
 import 'users_page.dart';
 import 'visitor_dashboard_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class _Nav {
   const _Nav(this.id, this.label, this.icon);
   final String id;
@@ -272,7 +273,7 @@ class _Sidebar extends StatelessWidget {
                   ),
                   if (onClose != null)
                     IconButton(
-                      tooltip: '收起選單',
+                      tooltip: trs('收起選單'),
                       onPressed: onClose,
                       icon: const Icon(
                         Icons.chevron_left_rounded,
@@ -336,7 +337,7 @@ class _Sidebar extends StatelessWidget {
                           ),
                         ),
                         IconButton(
-                          tooltip: '登出',
+                          tooltip: trs('登出'),
                           onPressed: onLogout,
                           icon: const Icon(
                             Icons.logout_rounded,
@@ -422,7 +423,7 @@ class _Header extends StatelessWidget {
               children: [
                 if (compact)
                   IconButton(
-                    tooltip: '開啟選單',
+                    tooltip: trs('開啟選單'),
                     onPressed: onMenu,
                     icon: const Icon(
                       Icons.menu_rounded,
@@ -439,9 +440,18 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                 ),
+                IconButton(
+                  tooltip: 'Language／語言',
+                  onPressed: () => showLanguagePicker(context),
+                  icon: const Icon(
+                    Icons.translate_rounded,
+                    size: 22,
+                    color: AdminColors.textMuted,
+                  ),
+                ),
                 if (!compact)
                   IconButton(
-                    tooltip: '登出',
+                    tooltip: trs('登出'),
                     onPressed: onLogout,
                     icon: const Icon(
                       Icons.logout_rounded,

@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import '../core/app_text_styles.dart';
 import '../core/app_colors.dart';
+import 'package:playtaiwan/core/i18n.dart';
 const Color _taskBackground = Color(0xFFE2D8BD);
 const Color _taskText = AppColors.textPrimary;
 const Color _taskRed = AppColors.primaryAccent;

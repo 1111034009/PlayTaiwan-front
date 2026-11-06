@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -11,6 +11,7 @@ import '../core/app_responsive.dart';
 import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _cardColor = AppColors.merchantPaper;
 const Color _paperColor = AppColors.paper;
@@ -396,7 +397,7 @@ class _MerchantTaskPageState extends State<MerchantTaskPage> {
         ),
         actions: [
           IconButton(
-            tooltip: '重新載入',
+            tooltip: trs('重新載入'),
             onPressed: _isBusy || _isLoading ? null : _loadQuestions,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -688,7 +689,7 @@ class _QuestionCard extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: '題目操作',
+                tooltip: trs('題目操作'),
                 icon: const Icon(Icons.more_vert_rounded, color: _textColor),
                 onSelected: (value) {
                   if (value == 'edit') onEdit();
@@ -1091,8 +1092,8 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
 
   InputDecoration _inputDecoration({required String label, String? hint}) {
     return InputDecoration(
-      labelText: label,
-      hintText: hint,
+      labelText: trs(label),
+      hintText: trs(hint),
       labelStyle: AppTextStyles.bodySmall.copyWith(color: _textColor),
       hintStyle: AppTextStyles.caption.copyWith(
         color: _textColor.withOpacity(0.55),
@@ -1147,7 +1148,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                       ),
                     ),
                     IconButton(
-                      tooltip: '關閉',
+                      tooltip: trs('關閉'),
                       onPressed: _isUploadingImage
                           ? null
                           : () => Navigator.of(context).pop(),
@@ -1176,12 +1177,12 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                         label: '題目描述',
                         hint: '輸入店家知識問答的題目',
                       ),
-                      validator: (value) {
+                      validator: trValidator((value) {
                         if (value == null || value.trim().isEmpty) {
                           return '請輸入題目內容';
                         }
                         return null;
-                      },
+                      }),
                     ),
                     const SizedBox(height: 18),
                     Row(
@@ -1352,7 +1353,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                 ),
               ),
               IconButton(
-                tooltip: '移除此選項',
+                tooltip: trs('移除此選項'),
                 visualDensity: VisualDensity.compact,
                 onPressed: _isUploadingImage
                     ? null
@@ -1394,12 +1395,12 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
             maxLength: 300,
             style: AppTextStyles.bodySmall.copyWith(color: _textColor),
             decoration: _inputDecoration(label: '選項內容', hint: '輸入選項文字'),
-            validator: (value) {
+            validator: trValidator((value) {
               if (value == null || value.trim().isEmpty) {
                 return '請輸入選項內容';
               }
               return null;
-            },
+            }),
           ),
           if (imageUrl.isNotEmpty) ...[
             const SizedBox(height: 10),

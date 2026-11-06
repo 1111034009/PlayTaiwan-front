@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -12,6 +12,7 @@ import '../core/app_text_styles.dart';
 import '../core/app_session.dart';
 import 'past_media_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.pastBackground;
 
 const Color _darkBrown = AppColors.darkBrown;
@@ -246,7 +247,7 @@ class _PastDetailPageState extends State<PastDetailPage> {
       children: [
         Text(
           title,
-          maxLines: 1,
+          maxLines: LangLayout.lines(1),
           overflow: TextOverflow.ellipsis,
           style: AppTextStyles.heading.copyWith(color: _darkText),
         ),

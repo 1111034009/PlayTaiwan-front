@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
@@ -10,6 +10,7 @@ import 'vlog_check_page.dart';
 
 import '../block/navigationbar.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _backgroundColor = AppColors.storyBackground;
 const Color _titleColor = Colors.white;
 const Color _subtitleColor = Color(0xCCFFFFFF);
@@ -362,7 +363,7 @@ class _EndGachaMachineState extends State<_EndGachaMachine>
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
-      barrierLabel: '獎勵動畫',
+      barrierLabel: trs('獎勵動畫'),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return _FullScreenRewardOverlay(result: result);

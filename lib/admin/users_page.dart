@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/admin_api.dart';
 import 'admin_theme.dart';
 import 'admin_widgets.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const _roles = {1: '遊客', 2: '商家', 3: '管理員'};
 
 Color _roleColor(int t) => t == 3
@@ -437,7 +438,7 @@ class _UserFormState extends State<_UserForm> {
             child: DropdownButtonFormField<int>(
               value: _type,
               style: adminDropdownStyle(context),
-              decoration: const InputDecoration(labelText: '身分'),
+              decoration: InputDecoration(labelText: trs('身分')),
               items: [
                 for (final e in _roles.entries)
                   DropdownMenuItem(
@@ -453,7 +454,7 @@ class _UserFormState extends State<_UserForm> {
             child: DropdownButtonFormField<String?>(
               value: (g == 'male' || g == 'female') ? g : null,
               style: adminDropdownStyle(context),
-              decoration: const InputDecoration(labelText: '性別'),
+              decoration: InputDecoration(labelText: trs('性別')),
               items: const [
                 DropdownMenuItem(
                   value: null,
@@ -477,7 +478,7 @@ class _UserFormState extends State<_UserForm> {
               onTap: _pickBirthday,
               child: InputDecorator(
                 decoration: InputDecoration(
-                  labelText: '生日',
+                  labelText: trs('生日'),
                   suffixIcon: _birthday == null
                       ? const Icon(Icons.calendar_today_outlined, size: 18)
                       : IconButton(

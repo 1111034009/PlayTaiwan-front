@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_notice.dart';
@@ -12,6 +12,7 @@ import 'choose_script_page.dart';
 import 'dart:async';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
@@ -577,7 +578,7 @@ class _FormContent extends StatelessWidget {
             style: AppTextStyles.bodyEmphasisBold.copyWith(color: _darkText),
             cursorColor: _optionColor,
             decoration: InputDecoration(
-              hintText: '請輸入數字',
+              hintText: trs('請輸入數字'),
               hintStyle: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.mutedText,
               ),
@@ -685,11 +686,15 @@ class _FormContent extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Text(
-              '接受的最長交通時間',
-              style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
+            // 外語比較長，可以兩行
+            Expanded(
+              child: Text(
+                '接受的最長交通時間',
+                maxLines: 2,
+                style: AppTextStyles.sectionTitle.copyWith(color: _darkText),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Text(
               '${maxTravelMinutes.round()} 分鐘',
               style: AppTextStyles.bodySmallBold.copyWith(color: _optionColor),
@@ -808,6 +813,8 @@ class _ChoiceButtonState extends State<_ChoiceButton> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
+              // 外語（Taiwan Tourist Shuttle）可以兩行，放不下會縮字
+              maxLines: 2,
               style: AppTextStyles.bodySmallBold.copyWith(
                 color: widget.selected ? Colors.white : _optionColor,
               ),

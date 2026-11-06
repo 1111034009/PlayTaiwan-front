@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,6 +12,7 @@ import '../core/app_session.dart';
 import '../models/history_record.dart';
 import 'past_detail_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.pastBackground;
 const Color _subtitleText = Color(0xCCFFFFFF);
 const Color _ticketText = AppColors.textPrimary;

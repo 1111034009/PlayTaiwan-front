@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,6 +8,8 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import 'script_detail_page.dart';
 import '../core/app_responsive.dart';
+
+import 'package:playtaiwan/core/i18n.dart';
 
 class LoveStoryPage extends StatefulWidget {
   const LoveStoryPage({super.key});
@@ -357,7 +359,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
                     children: [
                       Text(
                         _text(story['title']),
-                        maxLines: 2,
+                        maxLines: LangLayout.lines(2),
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.title.copyWith(color: _darkText),
                       ),
@@ -371,10 +373,14 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
                               color: _red,
                             ),
                             const SizedBox(width: 3),
-                            Text(
-                              '$location・共 ${_text(story['node_count'])} 站',
-                              style: AppTextStyles.captionBold.copyWith(
-                                color: _darkBrown,
+                            Flexible(
+                              child: Text(
+                                '$location・共 ${_text(story['node_count'])} 站',
+                                maxLines: LangLayout.lines(1),
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.captionBold.copyWith(
+                                  color: _darkBrown,
+                                ),
                               ),
                             ),
                           ],
@@ -392,36 +398,42 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
                       ),
                       if (!isCompleted) ...[
                         const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            // 分享行事曆
-                            OutlinedButton.icon(
-                              onPressed: _isWritingCalendar
-                                  ? null
-                                  : () => _shareCalendar(story),
-                              icon: const Icon(Icons.share_rounded, size: 16),
-                              label: Text(
-                                '分享行事曆',
-                                style: AppTextStyles.captionBold.copyWith(
-                                  fontSize: AppTextStyles.captionBold.fontSize,
+                        // 一行放不下（外語比較長）就換行；寬度撐滿，按鈕才會靠右
+                        SizedBox(
+                          width: double.infinity,
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              // 分享行事曆
+                              OutlinedButton.icon(
+                                onPressed: _isWritingCalendar
+                                    ? null
+                                    : () => _shareCalendar(story),
+                                icon: const Icon(Icons.share_rounded, size: 16),
+                                label: Text(
+                                  '分享行事曆',
+                                  style: AppTextStyles.captionBold.copyWith(
+                                    fontSize:
+                                        AppTextStyles.captionBold.fontSize,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primaryDark,
+                                  side: const BorderSide(
+                                    color: AppColors.primaryDark,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                 ),
                               ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.primaryDark,
-                                side: const BorderSide(
-                                  color: AppColors.primaryDark,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            _buildCalendarButton(story),
-                          ],
+                              _buildCalendarButton(story),
+                            ],
+                          ),
                         ),
                       ],
                     ],

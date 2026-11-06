@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api/pair_api.dart';
@@ -11,6 +11,7 @@ import '../core/app_text_styles.dart';
 import 'story_play_page.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class PairLobbyPage extends StatefulWidget {
   final Map<String, dynamic> pair;
   final Map<String, dynamic>? story;

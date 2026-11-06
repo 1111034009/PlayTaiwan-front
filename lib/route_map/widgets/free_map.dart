@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,6 +15,7 @@ import '../theme.dart';
 import 'map_kit.dart';
 import 'place_ticket.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 沒有進行中的劇本時的地圖：直接抓我現在的位置，有目的地（例如小幫手推薦的地點）就一起標出來，
 /// 下面可以選交通方式，選了就用後端的路線規劃畫出從我的位置到目的地的路線。
 /// 右上的工具列跟劇本地圖一樣：找附近「吃的」「景點」、定位；點地點開卡片，按「前往」就換成那個目的地
@@ -423,7 +424,7 @@ class _FreeMapState extends State<FreeMap> {
       child: GestureDetector(
         onTap: () => _showPlace(p),
         child: Tooltip(
-          message: p.name,
+          message: trs(p.name),
           child: Container(
             decoration: BoxDecoration(
               color: p.isFood ? Pal.gold : Pal.moss,
@@ -463,7 +464,7 @@ class _FreeMapState extends State<FreeMap> {
       required bool busy,
       required Color fill,
     }) => Tooltip(
-      message: tooltip,
+      message: trs(tooltip),
       child: Material(
         color: on ? fill : Colors.transparent,
         child: InkWell(
@@ -511,7 +512,7 @@ class _FreeMapState extends State<FreeMap> {
     ) {
       final bool on = _nearbyKinds.contains(kind);
       return cell(
-        tooltip: on ? '再按一次收起來' : tooltip,
+        tooltip: trs(on ? '再按一次收起來' : tooltip),
         onTap: () => _toggleNearby(kind),
         icon: icon,
         color: color,
@@ -544,7 +545,7 @@ class _FreeMapState extends State<FreeMap> {
           nearbyCell(_photoKind, '景點', '找附近景點地標', Icons.photo_camera, Pal.moss),
           divider,
           cell(
-            tooltip: '定位',
+            tooltip: trs('定位'),
             onTap: _locating ? null : _locate,
             icon: _me != null ? Icons.my_location : Icons.location_disabled,
             color: Pal.ink,

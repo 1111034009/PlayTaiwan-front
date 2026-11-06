@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/admin_api.dart';
 import 'admin_theme.dart';
 import 'admin_widgets.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const _npcs = {1: '薯光', 2: '珍奶奶', 3: '阿達力', 4: '墨先生', 5: '霓霓', 6: '阿吉伯'};
 
 int _i(dynamic v) => (v as num?)?.toInt() ?? 0;
@@ -154,7 +155,7 @@ class _StoriesPageState extends State<StoriesPage> {
               keyboardType: TextInputType.number,
               onSubmitted: (_) => _load(page: 1),
               style: AdminText.bodySmall,
-              decoration: const InputDecoration(labelText: '用戶 ID'),
+              decoration: InputDecoration(labelText: trs('用戶 ID')),
             ),
           ),
           AdminDropdown<bool>(
@@ -251,7 +252,7 @@ class _StoriesPageState extends State<StoriesPage> {
       children: [
         Text(
           '${s['story_title'] ?? ''}',
-          maxLines: 2,
+          maxLines: LangLayout.lines(2),
           overflow: TextOverflow.ellipsis,
           style: AdminText.bodySmall.copyWith(fontWeight: FontWeight.w700),
         ),
@@ -512,7 +513,7 @@ class _StoryFormState extends State<_StoryForm> {
                     value: _npc,
                     isExpanded: true,
                     style: adminDropdownStyle(context),
-                    decoration: const InputDecoration(labelText: 'NPC'),
+                    decoration: InputDecoration(labelText: trs('NPC')),
                     items: [
                       for (final e in _npcs.entries)
                         DropdownMenuItem(

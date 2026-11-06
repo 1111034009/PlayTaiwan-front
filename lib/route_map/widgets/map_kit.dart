@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -8,6 +8,7 @@ import '../../core/app_text_styles.dart';
 import '../../core/app_notice.dart';
 import '../theme.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const _distance = Distance();
 
 /// 舊地圖的羊皮紙色調：泛黃之外整體壓暗，白色變成米黃（約 #EDE0BF）。
@@ -81,7 +82,7 @@ Widget treasureTiles() {
 Widget osmAttribution() => ValueListenableBuilder<bool>(
   valueListenable: _nlscReachable,
   builder: (context, nlsc, _) => SimpleAttributionWidget(
-    source: Text(nlsc ? '內政部國土測繪中心' : 'OpenStreetMap contributors'),
+    source: FlutterText(trs(nlsc ? '內政部國土測繪中心' : 'OpenStreetMap contributors')),
     backgroundColor: const Color(0xCCF3E4C1),
   ),
 );

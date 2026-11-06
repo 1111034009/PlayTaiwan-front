@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:image_picker/image_picker.dart';
 
 import '../api/admin_api.dart';
 import 'admin_theme.dart';
 import 'admin_widgets.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 int _i(dynamic v) => (v as num?)?.toInt() ?? 0;
 
 Map<String, dynamic> _badgeBody(Map<String, dynamic> d, {bool? isActive}) => {
@@ -449,7 +450,7 @@ class _BadgeFormState extends State<_BadgeForm> {
               value: _category,
               isExpanded: true,
               style: adminDropdownStyle(context),
-              decoration: const InputDecoration(labelText: '分類'),
+              decoration: InputDecoration(labelText: trs('分類')),
               items: [
                 for (final c in cats)
                   DropdownMenuItem(

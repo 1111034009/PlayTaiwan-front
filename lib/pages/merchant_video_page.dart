@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gal/gal.dart';
@@ -19,6 +19,7 @@ import '../core/app_session.dart';
 import '../core/app_text_styles.dart';
 import '../core/bgm_service.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _backgroundColor = Color(0xFFC4ADA0);
 const Color _cardColor = AppColors.merchantPaper;
 const Color _darkRed = AppColors.primaryAccent;

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import 'merchant_video_page.dart';
 import '../api/merchant_vlog_api.dart';
@@ -7,6 +7,7 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../block/merchant_progress_dialog.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _itemColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
 const Color _red = AppColors.primaryDark;

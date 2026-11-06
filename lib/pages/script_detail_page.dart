@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../core/app_colors.dart';
@@ -12,6 +12,7 @@ import 'choose_script_page.dart';
 import 'story_play_page.dart';
 import 'pair_lobby_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
@@ -469,21 +470,27 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
 
                                       Row(
                                         children: [
-                                          Text(
-                                            '探索總覽',
-                                            style: AppTextStyles.sectionTitle
-                                                .copyWith(color: _sectionRed),
+                                          Expanded(
+                                            child: Text(
+                                              '探索總覽',
+                                              maxLines: 1,
+                                              style: AppTextStyles.sectionTitle
+                                                  .copyWith(color: _sectionRed),
+                                            ),
                                           ),
-                                          const Spacer(),
-                                          Text(
-                                            '往上滑動看更多',
-                                            textAlign: TextAlign.center,
-                                            style: AppTextStyles.microBold
-                                                .copyWith(
-                                                  color: _darkBrown.withValues(
-                                                    alpha: 0.55,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '往上滑動看更多',
+                                              textAlign: TextAlign.right,
+                                              maxLines: 1,
+                                              style: AppTextStyles.microBold
+                                                  .copyWith(
+                                                    color: _darkBrown.withValues(
+                                                      alpha: 0.55,
+                                                    ),
                                                   ),
-                                                ),
+                                            ),
                                           ),
                                         ],
                                       ),

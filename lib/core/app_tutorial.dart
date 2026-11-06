@@ -1,11 +1,12 @@
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 import 'app_session.dart';
 import 'app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 export 'package:tutorial_coach_mark/tutorial_coach_mark.dart' show ContentAlign;
 
 class TutorialKeys {
@@ -235,7 +236,7 @@ class AppTutorial {
       opacityShadow: 0.82,
       paddingFocus: 6,
       useSafeArea: true,
-      textSkip: '跳過',
+      textSkip: trs('跳過'),
       textStyleSkip: AppTextStyles.bodySmallBold.copyWith(color: Colors.white),
       alignSkip: Alignment.topRight,
       onFinish: () {

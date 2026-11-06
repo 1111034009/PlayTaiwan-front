@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -22,6 +22,7 @@ import '../widgets/node_sheets.dart';
 import '../widgets/npc_buddy.dart';
 import '../widgets/place_ticket.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 一個劇本的藏寶圖：景點是一關一關的關卡，進度由後端決定（GET /api/Map/{story_id}）。
 /// - 地圖蓋著迷霧，只露出我走過的地方、已解鎖的景點，和走過／正要走的路線
 /// - 目前這一關的景點發亮，還沒輪到的景點是暗的（後端只給大概位置和代號）；到了現場才顯示真名
@@ -2180,7 +2181,7 @@ class _TreasureMapState extends State<TreasureMap> {
       child: GestureDetector(
         onTap: () => _showPlace(p),
         child: Tooltip(
-          message: p.name,
+          message: trs(p.name),
           child: _nearbyIcon(p.isFood, size: size, selected: selected),
         ),
       ),
@@ -2226,7 +2227,7 @@ class _TreasureMapState extends State<TreasureMap> {
       required Widget label,
       Color? fill,
     }) => Tooltip(
-      message: tooltip,
+      message: trs(tooltip),
       child: Material(
         color: fill ?? Colors.transparent,
         child: InkWell(
@@ -2243,8 +2244,10 @@ class _TreasureMapState extends State<TreasureMap> {
       ),
     );
 
+    // 工具列格子很小：只能一行，外語放不下會縮字
     Text labelText(String text, {bool on = false}) => Text(
       text,
+      maxLines: 1,
       style: TextStyle(
         fontSize: MapText.caption,
         fontWeight: FontWeight.w700,
@@ -2269,7 +2272,7 @@ class _TreasureMapState extends State<TreasureMap> {
     ) {
       final on = _nearbyKinds.contains(kind);
       return cell(
-        tooltip: on ? '再按一次收起來' : tooltip,
+        tooltip: trs(on ? '再按一次收起來' : tooltip),
         onTap: () => _toggleNearby(kind),
         fill: on ? color : null,
         icon: on && _nearbyLoading
@@ -2290,7 +2293,7 @@ class _TreasureMapState extends State<TreasureMap> {
     final busy = _locating || _checking || _planning;
     // 定位中整格填紅色，轉圈圈和字都是白色（跟上面「吃的」「景點」按下去的樣子一致）
     final locateCell = cell(
-      tooltip: '定位',
+      tooltip: trs('定位'),
       onTap: _locating ? null : _relocate,
       fill: busy ? Pal.cinnabar : null,
       icon: busy
@@ -2526,8 +2529,8 @@ class _TreasureMapState extends State<TreasureMap> {
               : (_selectedStop ?? _stage).clamp(0, total - 1),
           key: ValueKey('stage-$_stage-$_selectedStop'),
           isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: '關卡',
+          decoration: InputDecoration(
+            labelText: trs('關卡'),
             border: OutlineInputBorder(),
             isDense: true,
           ),
@@ -2627,7 +2630,8 @@ class _TreasureMapState extends State<TreasureMap> {
               children: [
                 Text(
                   text,
-                  maxLines: 2,
+                  // 日文提示比中文長，可以三行
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: MapText.body,
@@ -2639,7 +2643,7 @@ class _TreasureMapState extends State<TreasureMap> {
                 const SizedBox(height: 2),
                 Text(
                   detail,
-                  maxLines: 1,
+                  maxLines: LangLayout.lines(1),
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: MapText.caption,

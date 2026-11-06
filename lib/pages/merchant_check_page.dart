@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import 'merchant_home_page.dart';
@@ -10,6 +10,7 @@ import '../core/app_responsive.dart';
 import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.paper;
 const Color _darkText = AppColors.textPrimary;
@@ -315,7 +316,7 @@ class _MerchantCheckPageState extends State<MerchantCheckPage> {
                               ),
                               cursorColor: _red,
                               decoration: InputDecoration(
-                                hintText: '新增標籤',
+                                hintText: trs('新增標籤'),
                                 hintStyle: AppTextStyles.captionSmall.copyWith(
                                   color: _hintColor,
                                 ),
@@ -469,7 +470,7 @@ class _EditBox extends StatelessWidget {
             .copyWith(height: 1.42),
         cursorColor: _red,
         decoration: InputDecoration(
-          hintText: hint,
+          hintText: trs(hint),
           hintStyle: AppTextStyles.captionSmall.copyWith(color: _hintColor),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(10),

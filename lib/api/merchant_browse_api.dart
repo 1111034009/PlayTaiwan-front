@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/app_session.dart';
+import '../core/i18n.dart';
 
 /// 營業時間（一天一筆）
 class BrowseHour {
@@ -67,6 +68,10 @@ class BrowseCoupon {
     }
 
     if (discountType == 'percent') {
+      // 「九折」是中文（含台語、客語）的說法；其他語言改說折掉幾 %（10% off）
+      if (AppLang.contentLang != AppLang.zhTW) {
+        return tr('折扣 {0}%', [_trim(discountValue)]);
+      }
       final num pay = 100 - discountValue;
 
       return pay % 10 == 0

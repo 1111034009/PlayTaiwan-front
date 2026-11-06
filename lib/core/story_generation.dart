@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +8,7 @@ import '../block/script_generating_overlay.dart';
 import 'app_notice.dart';
 import 'auth_guard.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 /// 全域的「劇本生成中」狀態：生成不綁在某一頁上，玩家可以先回首頁，
 /// 之後點旁邊的圓形按鈕再看 loading 彈窗；生成完成後由發起的那一頁跳轉。
 class StoryGeneration extends ChangeNotifier {

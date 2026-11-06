@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -14,6 +14,8 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 const Color _pageColor = AppColors.background;
 const Color _paperColor = AppColors.card;
 const Color _paperBorder = Color(0xFF000000);
@@ -784,8 +786,8 @@ class _AccountTextField extends StatelessWidget {
       textAlign: TextAlign.center,
       style: AppTextStyles.subtitle.copyWith(color: _bodyText),
       decoration: InputDecoration(
-        counterText: '',
-        labelText: label,
+        counterText: trs(''),
+        labelText: trs(label),
         labelStyle: AppTextStyles.captionBold.copyWith(
           color: const Color(0xFF6F6258),
         ),
@@ -1417,7 +1419,7 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
 
   InputDecoration _dropDecoration(String label) {
     return InputDecoration(
-      labelText: label,
+      labelText: trs(label),
       labelStyle: AppTextStyles.captionBold.copyWith(
         color: const Color(0xFF6F6258),
       ),
@@ -1574,7 +1576,7 @@ class _MerchantEditDialogState extends State<_MerchantEditDialog> {
                 ),
               ),
               IconButton(
-                tooltip: '刪除時段',
+                tooltip: trs('刪除時段'),
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 onPressed: () {
                   setState(() {
@@ -1888,9 +1890,9 @@ class _MerchantTextField extends StatelessWidget {
       maxLength: 300,
       style: AppTextStyles.subtitle.copyWith(color: _bodyText),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: trs(label),
         alignLabelWithHint: true,
-        counterText: '',
+        counterText: trs(''),
         labelStyle: AppTextStyles.captionBold.copyWith(
           color: const Color(0xFF6F6258),
         ),
@@ -2154,7 +2156,50 @@ class _InfoCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 25),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () => showLanguagePicker(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.translate_rounded,
+                          size: 20,
+                          color: _darkText,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          // 不翻譯（外國旅客才找得到），放不下時縮字
+                          child: ShrinkToFit(
+                            minScale: LangLayout.minScaleOf(context),
+                            child: FlutterText(
+                              '語言 Language',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodySmallBold.copyWith(
+                                color: _darkText,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FlutterText(
+                          AppLang.names[AppLang.code]!,
+                          style: AppTextStyles.bodySmallBold.copyWith(
+                            color: AppColors.primaryAccent,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 19),
                 Center(
                   child: _LogoutButton(text: '登出', onTap: onLogout),
                 ),
@@ -2228,7 +2273,7 @@ class _InfoRow extends StatelessWidget {
       children: [
         Expanded(
           child: RichText(
-            text: TextSpan(
+            text: trSpan(TextSpan(
               children: [
                 TextSpan(
                   text: label,
@@ -2247,7 +2292,7 @@ class _InfoRow extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            )),
           ),
         ),
         if (showEdit) ...[const SizedBox(width: 8), _EditButton(onTap: onEdit)],

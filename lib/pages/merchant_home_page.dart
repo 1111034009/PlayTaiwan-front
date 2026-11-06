@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import 'merchant_coupon_page.dart';
@@ -13,6 +13,7 @@ import '../core/app_text_styles.dart';
 import '../core/app_responsive.dart';
 import '../core/app_tutorial.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color pageColor = AppColors.background;
 const Color paperColor = AppColors.merchantPaper;
 const Color paperBorder = Color(0xFF000000);
@@ -78,8 +79,8 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
         ),
         TutorialStep(
           target: _settingsKey,
-          title: '資訊設定',
-          text: '修改店家資訊與帳號，也能調整背景音樂',
+          title: '資訊設定・語言 Language',
+          text: '修改店家資訊與帳號、調整背景音樂，也能切換語言（English、日本語、한국어、台語、客語）',
         ),
         TutorialStep(target: _videoKey, title: '前往生成影音', text: '用 AI 生成宣傳影片'),
         TutorialStep(
@@ -363,6 +364,7 @@ class _GeneratedFileCard extends StatelessWidget {
                   Text(
                     '目前已生成檔案',
                     textAlign: TextAlign.center,
+                    maxLines: 1,
                     style: AppTextStyles.sectionTitle.copyWith(color: darkText),
                   ),
                   const SizedBox(height: 6),
@@ -495,7 +497,8 @@ class _ManagementButtonState extends State<_ManagementButton> {
               Expanded(
                 child: Text(
                   widget.title,
-                  maxLines: 1,
+                  // 外語比較長，可以兩行（放不下會縮字）
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmallBold.copyWith(
                     color: darkText,
@@ -570,9 +573,12 @@ class _SmallActionButtonState extends State<_SmallActionButton> {
                 children: [
                   Icon(widget.icon, size: 24, color: darkText),
                   const SizedBox(width: 5),
-                  Text(
-                    widget.text,
-                    style: AppTextStyles.captionBold.copyWith(color: darkText),
+                  Flexible(
+                    child: Text(
+                      widget.text,
+                      maxLines: 1,
+                      style: AppTextStyles.captionBold.copyWith(color: darkText),
+                    ),
                   ),
                 ],
               ),

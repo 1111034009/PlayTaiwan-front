@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,6 +26,7 @@ import 'play_idea_page.dart';
 import 'travel_info_page.dart';
 import 'pair_join_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
 
@@ -650,11 +651,14 @@ class _StartAdventureContent extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
               const SizedBox(width: 7),
-              Text(
-                '現在揪出發',
-                textAlign: TextAlign.left,
-                style: AppTextStyles.title.copyWith(
-                  color: AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  '現在揪出發',
+                  textAlign: TextAlign.left,
+                  maxLines: 1,
+                  style: AppTextStyles.title.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -663,6 +667,7 @@ class _StartAdventureContent extends StatelessWidget {
           Text(
             '選擇指定的地區，現在揪出發',
             textAlign: TextAlign.left,
+            maxLines: 1,
             style: AppTextStyles.bodySmallBold.copyWith(
               color: AppColors.mutedText,
             ),
@@ -739,6 +744,7 @@ class _PaperDropdown extends StatelessWidget {
         menuMaxHeight: 320,
         hint: Text(
           hint,
+          maxLines: 1,
           style: AppTextStyles.bodyCompact.copyWith(color: AppColors.mutedText),
         ),
         icon: const Icon(Icons.arrow_drop_down, color: AppColors.textPrimary),
@@ -747,9 +753,9 @@ class _PaperDropdown extends StatelessWidget {
         ),
         items: [
           if (emptyLabel != null)
-            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel!)),
+            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel!, maxLines: 1)),
           for (final item in items)
-            DropdownMenuItem<String?>(value: item, child: Text(item)),
+            DropdownMenuItem<String?>(value: item, child: Text(trArea(item), maxLines: 1)),
         ],
         onChanged: onChanged,
       ),
@@ -938,11 +944,14 @@ class _CustomAdventureContent extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
               const SizedBox(width: 7),
-              Text(
-                '遊你說了算',
-                textAlign: TextAlign.left,
-                style: AppTextStyles.title.copyWith(
-                  color: AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  '遊你說了算',
+                  textAlign: TextAlign.left,
+                  maxLines: 1,
+                  style: AppTextStyles.title.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -951,6 +960,7 @@ class _CustomAdventureContent extends StatelessWidget {
           Text(
             '你說出口的旅行，遊你說了算',
             textAlign: TextAlign.left,
+            maxLines: 1,
             style: AppTextStyles.bodySmallBold.copyWith(
               color: AppColors.mutedText,
             ),
@@ -960,7 +970,7 @@ class _CustomAdventureContent extends StatelessWidget {
           VoiceIdeaField(
             key: voiceKey,
             controller: ideaController,
-            hintText: '例如:建議輸入人數與需求，預設為1人)',
+            hintText: trs('例如:建議輸入人數與需求，預設為1人)'),
           ),
           const SizedBox(height: 10),
           // 錄音的按鈕在左邊、開始在右邊

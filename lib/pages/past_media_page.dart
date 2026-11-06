@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:share_plus/share_plus.dart';
@@ -25,6 +25,7 @@ import '../core/app_session.dart';
 import '../core/app_notice.dart';
 import '../core/bgm_service.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.pastBackground;
 const Color _videoPoster = AppColors.paper;
 

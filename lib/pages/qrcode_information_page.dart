@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/rendering.dart';
 import 'package:gal/gal.dart';
 import '../core/app_colors.dart';
@@ -8,6 +8,7 @@ import '../core/app_text_styles.dart';
 import '../core/app_notice.dart';
 import '../core/app_responsive.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 Map<String, dynamic> _asMap(dynamic value) {
   return value is Map ? Map<String, dynamic>.from(value) : {};
 }
@@ -921,8 +922,10 @@ class _NfcInformationPageState extends State<NfcInformationPage> {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 1,
+                  // 外語（Download coupon）比較長，可以兩行
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmallBold.copyWith(
                     color: foregroundColor,
                   ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
@@ -6,6 +6,7 @@ import '../core/app_responsive.dart';
 import '../block/navigationbar.dart';
 import 'script_detail_page.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _ticketText = AppColors.textPrimary;
@@ -436,8 +437,9 @@ class _ScriptTicketState extends State<_ScriptTicket> {
                     children: [
                       Expanded(
                         child: _TicketChip(
-                          text: widget.script.location,
-                          maxWidth: 80,
+                          text: _shortArea(widget.script.location),
+                          // 外語的「Hualien · Minqin Village」比中文長很多，標籤放寬（右邊按鈕前還有空間）
+                          maxWidth: LangLayout.shrinkEnabled ? 150 : 80,
                         ),
                       ),
                       const SizedBox(width: 5),
@@ -452,6 +454,14 @@ class _ScriptTicketState extends State<_ScriptTicket> {
       ),
     );
   }
+}
+
+/// 地區標籤很窄：外語時縣市用短名（Hualien、Taichung），用「・」串起來讓後面的區、里各自翻
+/// （整串送 AI 會把里名亂翻）；中文照原本
+String _shortArea(String location) {
+  if (AppLang.isChinese) return location;
+  final List<String> parts = location.split(' ');
+  return [trArea(parts.first), ...parts.skip(1)].join('・');
 }
 
 class _TicketChip extends StatelessWidget {

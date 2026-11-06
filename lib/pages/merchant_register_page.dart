@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -13,17 +13,24 @@ import '../block/merchant_register_popup.dart';
 import '../block/policy_dialog.dart';
 import '../api/merchant_register_api.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
+import '../core/lang_layout.dart';
 InputDecoration storyRegisterInputDecoration({
   required String hintText,
   Widget? suffixIcon,
+  // 要跟輸入框的 textAlign 一樣（提示字用 FitHint，不會自動跟著輸入框對齊）
+  TextAlign? hintAlign,
 }) {
   const border = UnderlineInputBorder(
     borderSide: BorderSide(color: AppColors.inputLine, width: 1),
   );
 
   return InputDecoration(
-    hintText: hintText,
-    hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
+    hint: FitHint(
+      hintText,
+      style: AppTextStyles.bodySmall.copyWith(color: AppColors.inputHint),
+      textAlign: hintAlign,
+    ),
     suffixIcon: suffixIcon,
     contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
     border: border,
@@ -739,7 +746,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
           const SizedBox(height: 3),
           TextFormField(
             controller: controller,
-            validator: validator,
+            validator: trValidator(validator),
             obscureText: obscureText,
             enableSuggestions: !obscureText,
             autocorrect: !obscureText,
@@ -757,6 +764,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
             decoration: storyRegisterInputDecoration(
               hintText: hint,
               suffixIcon: suffixIcon,
+              hintAlign: textAlign,
             ),
           ),
         ],
@@ -784,7 +792,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
         FilteringTextInputFormatter.deny(RegExp(r'[\u4E00-\u9FFF]')),
       ],
       suffixIcon: IconButton(
-        tooltip: obscureText ? '顯示密碼' : '隱藏密碼',
+        tooltip: trs(obscureText ? '顯示密碼' : '隱藏密碼'),
         padding: EdgeInsets.zero,
         splashRadius: 20,
         onPressed: onToggle,
@@ -861,6 +869,7 @@ class _StoryRegisterPageState extends State<StoryRegisterPage> {
                   decoration:
                       storyRegisterInputDecoration(
                         hintText: '輸入地點名稱或店家名稱',
+                        hintAlign: TextAlign.center,
                       ).copyWith(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,

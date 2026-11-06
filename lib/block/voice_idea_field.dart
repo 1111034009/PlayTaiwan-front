@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -11,6 +11,7 @@ import '../core/app_notice.dart';
 import '../core/app_text_styles.dart';
 import '../core/bgm_service.dart';
 
+import 'package:playtaiwan/core/i18n.dart';
 // ======================================================================
 // 「遊你說了算」的輸入欄：可打字，也可錄音。
 //
@@ -342,7 +343,7 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          hintText: widget.hintText,
+                          hintText: trs(widget.hintText),
                           hintStyle: AppTextStyles.bodyCompact.copyWith(
                             color: AppColors.mutedText,
                           ),
@@ -383,7 +384,7 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
         return [
           _RoundIcon(
             icon: Icons.mic_rounded,
-            tooltip: '語音輸入',
+            tooltip: trs('語音輸入'),
             onTap: _startRecording,
           ),
         ];
@@ -395,7 +396,7 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
             scale: Tween<double>(begin: 0.88, end: 1.08).animate(_pulse),
             child: _RoundIcon(
               icon: Icons.stop_rounded,
-              tooltip: '停止錄音',
+              tooltip: trs('停止錄音'),
               filled: true,
               onTap: _stopRecording,
             ),
@@ -403,7 +404,7 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
           const SizedBox(width: 8),
           _RoundIcon(
             icon: Icons.close_rounded,
-            tooltip: '改用手動輸入',
+            tooltip: trs('改用手動輸入'),
             onTap: _cancelRecording,
           ),
         ];
@@ -412,20 +413,20 @@ class VoiceIdeaFieldState extends State<VoiceIdeaField>
         return [
           _RoundIcon(
             icon: _playing ? Icons.stop_rounded : Icons.play_arrow_rounded,
-            tooltip: _playing ? '停止播放' : '聽一遍',
+            tooltip: trs(_playing ? '停止播放' : '聽一遍'),
             filled: _playing,
             onTap: _togglePlay,
           ),
           const SizedBox(width: 8),
           _RoundIcon(
             icon: Icons.mic_rounded,
-            tooltip: '重新錄音',
+            tooltip: trs('重新錄音'),
             onTap: _startRecording,
           ),
           const SizedBox(width: 8),
           _RoundIcon(
             icon: Icons.close_rounded,
-            tooltip: '改用手動輸入',
+            tooltip: trs('改用手動輸入'),
             onTap: _backToTyping,
           ),
         ];
@@ -449,7 +450,7 @@ class _RoundIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tooltip,
+      message: trs(tooltip),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
