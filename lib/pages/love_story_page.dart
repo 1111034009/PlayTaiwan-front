@@ -189,6 +189,7 @@ class _LoveStoryPageState extends State<LoveStoryPage> {
         builder: (_) => ScriptDetailPage(
           title: _text(story['title']),
           storyId: _text(story['story_id']),
+          partySize: int.tryParse(_text(story['party_size'])) ?? 1,
         ),
       ),
     );

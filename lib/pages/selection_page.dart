@@ -27,6 +27,7 @@ import 'travel_info_page.dart';
 import 'pair_join_page.dart';
 
 import 'package:playtaiwan/core/i18n.dart';
+
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
 
@@ -360,6 +361,8 @@ class _SelectionPageState extends State<SelectionPage> {
       fake: true,
     );
 
+    String spokenText = '';
+
     try {
       void onJob(Map<String, dynamic> job) {
         if (!gen.isCurrent(run)) return;
@@ -378,6 +381,7 @@ class _SelectionPageState extends State<SelectionPage> {
               onTranscript: (text) {
                 if (!gen.isCurrent(run)) return;
                 // 顯示「你說的是：……」，也填進輸入欄：辨識錯了可以取消後改字再送
+                spokenText = text;
                 gen.setTranscript(text);
                 _voiceKey.currentState?.showTranscript(text);
               },
@@ -399,6 +403,11 @@ class _SelectionPageState extends State<SelectionPage> {
       final dynamic data = result['data'];
       final dynamic intent = result['parsed_intent'];
 
+      // 預設單人，除非輸入（文字或語音聽到的那句）有說幾人，例如「我們三個人」「4人」
+      final int partySize = _partySizeFromText(
+        voice != null ? spokenText : idea,
+      );
+
       final String title = data is Map
           ? (data['title']?.toString().trim() ?? '')
           : '';
@@ -407,10 +416,6 @@ class _SelectionPageState extends State<SelectionPage> {
           intent is Map && intent['transportation'] is List
           ? (intent['transportation'] as List).map((e) => e.toString()).toList()
           : const [];
-      final int partySize = intent is Map
-          ? (int.tryParse(intent['traveler_count']?.toString() ?? '') ?? 1)
-          : 1;
-
       // 人可能已經離開這一頁（先回首頁了），所以用全域的 navigator 跳轉
       AuthGuard.navigatorKey.currentState?.push(
         MaterialPageRoute(
@@ -421,6 +426,7 @@ class _SelectionPageState extends State<SelectionPage> {
             townName: result['detected_town']?.toString() ?? '',
             transportation: transportation,
             partySize: partySize,
+            lockPartySize: true,
           ),
         ),
       );
@@ -430,6 +436,44 @@ class _SelectionPageState extends State<SelectionPage> {
       gen.finish();
       AppNotice.show(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  /// 從輸入的話裡找「幾人」：「3人」「三個人」「我們4位」；沒說就是 1（單人）
+  static int _partySizeFromText(String text) {
+    const Map<String, int> digits = {
+      '一': 1,
+      '二': 2,
+      '兩': 2,
+      '三': 3,
+      '四': 4,
+      '五': 5,
+      '六': 6,
+      '七': 7,
+      '八': 8,
+      '九': 9,
+    };
+
+    int? chinese(String s) {
+      if (s == '十') return 10;
+      if (s.length == 1) return digits[s];
+      if (s.length == 2 && s[0] == '十') return 10 + (digits[s[1]] ?? 0);
+      if (s.length == 2 && s[1] == '十') return (digits[s[0]] ?? 0) * 10;
+      if (s.length == 3 && s[1] == '十') {
+        return (digits[s[0]] ?? 0) * 10 + (digits[s[2]] ?? 0);
+      }
+      return null;
+    }
+
+    final RegExpMatch? m = RegExp(
+      r'(\d{1,3}|[一二兩三四五六七八九十]{1,3})\s*(?:個|位)?\s*(?:人|位|名)',
+    ).firstMatch(text);
+
+    if (m == null) return 1;
+
+    final String raw = m.group(1)!;
+    final int? n = int.tryParse(raw) ?? chinese(raw);
+
+    return n == null || n < 1 || n > 20 ? 1 : n;
   }
 
   void goToHome() {
@@ -536,43 +580,43 @@ class _SelectionPageState extends State<SelectionPage> {
             body: SafeArea(
               bottom: false,
               child: LayoutBuilder(
-              builder: (context, c) {
-                // 直式手機以寬度為準縮放;橫向則以高度為準
-                final bool portrait = c.maxHeight >= c.maxWidth;
-                final double scale = portrait
-                    ? c.maxWidth / designWidth
-                    : c.maxHeight / designHeight;
-                final double scaledWidth = designWidth * scale;
-                final double scaledHeight = designHeight * scale;
+                builder: (context, c) {
+                  // 直式手機以寬度為準縮放;橫向則以高度為準
+                  final bool portrait = c.maxHeight >= c.maxWidth;
+                  final double scale = portrait
+                      ? c.maxWidth / designWidth
+                      : c.maxHeight / designHeight;
+                  final double scaledWidth = designWidth * scale;
+                  final double scaledHeight = designHeight * scale;
 
-                final Widget canvas = SizedBox(
-                  width: scaledWidth,
-                  height: scaledHeight,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    child: SizedBox(
-                      width: designWidth,
-                      height: designHeight,
-                      child: _buildDesignStack(),
+                  final Widget canvas = SizedBox(
+                    width: scaledWidth,
+                    height: scaledHeight,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: designWidth,
+                        height: designHeight,
+                        child: _buildDesignStack(),
+                      ),
                     ),
-                  ),
-                );
+                  );
 
-                // 高度夠:跟原本一樣置中顯示
-                if (scaledHeight <= c.maxHeight + 0.5) {
-                  return Center(child: canvas);
-                }
+                  // 高度夠:跟原本一樣置中顯示
+                  if (scaledHeight <= c.maxHeight + 0.5) {
+                    return Center(child: canvas);
+                  }
 
-                // 高度不夠:不縮小畫面,改成可上下滑動
-                final EdgeInsets inset = MediaQuery.paddingOf(context);
+                  // 高度不夠:不縮小畫面,改成可上下滑動
+                  final EdgeInsets inset = MediaQuery.paddingOf(context);
 
-                return SingleChildScrollView(
-                  padding: EdgeInsets.only(bottom: inset.bottom + 8),
-                  child: Center(child: canvas),
-                );
-              },
-            ),
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.only(bottom: inset.bottom + 8),
+                    child: Center(child: canvas),
+                  );
+                },
+              ),
             ),
             bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),
           ),
@@ -753,9 +797,15 @@ class _PaperDropdown extends StatelessWidget {
         ),
         items: [
           if (emptyLabel != null)
-            DropdownMenuItem<String?>(value: null, child: Text(emptyLabel!, maxLines: 1)),
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(emptyLabel!, maxLines: 1),
+            ),
           for (final item in items)
-            DropdownMenuItem<String?>(value: item, child: Text(trArea(item), maxLines: 1)),
+            DropdownMenuItem<String?>(
+              value: item,
+              child: Text(trArea(item), maxLines: 1),
+            ),
         ],
         onChanged: onChanged,
       ),

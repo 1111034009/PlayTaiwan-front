@@ -148,7 +148,15 @@ List<_Template> _compileTemplates() {
     buffer.write(RegExp.escape(key.substring(last)));
     buffer.write(r'$');
     final fixed = pieces.fold<int>(0, (sum, piece) => sum + piece.length);
-    list.add(_Template(key, anchor, RegExp(buffer.toString(), dotAll: true), order, fixed));
+    list.add(
+      _Template(
+        key,
+        anchor,
+        RegExp(buffer.toString(), dotAll: true),
+        order,
+        fixed,
+      ),
+    );
   }
   list.sort((a, b) => b.fixedLength.compareTo(a.fixedLength));
   return list;
@@ -162,7 +170,10 @@ String? _matchTemplate(String text) {
     if (match == null) continue;
     final target = _lookup(t.key);
     if (target == null) return null;
-    final args = List<Object?>.filled(t.order.fold(0, (a, b) => b + 1 > a ? b + 1 : a), '');
+    final args = List<Object?>.filled(
+      t.order.fold(0, (a, b) => b + 1 > a ? b + 1 : a),
+      '',
+    );
     for (var g = 0; g < t.order.length; g++) {
       args[t.order[g]] = translate(match.group(g + 1) ?? '');
     }
@@ -180,13 +191,11 @@ String? _lookup(String zh) {
   return value.isEmpty ? null : value;
 }
 
-String _fill(String template, List<Object?> args) => template.replaceAllMapped(
-  _placeholder,
-  (m) {
-    final i = int.parse(m.group(1)!);
-    return i < args.length ? '${args[i] ?? ''}' : m.group(0)!;
-  },
-);
+String _fill(String template, List<Object?> args) =>
+    template.replaceAllMapped(_placeholder, (m) {
+      final i = int.parse(m.group(1)!);
+      return i < args.length ? '${args[i] ?? ''}' : m.group(0)!;
+    });
 
 /// 編號、選項代號、hashtag 開頭的字（「1. 芎林之巖」「A.康熙」「#火雞肉飯」）：前綴照留，只翻後面
 final RegExp _prefixed = RegExp(r'^(#|\d+[.、．]\s*|[A-Z][.．]\s*)(.*[㐀-鿿].*)$');
@@ -259,7 +268,8 @@ bool _isTranslation(String text) {
     final int column = AppLang._column;
     _outputs = {
       for (final List<String> row in kStrings.values)
-        if (column >= 0 && column < row.length && row[column].isNotEmpty) row[column],
+        if (column >= 0 && column < row.length && row[column].isNotEmpty)
+          row[column],
     };
     _outputsLang = AppLang.code;
   }
@@ -291,7 +301,10 @@ String translate(String text) {
     // 已經是譯文（日文常有漢字，「近くの観光スポット・名所を探す」）：原樣顯示，也不拆段
     result = text;
   } else {
-    String? found = (text.contains('\n') ? text.split('\n').map(translate).join('\n') : null) ??
+    String? found =
+        (text.contains('\n')
+            ? text.split('\n').map(translate).join('\n')
+            : null) ??
         _matchTemplate(text);
     final Match? prefixed = found == null ? _prefixed.firstMatch(text) : null;
     if (prefixed != null) {
@@ -312,13 +325,16 @@ String translate(String text) {
 
   // 介面表裡沒有的中文（劇本、NPC 台詞、景點介紹…）：英、日文交給後端翻（韓文用英文），回來前先顯示原文
   // 多行的已經逐行送過，不再整段送
-  if (result == text && !handled && AppLang.contentLang != AppLang.zhTW && !text.contains('\n')) {
+  if (result == text &&
+      !handled &&
+      AppLang.contentLang != AppLang.zhTW &&
+      !text.contains('\n')) {
     final dynamicResult = DynamicTranslator.lookup(text);
     if (dynamicResult != null) {
       result = dynamicResult;
     } else {
       DynamicTranslator.request(text);
-      return text;   // 翻好後會重畫，這次不寫進快取
+      return text; // 翻好後會重畫，這次不寫進快取
     }
   }
 
@@ -348,13 +364,16 @@ class DynamicTranslator {
   static Timer? _timer;
   static bool _sending = false;
 
-  static String? lookup(String text) => _done[AppLang.contentLang]?[text.trim()];
+  static String? lookup(String text) =>
+      _done[AppLang.contentLang]?[text.trim()];
 
   /// 還在排隊或翻譯中
-  static bool isPending(String text) => _pending.contains(text.trim()) || _inFlight.contains(text.trim());
+  static bool isPending(String text) =>
+      _pending.contains(text.trim()) || _inFlight.contains(text.trim());
 
   /// 這段字本身就是動態翻譯的結果
-  static bool isResult(String text) => _results[AppLang.contentLang]?.contains(text) ?? false;
+  static bool isResult(String text) =>
+      _results[AppLang.contentLang]?.contains(text) ?? false;
 
   /// 少於 2 個中文字的不送（單字多半是圖表標籤、縮寫）。
   /// 短的劇本標題、關卡代號、優惠券名稱、店名也要翻（外國旅客看不懂中文）：
@@ -365,9 +384,11 @@ class DynamicTranslator {
 
   static void request(String text) {
     final key = text.trim();
-    if (key.isEmpty || key.length > _maxLength || !worthTranslating(key)) return;
+    if (key.isEmpty || key.length > _maxLength || !worthTranslating(key))
+      return;
     final failedAt = _failed['${AppLang.contentLang}|$key'];
-    if (failedAt != null && DateTime.now().difference(failedAt) < _retryAfter) return;
+    if (failedAt != null && DateTime.now().difference(failedAt) < _retryAfter)
+      return;
     if (!_pending.add(key)) return;
     _timer ??= Timer(const Duration(milliseconds: 300), _flush);
   }
@@ -383,18 +404,26 @@ class DynamicTranslator {
     _inFlight.addAll(batch);
     var changed = false;
     try {
-      final base = (dotenv.env['API_BASE_URL'] ?? '').trim().replaceFirst(RegExp(r'/$'), '');
+      final base = (dotenv.env['API_BASE_URL'] ?? '').trim().replaceFirst(
+        RegExp(r'/$'),
+        '',
+      );
       final response = await http
           .post(
             Uri.parse('$base/api/Translate'),
-            headers: {'Content-Type': 'application/json', 'accept': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'accept': 'application/json',
+            },
             body: jsonEncode({'lang': lang, 'texts': batch}),
           )
           .timeout(const Duration(minutes: 3));
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       final result = (body is Map) ? body['Result'] : null;
       final list = (result is Map) ? result['translations'] : null;
-      if (response.statusCode == 200 && list is List && list.length == batch.length) {
+      if (response.statusCode == 200 &&
+          list is List &&
+          list.length == batch.length) {
         final done = _done.putIfAbsent(contentLang, () => {});
         final results = _results.putIfAbsent(contentLang, () => {});
         for (var i = 0; i < batch.length; i++) {
@@ -425,7 +454,8 @@ class DynamicTranslator {
       AppLang._cache.clear();
       AppLang.rebuildAll();
     }
-    if (_pending.isNotEmpty) _timer ??= Timer(const Duration(milliseconds: 300), _flush);
+    if (_pending.isNotEmpty)
+      _timer ??= Timer(const Duration(milliseconds: 300), _flush);
   }
 }
 
@@ -443,19 +473,25 @@ String trArea(String zh) {
   // Lienchiang (Matsu) → Matsu：外國旅客比較熟的叫法
   final Match? alias = RegExp(r'^.+ \((.+)\)$').firstMatch(name);
   if (alias != null) return alias.group(1)!;
-  final String short = name.replaceFirst(RegExp(r' (County|City|District|Township)$'), '');
+  final String short = name.replaceFirst(
+    RegExp(r' (County|City|District|Township)$'),
+    '',
+  );
   // 新竹、嘉義的縣和市只差在後面那個字：縣寫成 Co. 才分得出來
-  if (short == 'Hsinchu' || short == 'Chiayi') return name.replaceFirst(' County', ' Co.');
+  if (short == 'Hsinchu' || short == 'Chiayi')
+    return name.replaceFirst(' County', ' Co.');
   return short;
 }
 
 /// 表單驗證：錯誤訊息是 Flutter 輸入框自己畫的，不會經過這裡的 Text，先翻好再交出去。
 /// 用法：TextFormField(validator: trValidator(_validateName))
-FormFieldValidator<String>? trValidator(FormFieldValidator<String>? validator) =>
-    validator == null ? null : (String? value) => trs(validator(value));
+FormFieldValidator<String>? trValidator(
+  FormFieldValidator<String>? validator,
+) => validator == null ? null : (String? value) => trs(validator(value));
 
 /// 包在 hintText、tooltip 這類直接交給 Flutter 顯示的字串外面；可為 null
-T trs<T extends String?>(T text) => (text == null ? null : translate(text)) as T;
+T trs<T extends String?>(T text) =>
+    (text == null ? null : translate(text)) as T;
 
 /// 翻譯 TextSpan 樹裡的每段文字
 InlineSpan trSpan(InlineSpan span) {
@@ -579,27 +615,35 @@ Future<void> showLanguagePicker(BuildContext context) async {
     context: context,
     showDragHandle: true,
     builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text('語言 Language', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          ),
-          for (final code in AppLang.codes)
-            m.ListTile(
-              leading: m.Icon(
-                code == AppLang.code ? m.Icons.radio_button_checked : m.Icons.radio_button_unchecked,
+      // 矮螢幕（登入頁、橫向）選項放不下時可以捲動，不會底部溢位
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                '語言 Language',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
-              // 語言名稱一律用它自己的寫法，不翻譯
-              title: m.Text(AppLang.names[code]!),
-              subtitle: code == 'nan' || code == 'hak'
-                  ? const Text('介面文字；語音與 AI 內容維持華語')
-                  : null,
-              onTap: () => Navigator.of(sheetContext).pop(code),
             ),
-          const SizedBox(height: 8),
-        ],
+            for (final code in AppLang.codes)
+              m.ListTile(
+                leading: m.Icon(
+                  code == AppLang.code
+                      ? m.Icons.radio_button_checked
+                      : m.Icons.radio_button_unchecked,
+                ),
+                // 語言名稱一律用它自己的寫法，不翻譯
+                title: m.Text(AppLang.names[code]!),
+                subtitle: code == 'nan' || code == 'hak'
+                    ? const Text('介面文字；語音與 AI 內容維持華語')
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(code),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     ),
   );

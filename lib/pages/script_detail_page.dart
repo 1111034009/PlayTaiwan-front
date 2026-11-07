@@ -13,6 +13,7 @@ import 'story_play_page.dart';
 import 'pair_lobby_page.dart';
 
 import 'package:playtaiwan/core/i18n.dart';
+
 const Color _pageColor = AppColors.background;
 const Color _darkBrown = AppColors.darkBrown;
 const Color _darkText = AppColors.textPrimary;
@@ -35,6 +36,9 @@ class ScriptDetailPage extends StatefulWidget {
   final List<String> transportation;
   final String storyId;
   final int partySize;
+
+  /// true：只看 [partySize]（遊你說了算：預設單人，除非輸入有說幾人），不看劇本資料裡的 party_size
+  final bool lockPartySize;
   const ScriptDetailPage({
     super.key,
     this.title = '',
@@ -45,6 +49,7 @@ class ScriptDetailPage extends StatefulWidget {
     this.transportation = const [],
     this.storyId = '',
     this.partySize = 1,
+    this.lockPartySize = false,
   });
 
   @override
@@ -95,6 +100,30 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     final String id = _script?['story_id']?.toString().trim() ?? '';
 
     return id.isNotEmpty ? id : widget.storyId.trim();
+  }
+
+  /// 這個劇本是幾人劇本：優先用劇本資料裡的 party_size（後端為準），
+  /// 沒有的話用上一頁帶進來的人數（>1 才算）；都沒有回傳 null（不知道）
+  int? get _storyPartySize {
+    if (widget.lockPartySize) return widget.partySize;
+
+    final List<dynamic> candidates = [
+      _script?['story'] is Map
+          ? (_script!['story'] as Map)['party_size']
+          : null,
+      _scriptData?['party_size'],
+      _scriptData?['story'] is Map
+          ? (_scriptData!['story'] as Map)['party_size']
+          : null,
+      _script?['party_size'],
+    ];
+
+    for (final dynamic value in candidates) {
+      final int? size = int.tryParse(value?.toString() ?? '');
+      if (size != null && size > 0) return size;
+    }
+
+    return widget.partySize > 1 ? widget.partySize : null;
   }
 
   String get _preface {
@@ -305,7 +334,10 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
         'data': Map<String, dynamic>.from(result),
       };
 
-      final Map<String, dynamic>? pair = widget.partySize > 1
+      // 多人劇本 → 先組隊（產生配對碼、進組隊大廳）；單人劇本 → 直接開始。
+      // 沒有人數資訊就當單人（遊你說了算預設單人，除非輸入有說幾人）
+      final int size = _storyPartySize ?? 1;
+      final Map<String, dynamic>? pair = size > 1
           ? await PairApi.createCode(storyId: _storyId)
           : null;
 
@@ -347,223 +379,216 @@ class _ScriptDetailPageState extends State<ScriptDetailPage> {
     return Scaffold(
       backgroundColor: _pageColor,
       body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: LayoutBuilder(
-              builder: (context, c) {
-                final double carouselHeight = (c.maxHeight * 0.24).clamp(
-                  120.0,
-                  170.0,
-                );
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final double carouselHeight = (c.maxHeight * 0.24).clamp(
+                120.0,
+                170.0,
+              );
 
-                return Container(
-                  margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    MediaQuery.paddingOf(context).top + 26,
-                    24,
-                    26,
+              return Container(
+                margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  MediaQuery.paddingOf(context).top + 26,
+                  24,
+                  26,
+                ),
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('img/long_papper.png'),
+                    fit: BoxFit.fill,
                   ),
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('img/long_papper.png'),
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          _CloseButton(onTap: backToChooseScript),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: _darkText,
-                              ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        _CloseButton(onTap: backToChooseScript),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.titleLarge.copyWith(
+                              color: _darkText,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          _FavoriteButton(
-                            isFavorite: _isFavorite,
-                            loading: _isTogglingFavorite,
-                            onTap: toggleFavorite,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      SizedBox(
-                        height: carouselHeight,
-                        child: FlutterCarousel(
-                          options: FlutterCarouselOptions(
-                            height: carouselHeight,
-                            viewportFraction: 0.68,
-                            initialPage: 0,
-                            enableInfiniteScroll: true,
-                            autoPlay: false,
-                            enlargeCenterPage: true,
-                            showIndicator: false,
-                            pageSnapping: true,
-                            scrollDirection: Axis.horizontal,
-                            enlargeStrategy: CenterPageEnlargeStrategy.scale,
-                          ),
-                          items: _photoItems,
                         ),
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      Text(
-                        '←  左右滑動探索  → \n(迷霧圖片尚未解鎖)',
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.microLabel.copyWith(
-                          color: _darkBrown,
+                        const SizedBox(width: 8),
+                        _FavoriteButton(
+                          isFavorite: _isFavorite,
+                          loading: _isTogglingFavorite,
+                          onTap: toggleFavorite,
                         ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      height: carouselHeight,
+                      child: FlutterCarousel(
+                        options: FlutterCarouselOptions(
+                          height: carouselHeight,
+                          viewportFraction: 0.68,
+                          initialPage: 0,
+                          enableInfiniteScroll: true,
+                          autoPlay: false,
+                          enlargeCenterPage: true,
+                          showIndicator: false,
+                          pageSnapping: true,
+                          scrollDirection: Axis.horizontal,
+                          enlargeStrategy: CenterPageEnlargeStrategy.scale,
+                        ),
+                        items: _photoItems,
                       ),
+                    ),
 
-                      const SizedBox(height: 10),
+                    const SizedBox(height: 6),
 
-                      Expanded(
-                        child: _isLoadingDetail
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: _sectionRed,
+                    Text(
+                      '←  左右滑動探索  → \n(迷霧圖片尚未解鎖)',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.microLabel.copyWith(
+                        color: _darkBrown,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Expanded(
+                      child: _isLoadingDetail
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: _sectionRed,
+                              ),
+                            )
+                          : ScrollConfiguration(
+                              behavior: const _NoScrollbarScrollBehavior(),
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                padding: const EdgeInsets.only(
+                                  right: 8,
+                                  bottom: 14,
                                 ),
-                              )
-                            : ScrollConfiguration(
-                                behavior: const _NoScrollbarScrollBehavior(),
-                                child: SingleChildScrollView(
-                                  physics: const BouncingScrollPhysics(),
-                                  padding: const EdgeInsets.only(
-                                    right: 8,
-                                    bottom: 14,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '前傳',
-                                        style: AppTextStyles.sectionTitle
-                                            .copyWith(color: _sectionRed),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '前傳',
+                                      style: AppTextStyles.sectionTitle
+                                          .copyWith(color: _sectionRed),
+                                    ),
+
+                                    const SizedBox(height: 5),
+
+                                    Text(
+                                      _preface.isNotEmpty
+                                          ? _preface
+                                          : (_loadError ?? '目前尚未取得劇本前傳。'),
+                                      style: AppTextStyles.captionWide.copyWith(
+                                        color: _darkText,
+                                        height: 1.42,
                                       ),
+                                    ),
 
-                                      const SizedBox(height: 5),
+                                    const SizedBox(height: 14),
 
-                                      Text(
-                                        _preface.isNotEmpty
-                                            ? _preface
-                                            : (_loadError ?? '目前尚未取得劇本前傳。'),
-                                        style: AppTextStyles.captionWide
-                                            .copyWith(
-                                              color: _darkText,
-                                              height: 1.42,
-                                            ),
-                                      ),
-
-                                      const SizedBox(height: 14),
-
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              '探索總覽',
-                                              maxLines: 1,
-                                              style: AppTextStyles.sectionTitle
-                                                  .copyWith(color: _sectionRed),
-                                            ),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '探索總覽',
+                                            maxLines: 1,
+                                            style: AppTextStyles.sectionTitle
+                                                .copyWith(color: _sectionRed),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '往上滑動看更多',
-                                              textAlign: TextAlign.right,
-                                              maxLines: 1,
-                                              style: AppTextStyles.microBold
-                                                  .copyWith(
-                                                    color: _darkBrown.withValues(
-                                                      alpha: 0.55,
-                                                    ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '往上滑動看更多',
+                                            textAlign: TextAlign.right,
+                                            maxLines: 1,
+                                            style: AppTextStyles.microBold
+                                                .copyWith(
+                                                  color: _darkBrown.withValues(
+                                                    alpha: 0.55,
                                                   ),
-                                            ),
+                                                ),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
+                                    ),
 
-                                      const SizedBox(height: 6),
-                                      if (_nodes.isEmpty)
-                                        Text(
-                                          '目前尚未取得探索站點。',
-                                          style: AppTextStyles.captionWide
-                                              .copyWith(color: _darkText),
-                                        )
-                                      else
-                                        ...List.generate(_nodes.length, (
-                                          index,
-                                        ) {
-                                          final Map<String, dynamic> node =
-                                              _nodes[index];
+                                    const SizedBox(height: 6),
+                                    if (_nodes.isEmpty)
+                                      Text(
+                                        '目前尚未取得探索站點。',
+                                        style: AppTextStyles.captionWide
+                                            .copyWith(color: _darkText),
+                                      )
+                                    else
+                                      ...List.generate(_nodes.length, (index) {
+                                        final Map<String, dynamic> node =
+                                            _nodes[index];
 
-                                          return _ChapterItem(
-                                            number: '第${index + 1}站',
-                                            title: _nodeDisplayName(
-                                              node,
-                                              index,
-                                            ),
-                                          );
-                                        }),
+                                        return _ChapterItem(
+                                          number: '第${index + 1}站',
+                                          title: _nodeDisplayName(node, index),
+                                        );
+                                      }),
 
-                                      const SizedBox(height: 10),
-                                    ],
-                                  ),
+                                    const SizedBox(height: 10),
+                                  ],
                                 ),
-                              )
-                      ),
+                              ),
+                            ),
+                    ),
 
-                      const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
-                      _ConfirmButton(
-                            text: '遊玩此卷',
-                            hovering: buttonHovering,
-                            pressing: buttonPressing,
-                            loading: isConfirming,
-                            onHoverEnter: () {
-                              setState(() {
-                                buttonHovering = true;
-                              });
-                            },
+                    _ConfirmButton(
+                      text: '遊玩此卷',
+                      hovering: buttonHovering,
+                      pressing: buttonPressing,
+                      loading: isConfirming,
+                      onHoverEnter: () {
+                        setState(() {
+                          buttonHovering = true;
+                        });
+                      },
 
-                            onHoverExit: () {
-                              setState(() {
-                                buttonHovering = false;
-                              });
-                            },
+                      onHoverExit: () {
+                        setState(() {
+                          buttonHovering = false;
+                        });
+                      },
 
-                            onPress: () {
-                              setState(() {
-                                buttonPressing = true;
-                              });
-                            },
+                      onPress: () {
+                        setState(() {
+                          buttonPressing = true;
+                        });
+                      },
 
-                            onRelease: () {
-                              setState(() {
-                                buttonPressing = false;
-                              });
-                            },
+                      onRelease: () {
+                        setState(() {
+                          buttonPressing = false;
+                        });
+                      },
 
-                            onTap: confirmScript,
-                          ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      onTap: confirmScript,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
+        ),
       ),
 
       bottomNavigationBar: AppNavigationBar(currentIndex: currentIndex),

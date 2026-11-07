@@ -22,6 +22,7 @@ import 'love_story_page.dart';
 
 import 'package:playtaiwan/core/i18n.dart';
 import '../core/lang_layout.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -90,7 +91,8 @@ class _HomePageState extends State<HomePage> {
         TutorialStep(
           target: _agentKey,
           title: '探員資訊・語言 Language',
-          text: '改名字、調背景音樂、切換語言（English、日本語、한국어、台語、客語）都在這裡，也能重看教學。換語言後，畫面文字、劇本內容與 NPC 語音都會跟著換',
+          text:
+              '改名字、調背景音樂、切換語言（English、日本語、한국어、台語、客語）都在這裡，也能重看教學。換語言後，畫面文字、劇本內容與 NPC 語音都會跟著換',
           align: ContentAlign.top,
         ),
         TutorialStep(
@@ -1124,9 +1126,13 @@ class _AgentInfoDialog extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: SizedBox(
-        width: width,
-        height: 320,
+      // 高度至少 320，內容比較高（外語、大字級）就跟著長，不會底部溢位
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: width,
+          maxWidth: width,
+          minHeight: 320,
+        ),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -1136,6 +1142,7 @@ class _AgentInfoDialog extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(25, 22, 25, 18),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -1302,9 +1309,13 @@ class _EditAccountDialog extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: SizedBox(
-        width: width,
-        height: 340,
+      // 高度至少 340，內容比較高就跟著長，不會底部溢位
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: width,
+          maxWidth: width,
+          minHeight: 340,
+        ),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -1314,6 +1325,7 @@ class _EditAccountDialog extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(25, 30, 25, 25),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '編輯探員資料',

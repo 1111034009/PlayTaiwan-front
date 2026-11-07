@@ -16,6 +16,7 @@ import 'qrcode_information_page.dart';
 
 import 'package:playtaiwan/core/i18n.dart';
 import '../core/lang_layout.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -473,7 +474,8 @@ class _LoginPageState extends State<LoginPage> {
                               left: 20,
                               right: 20,
                               child: Center(
-                                child: Text(
+                                // 登入頁的標語不翻譯（用 Flutter 原本的 Text）
+                                child: FlutterText(
                                   '日遊所思，夜遊所夢',
                                   textAlign: TextAlign.center,
                                   style: AppTextStyles.titleLarge.copyWith(
@@ -645,15 +647,25 @@ class _LoginPageState extends State<LoginPage> {
                 customBorder: const StadiumBorder(),
                 onTap: () => showLanguagePicker(context),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.language, size: 18, color: Color(0xFF40342D)),
+                      const Icon(
+                        Icons.language,
+                        size: 18,
+                        color: Color(0xFF40342D),
+                      ),
                       const SizedBox(width: 6),
                       FlutterText(
                         AppLang.names[AppLang.code]!,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF40342D)),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF40342D),
+                        ),
                       ),
                     ],
                   ),
@@ -1052,22 +1064,24 @@ class _RegisterLink extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: RichText(
-        text: trSpan(TextSpan(
-          children: [
-            TextSpan(
-              text: '還沒帳號？',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textPrimary,
+        text: trSpan(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '還沒帳號？',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            TextSpan(
-              text: '前往註冊',
-              style: AppTextStyles.bodySmallBold.copyWith(
-                color: AppColors.primary,
+              TextSpan(
+                text: '前往註冊',
+                style: AppTextStyles.bodySmallBold.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-          ],
-        )),
+            ],
+          ),
+        ),
       ),
     );
   }
